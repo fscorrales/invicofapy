@@ -5,6 +5,8 @@ Date   : 14-feb-2025
 Purpose: Read, process and write SIIF's rf602 (Prespuesto de Gastos por Fuente) report
 """
 
+__all__ = []
+
 import argparse
 import asyncio
 import datetime as dt
