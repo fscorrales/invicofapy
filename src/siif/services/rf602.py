@@ -12,9 +12,16 @@ import asyncio
 import datetime as dt
 
 from playwright._impl._browser import Browser, BrowserContext, Page
-from playwright.async_api import Playwright, async_playwright
+from playwright.async_api import async_playwright
 
-from .connect import ConnectSIIF, go_to_reports, login, logout
+from .connect import (
+    ReportCategory,
+    go_to_reports,
+    login,
+    logout,
+    select_report_module,
+    select_specific_report_by_id,
+)
 
 
 # --------------------------------------------------
@@ -80,6 +87,8 @@ async def main():
             args.username, args.password, playwright=p, headless=False
         )
         await go_to_reports(connect=connect_siif)
+        await select_report_module(connect=connect_siif, module=ReportCategory.Gastos)
+        await select_specific_report_by_id(connect=connect_siif, report_id="38")
         await logout(connect=connect_siif)
 
 
@@ -89,4 +98,4 @@ if __name__ == "__main__":
     # From /invicofapy
     # .venv/Scripts/python src/siif/services/rf602.py username password
 
-    # python -m src.siif.services.rf602.py username password
+    # python -m src.siif.services.rf602 username password

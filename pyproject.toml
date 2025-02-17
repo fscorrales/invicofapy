@@ -16,6 +16,7 @@ pytest-playwright = "^0.7.0"
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.4"
 pytest-asyncio = "^0.25.3"
+ptpython = "^3.0.29"
 
 [build-system]
 requires = ["poetry-core"]

@@ -8,7 +8,14 @@ Date   : 13-feb-2025
 Purpose: Connect to SIIF
 """
 
-__all__ = ["ConnectSIIF", "login", "logout", "go_to_reports"]
+__all__ = [
+    "ConnectSIIF",
+    "login",
+    "logout",
+    "go_to_reports",
+    "select_report_module",
+    "select_specific_report_by_id",
+]
 
 import argparse
 import asyncio
@@ -78,8 +85,6 @@ async def login(
         await page.wait_for_load_state("networkidle")
     except Exception as e:
         print(f"Ocurrio un error: {e}")
-        # await context.close()
-        # await browser.close()
 
     return ConnectSIIF(
         browser=browser, context=context, home_page=page, reports_page=None
@@ -103,25 +108,40 @@ async def go_to_reports(connect: ConnectSIIF) -> None:
         print(f"La lista de paginas es: {all_pages}")
     except Exception as e:
         print(f"Ocurrio un error: {e}")
+        await logout(connect)
 
 
 # --------------------------------------------------
 async def select_report_module(connect: ConnectSIIF, module: ReportCategory) -> None:
-    cmb_modulos = await connect.reports_page.select_option(
-        "xpath=//select[@id='pt1:socModulo::content']", value=module.value
-    )
-    time.sleep(15)
+    try:
+        await connect.reports_page.click("xpath=//select[@id='pt1:socModulo::content']")
+        cmb_modulo = connect.reports_page.locator(
+            "xpath=//select[@id='pt1:socModulo::content']"
+        )
+        await cmb_modulo.select_option(value=module.value)
+        await connect.reports_page.wait_for_load_state("networkidle")
+
+    except Exception as e:
+        print(f"Error al seleccionar el módulo de reportes: {e}")
+        await logout(connect)  # Cerrar sesión en caso de error
 
 
-# # --------------------------------------------------
-# def select_specific_report_by_id(self, report_id: str) -> None:
-#     input_filter = self.get_dom_element(
-#         "//input[@id='_afrFilterpt1_afr_pc1_afr_tableReportes_afr_c1::content']"
-#     )
-#     input_filter.clear()
-#     input_filter.send_keys(report_id, Keys.ENTER)
-#     btn_siguiente = self.get_dom_element("//div[@id='pt1:pc1:btnSiguiente']")
-#     btn_siguiente.click()
+# --------------------------------------------------
+async def select_specific_report_by_id(connect: ConnectSIIF, report_id: str) -> None:
+    try:
+        input_filter = await connect.reports_page.query_selector(
+            "input[id='_afrFilterpt1_afr_pc1_afr_tableReportes_afr_c1::content']"
+        )
+        await input_filter.fill(report_id)
+        await input_filter.press("Enter")
+        btn_siguiente = await connect.reports_page.query_selector(
+            "div[id='pt1:pc1:btnSiguiente']"
+        )
+        await connect.reports_page.wait_for_load_state("networkidle")
+        await btn_siguiente.click()
+    except Exception as e:
+        print(f"Error al seleccionar el módulo de reportes: {e}")
+        await logout(connect)  # Cerrar sesión en caso de error
 
 
 # --------------------------------------------------
