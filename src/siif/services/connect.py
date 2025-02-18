@@ -19,10 +19,12 @@ __all__ = [
 
 import argparse
 import asyncio
+import os
 import time
 from dataclasses import dataclass
 from enum import Enum
 
+from dotenv import load_dotenv
 from playwright._impl._browser import Browser, BrowserContext, Page
 from playwright.async_api import Playwright, async_playwright
 
@@ -36,11 +38,39 @@ def get_args():
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
 
-    parser.add_argument("username", metavar="username", help="Username for SIIF access")
+    # parser.add_argument("username", metavar="username", help="Username for SIIF access")
 
-    parser.add_argument("password", metavar="password", help="Password for SIIF access")
+    # parser.add_argument("password", metavar="password", help="Password for SIIF access")
 
-    return parser.parse_args()
+    parser.add_argument(
+        "-u",
+        "--username",
+        help="Username for SIIF access",
+        metavar="username",
+        type=str,
+        default=None,
+    )
+
+    parser.add_argument(
+        "-p",
+        "--password",
+        help="Password for SIIF access",
+        metavar="password",
+        type=str,
+        default=None,
+    )
+
+    args = parser.parse_args()
+
+    if args.username is None or args.password is None:
+        # Load environment variables
+        load_dotenv()
+        args.username = os.getenv("SIIF_USERNAME")
+        args.password = os.getenv("SIIF_PASSWORD")
+        if args.username is None or args.password is None:
+            parser.error("Both --username and --password are required.")
+
+    return args
 
 
 # --------------------------------------------------
@@ -129,19 +159,37 @@ async def select_report_module(connect: ConnectSIIF, module: ReportCategory) -> 
 # --------------------------------------------------
 async def select_specific_report_by_id(connect: ConnectSIIF, report_id: str) -> None:
     try:
-        input_filter = await connect.reports_page.query_selector(
+        input_filter = connect.reports_page.locator(
             "input[id='_afrFilterpt1_afr_pc1_afr_tableReportes_afr_c1::content']"
         )
         await input_filter.fill(report_id)
         await input_filter.press("Enter")
-        btn_siguiente = await connect.reports_page.query_selector(
-            "div[id='pt1:pc1:btnSiguiente']"
-        )
+        btn_siguiente = connect.reports_page.locator("div[id='pt1:pc1:btnSiguiente']")
         await connect.reports_page.wait_for_load_state("networkidle")
         await btn_siguiente.click()
     except Exception as e:
         print(f"Error al seleccionar el módulo de reportes: {e}")
         await logout(connect)  # Cerrar sesión en caso de error
+
+
+# # --------------------------------------------------
+# def set_download_path(self, dir_path: str):
+#     # Path de salida
+#     params = {"behavior": "allow", "downloadPath": dir_path}
+#     self.driver.execute_cdp_cmd("Page.setDownloadBehavior", params)
+
+# # --------------------------------------------------
+# def download_file_procedure(self) -> None:
+#     self.wait.until(EC.number_of_windows_to_be(3))
+#     self.driver.switch_to.window(self.driver.window_handles[2])
+#     self.driver.close()
+#     self.driver.switch_to.window(self.driver.window_handles[1])
+
+# # --------------------------------------------------
+# def go_back_to_reports_list(self) -> None:
+#     btn_volver = self.get_dom_element("//div[@id='pt1:btnVolver']")
+#     btn_volver.click()
+#     time.sleep(1)
 
 
 # --------------------------------------------------

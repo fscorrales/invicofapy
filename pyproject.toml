@@ -11,6 +11,8 @@ package-mode = false
 python = "^3.12"
 fastapi = {extras = ["standard"], version = "^0.115.6"}
 pytest-playwright = "^0.7.0"
+numpy = "^2.2.3"
+pandas = "^2.2.3"
 
 
 [tool.poetry.group.dev.dependencies]
