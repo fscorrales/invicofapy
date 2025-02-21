@@ -123,11 +123,18 @@ class Rf602(SIIFReportManager):
 
             await input_ejercicio.clear()
             await input_ejercicio.fill(str(ejercicio))
-            print(self.siif.context.pages)
-            async with self.siif.reports_page.expect_download() as download_info:
-                await btn_get_reporte.click()
-            self.download = await download_info.value
-            print(self.siif.context.pages)
+
+            async with self.siif.context.expect_page() as popup_info:
+                async with self.siif.reports_page.expect_download() as download_info:
+                    await btn_get_reporte.click()  # Se abre el popup aquí
+
+            popup_page = await popup_info.value  # Obtener la ventana emergente
+            self.download = await download_info.value  # Obtener el archivo descargado
+
+            # Cerrar la ventana emergente (si realmente se abrió)
+            if popup_page:
+                await popup_page.close()
+
             return self.download
 
         except Exception as e:

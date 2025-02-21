@@ -234,7 +234,7 @@ class SIIFReportManager(ABC):
 
             # Si el archivo ya existe, eliminarlo antes de guardar el nuevo
             if os.path.isfile(file_path):
-                await os.remove(file_path)
+                os.remove(file_path)
 
             # Guardar el archivo descargado
             await self.download.save_as(file_path)
