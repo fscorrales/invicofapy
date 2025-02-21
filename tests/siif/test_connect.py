@@ -1,6 +1,6 @@
 import pytest
 from playwright.async_api import expect
-from siif.services.connect import go_to_reports, logout
+from siif.services.connect_siif import go_to_reports, logout
 
 # @pytest.mark.asyncio(loop_scope="session")
 # async def test_login_with_invalid_credentials():

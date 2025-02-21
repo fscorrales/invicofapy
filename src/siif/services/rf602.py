@@ -5,29 +5,23 @@ Date   : 14-feb-2025
 Purpose: Read, process and write SIIF's rf602 (Prespuesto de Gastos por Fuente) report
 """
 
-__all__ = []
+__all__ = ["Rf602"]
 
 import argparse
 import asyncio
 import datetime as dt
 import inspect
-import io
 import os
 
 import numpy as np
 import pandas as pd
 from dotenv import load_dotenv
-from playwright._impl._browser import Browser, BrowserContext, Page
-from playwright.async_api import async_playwright
+from playwright.async_api import Download, async_playwright
 
-from .connect import (
-    ConnectSIIF,
+from .connect_siif import (
     ReportCategory,
-    go_to_reports,
+    SIIFReportManager,
     login,
-    logout,
-    select_report_module,
-    select_specific_report_by_id,
 )
 
 
@@ -39,10 +33,6 @@ def get_args():
         description="Read, process and write SIIF's rf602",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
-
-    # parser.add_argument("username", metavar="username", help="Username for SIIF access")
-
-    # parser.add_argument("password", metavar="password", help="Password for SIIF access")
 
     parser.add_argument(
         "-u",
@@ -64,11 +54,13 @@ def get_args():
 
     parser.add_argument(
         "-e",
-        "--ejercicio",
-        metavar="ejercicio",
-        default=2025,
+        "--ejercicios",
+        metavar="ejercicios",
+        default=[dt.datetime.now().year],
         type=int,
-        help="Ejercicio to download from SIIF",
+        choices=range(2010, dt.datetime.now().year + 1),
+        nargs="+",
+        help="Ejercicios to download from SIIF",
     )
 
     parser.add_argument(
@@ -98,12 +90,6 @@ def get_args():
         if args.username is None or args.password is None:
             parser.error("Both --username and --password are required.")
 
-    actual_year = dt.datetime.now().year
-    if args.ejercicio < 2010 or args.ejercicio > actual_year:
-        parser.error(
-            f"--ejercicio '{args.ejercicio}' must be between 2010 and {actual_year}"
-        )
-
     if args.file and args.download:
         parser.error("You cannot use --file and --download together. Choose one.")
 
@@ -111,138 +97,141 @@ def get_args():
 
 
 # --------------------------------------------------
-async def download(
-    connect: ConnectSIIF, dir_path: str, ejercicios: list = str(dt.datetime.now().year)
-) -> None:
-    try:
-        # Getting DOM elements
-        input_ejercicio = connect.reports_page.locator(
-            "//input[@id='pt1:txtAnioEjercicio::content']"
-        )
-        btn_get_reporte = connect.reports_page.locator("//div[@id='pt1:btnVerReporte']")
-        btn_xls = connect.reports_page.locator("//input[@id='pt1:rbtnXLS::content']")
-        await btn_xls.click()
+class Rf602(SIIFReportManager):
+    # --------------------------------------------------
+    async def go_to_specific_report(self) -> None:
+        await self.select_report_module(module=ReportCategory.Gastos)
+        await self.select_specific_report_by_id(report_id="38")
 
-        # Form submit
-        if not isinstance(ejercicios, list):
-            ejercicios = [ejercicios]
-        for ejercicio in ejercicios:
+    # --------------------------------------------------
+    async def download_report(
+        self, ejercicio: str = str(dt.datetime.now().year)
+    ) -> Download:
+        try:
+            self.download = None
+            # Getting DOM elements
+            input_ejercicio = self.siif.reports_page.locator(
+                "//input[@id='pt1:txtAnioEjercicio::content']"
+            )
+            btn_get_reporte = self.siif.reports_page.locator(
+                "//div[@id='pt1:btnVerReporte']"
+            )
+            btn_xls = self.siif.reports_page.locator(
+                "//input[@id='pt1:rbtnXLS::content']"
+            )
+            await btn_xls.click()
+
             await input_ejercicio.clear()
-            await input_ejercicio.fill(ejercicio)
-            async with connect.reports_page.expect_download() as download_info:
-                # Perform the action that initiates download
+            await input_ejercicio.fill(str(ejercicio))
+            print(self.siif.context.pages)
+            async with self.siif.reports_page.expect_download() as download_info:
                 await btn_get_reporte.click()
-            download = await download_info.value
-            # # Wait for the download process to complete and save the downloaded file somewhere
-            # file_path = os.path.join(dir_path, ejercicio + "-rf602.xls")
-            # print(f"Descargando el reporte en: {file_path}")
-            # await download.save_as(file_path)
+            self.download = await download_info.value
+            print(self.siif.context.pages)
+            return self.download
 
-            file_bytes = await download.read()  # Leer el archivo en memoria
-            # Convertir los bytes a un DataFrame de pandas
-            df = pd.read_excel(io.BytesIO(file_bytes))
-            # Procesar el DataFrame (limpieza)
-            df_clean = process_dataframe(df)
-            print(df_clean)
+        except Exception as e:
+            print(f"Error al descargar el reporte: {e}")
+            await self.logout()
 
-    except Exception as e:
-        print(f"Error al descargar el reporte: {e}")
-        await logout(connect)
-
-
-# --------------------------------------------------
-def process_dataframe(self) -> pd.DataFrame:
-    """ "Transform read xls file"""
-    df = self.df
-    df["ejercicio"] = df.iloc[5, 2][-4:]
-    df = df.tail(-16)
-    df = df.loc[
-        :,
-        [
-            "ejercicio",
-            "2",
-            "3",
-            "6",
-            "7",
-            "8",
-            "9",
-            "10",
-            "13",
-            "14",
-            "15",
-            "16",
-            "18",
-            "20",
-        ],
-    ]
-    df = df.replace(to_replace="", value=None)
-    df = df.dropna(subset=["2"])
-    df = df.rename(
-        columns={
-            "2": "programa",
-            "3": "subprograma",
-            "6": "proyecto",
-            "7": "actividad",
-            "8": "partida",
-            "9": "fuente",
-            "10": "org",
-            "13": "credito_original",
-            "14": "credito_vigente",
-            "15": "comprometido",
-            "16": "ordenado",
-            "18": "saldo",
-            "20": "pendiente",
-        }
-    )
-    df["programa"] = df["programa"].str.zfill(2)
-    df["subprograma"] = df["subprograma"].str.zfill(2)
-    df["proyecto"] = df["proyecto"].str.zfill(2)
-    df["actividad"] = df["actividad"].str.zfill(2)
-    df["grupo"] = df["partida"].str[0] + "00"
-    df["estructura"] = (
-        df["programa"]
-        + "-"
-        + df["subprograma"]
-        + "-"
-        + df["proyecto"]
-        + "-"
-        + df["actividad"]
-        + "-"
-        + df["partida"]
-    )
-    df = df.loc[
-        :,
-        [
-            "ejercicio",
-            "estructura",
-            "fuente",
-            "programa",
-            "subprograma",
-            "proyecto",
-            "actividad",
-            "grupo",
-            "partida",
-            "org",
+    # --------------------------------------------------
+    async def process_dataframe(self, dataframe: pd.DataFrame = None) -> pd.DataFrame:
+        """ "Transform read xls file"""
+        if dataframe is None:
+            df = self.df.copy()
+        else:
+            df = dataframe.copy()
+        df["ejercicio"] = df.iloc[5, 2][-4:]
+        df = df.tail(-16)
+        df = df.loc[
+            :,
+            [
+                "ejercicio",
+                "2",
+                "3",
+                "6",
+                "7",
+                "8",
+                "9",
+                "10",
+                "13",
+                "14",
+                "15",
+                "16",
+                "18",
+                "20",
+            ],
+        ]
+        df = df.replace(to_replace="", value=None)
+        df = df.dropna(subset=["2"])
+        df = df.rename(
+            columns={
+                "2": "programa",
+                "3": "subprograma",
+                "6": "proyecto",
+                "7": "actividad",
+                "8": "partida",
+                "9": "fuente",
+                "10": "org",
+                "13": "credito_original",
+                "14": "credito_vigente",
+                "15": "comprometido",
+                "16": "ordenado",
+                "18": "saldo",
+                "20": "pendiente",
+            }
+        )
+        df["programa"] = df["programa"].str.zfill(2)
+        df["subprograma"] = df["subprograma"].str.zfill(2)
+        df["proyecto"] = df["proyecto"].str.zfill(2)
+        df["actividad"] = df["actividad"].str.zfill(2)
+        df["grupo"] = df["partida"].str[0] + "00"
+        df["estructura"] = (
+            df["programa"]
+            + "-"
+            + df["subprograma"]
+            + "-"
+            + df["proyecto"]
+            + "-"
+            + df["actividad"]
+            + "-"
+            + df["partida"]
+        )
+        df = df.loc[
+            :,
+            [
+                "ejercicio",
+                "estructura",
+                "fuente",
+                "programa",
+                "subprograma",
+                "proyecto",
+                "actividad",
+                "grupo",
+                "partida",
+                "org",
+                "credito_original",
+                "credito_vigente",
+                "comprometido",
+                "ordenado",
+                "saldo",
+                "pendiente",
+            ],
+        ]
+        to_numeric_cols = [
             "credito_original",
             "credito_vigente",
             "comprometido",
             "ordenado",
             "saldo",
             "pendiente",
-        ],
-    ]
-    to_numeric_cols = [
-        "credito_original",
-        "credito_vigente",
-        "comprometido",
-        "ordenado",
-        "saldo",
-        "pendiente",
-    ]
-    df[to_numeric_cols] = df[to_numeric_cols].apply(pd.to_numeric).astype(np.float64)
+        ]
+        df[to_numeric_cols] = (
+            df[to_numeric_cols].apply(pd.to_numeric).astype(np.float64)
+        )
 
-    self.df = df
-    return self.df
+        self.clean_df = df
+        return self.clean_df
 
 
 # --------------------------------------------------
@@ -251,19 +240,32 @@ async def main():
 
     args = get_args()
 
-    dir_path = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+    save_path = os.path.dirname(
+        os.path.abspath(inspect.getfile(inspect.currentframe()))
+    )
 
     async with async_playwright() as p:
         connect_siif = await login(
             args.username, args.password, playwright=p, headless=False
         )
-        await go_to_reports(connect=connect_siif)
-        await select_report_module(connect=connect_siif, module=ReportCategory.Gastos)
-        await select_specific_report_by_id(connect=connect_siif, report_id="38")
-        await download(
-            connect=connect_siif, dir_path=dir_path, ejercicios=str(args.ejercicio)
-        )
-        await logout(connect=connect_siif)
+        try:
+            rf602 = Rf602(siif=connect_siif)
+            await rf602.go_to_reports()
+            await rf602.go_to_specific_report()
+            for ejercicio in args.ejercicios:
+                await rf602.download_report(ejercicio=str(ejercicio))
+                await rf602.save_xls_file(
+                    save_path=save_path,
+                    file_name=str(ejercicio) + "-rf602.xls",
+                )
+                await rf602.read_xls_file()
+                print(rf602.df)
+                await rf602.process_dataframe()
+                print(rf602.clean_df)
+        except Exception as e:
+            print(f"Error al iniciar sesión: {e}")
+        finally:
+            await rf602.logout()
 
 
 # --------------------------------------------------

@@ -5,7 +5,7 @@ import pytest
 import pytest_asyncio
 from dotenv import load_dotenv
 from playwright.async_api import async_playwright
-from siif.services.connect import login, logout
+from siif.services.connect_siif import login, logout
 
 
 @pytest.fixture(scope="session", autouse=True)

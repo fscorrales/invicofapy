@@ -13,6 +13,7 @@ fastapi = {extras = ["standard"], version = "^0.115.6"}
 pytest-playwright = "^0.7.0"
 numpy = "^2.2.3"
 pandas = "^2.2.3"
+xlrd = "^2.0.1"
 
 
 [tool.poetry.group.dev.dependencies]
