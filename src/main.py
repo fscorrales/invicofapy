@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
-# from .api.routes import api_router, auth_router
+from .siif.routes import siif_router
 
 # tags_metadata = [
 #     {"name": "Auth"},
@@ -12,8 +12,8 @@ from fastapi.middleware.cors import CORSMiddleware
 # app = FastAPI(title="Final Project API", openapi_tags=tags_metadata)
 app = FastAPI(title="Final Project API")
 
-# # Include our API routes
-# app.include_router(api_router)
+# Include our API routes
+app.include_router(siif_router)
 # # Let's include our auth routes aside from the API routes
 # app.include_router(auth_router)
 
