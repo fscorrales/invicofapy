@@ -1,6 +1,7 @@
 import pytest
 from playwright.async_api import expect
-from siif.services.connect_siif import go_to_reports, logout
+
+from siif.handlers.connect_siif import go_to_reports, logout
 
 # @pytest.mark.asyncio(loop_scope="session")
 # async def test_login_with_invalid_credentials():
@@ -36,6 +37,6 @@ class TestSIIFConnection:
     async def test_logout(self, setup_and_teardown_siif):
         siif = setup_and_teardown_siif
         await logout(siif)
-        assert await siif.home_page.locator(
-            "id=pt1:it1::content"
-        ).is_visible(), "No se redirigió a la página de login después del logout."
+        assert await siif.home_page.locator("id=pt1:it1::content").is_visible(), (
+            "No se redirigió a la página de login después del logout."
+        )
