@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .siif.routes import siif_router
@@ -27,7 +27,4 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
-@app.get("/", include_in_schema=False)
-def home(request: Request):
-    return {"message": "Hello World"}
+# uvicorn src.main:app --loop asyncio

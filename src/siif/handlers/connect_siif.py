@@ -158,8 +158,15 @@ class SIIFReportManager(ABC):
     clean_df: pd.DataFrame = None
 
     # --------------------------------------------------
-    async def login(self, username: str, password: str) -> ConnectSIIF:
-        self.siif = await login(username=username, password=password)
+    async def login(
+        self, username: str, password: str, playwright: Playwright, headless: bool
+    ) -> ConnectSIIF:
+        self.siif = await login(
+            username=username,
+            password=password,
+            playwright=playwright,
+            headless=headless,
+        )
         return self.siif
 
     # --------------------------------------------------

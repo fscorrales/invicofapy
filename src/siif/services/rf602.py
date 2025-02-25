@@ -7,6 +7,7 @@ from fastapi import Depends
 from playwright.async_api import async_playwright
 
 from ..handlers import Rf602
+from ..models import StoredRf602
 
 load_dotenv()
 username = os.getenv("SIIF_USERNAME")
@@ -17,7 +18,9 @@ class Rf602Service:
     def __init__(self) -> None:
         self.rf602 = Rf602()
 
-    async def download_report(self, ejercicio: str = str(dt.datetime.now().year)):
+    async def download_report(
+        self, ejercicio: str = str(dt.datetime.now().year)
+    ) -> StoredRf602:
         async with async_playwright() as p:
             await self.rf602.login(
                 username=username, password=password, playwright=p, headless=False

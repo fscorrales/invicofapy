@@ -15,7 +15,7 @@ def load_env(request):
     load_dotenv(env_path)
 
 
-@pytest_asyncio.fixture(scope="session", autouse=True)
+@pytest_asyncio.fixture(scope="class", autouse=True)
 async def setup_and_teardown_siif(load_env):
     async with async_playwright() as p:
         siif_connection = await login(

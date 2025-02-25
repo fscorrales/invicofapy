@@ -20,14 +20,17 @@ from siif.handlers.connect_siif import go_to_reports, logout
 #             await logout(siif_connection)
 
 
-@pytest.mark.asyncio(loop_scope="session")
+@pytest.mark.siif_connect
+@pytest.mark.asyncio(loop_scope="function")
 @pytest.mark.usefixtures("setup_and_teardown_siif")
 class TestSIIFConnection:
+    @pytest.mark.siif_login
     async def test_login_with_valid_credentials(self, setup_and_teardown_siif):
         siif = setup_and_teardown_siif
         assert siif is not None
         await expect(siif.home_page.locator("id=pt1:cb12")).to_be_visible()
 
+    @pytest.mark.siif_reports
     async def test_go_to_reports(self, setup_and_teardown_siif):
         siif = setup_and_teardown_siif
         await go_to_reports(siif)
