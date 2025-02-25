@@ -15,7 +15,6 @@ import os
 
 import numpy as np
 import pandas as pd
-from dotenv import load_dotenv
 from playwright.async_api import Download, async_playwright
 
 from .connect_siif import (
@@ -83,10 +82,10 @@ def get_args():
     args = parser.parse_args()
 
     if args.username is None or args.password is None:
-        # Load environment variables
-        load_dotenv()
-        args.username = os.getenv("SIIF_USERNAME")
-        args.password = os.getenv("SIIF_PASSWORD")
+        from ...config import SIIF_PASSWORD, SIIF_USERNAME
+
+        args.username = SIIF_USERNAME
+        args.password = SIIF_PASSWORD
         if args.username is None or args.password is None:
             parser.error("Both --username and --password are required.")
 
@@ -281,4 +280,4 @@ if __name__ == "__main__":
     # From /invicofapy
     # .venv/Scripts/python src/siif/services/rf602.py
 
-    # python -m src.siif.services.rf602
+    # python -m src.siif.handlers.rf602

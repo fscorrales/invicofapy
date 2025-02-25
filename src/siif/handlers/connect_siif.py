@@ -27,7 +27,6 @@ from enum import Enum
 from pathlib import Path
 
 import pandas as pd
-from dotenv import load_dotenv
 from playwright._impl._browser import Browser, BrowserContext, Page
 from playwright.async_api import Download, Playwright, async_playwright
 
@@ -40,10 +39,6 @@ def get_args():
         description="Connect to SIIF",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
-
-    # parser.add_argument("username", metavar="username", help="Username for SIIF access")
-
-    # parser.add_argument("password", metavar="password", help="Password for SIIF access")
 
     parser.add_argument(
         "-u",
@@ -66,10 +61,10 @@ def get_args():
     args = parser.parse_args()
 
     if args.username is None or args.password is None:
-        # Load environment variables
-        load_dotenv()
-        args.username = os.getenv("SIIF_USERNAME")
-        args.password = os.getenv("SIIF_PASSWORD")
+        from ...config import SIIF_PASSWORD, SIIF_USERNAME
+
+        args.username = SIIF_USERNAME
+        args.password = SIIF_PASSWORD
         if args.username is None or args.password is None:
             parser.error("Both --username and --password are required.")
 
@@ -144,6 +139,28 @@ async def go_to_reports(connect: ConnectSIIF) -> None:
 
 
 # --------------------------------------------------
+async def read_xls_file(file_path: Path) -> pd.DataFrame:
+    """Read xls file"""
+    try:
+        with open(file_path, "rb") as f:
+            file_bytes = f.read()
+        # Convertir a DataFrame en memoria
+        df = pd.read_excel(
+            io.BytesIO(file_bytes),
+            index_col=None,
+            header=None,
+            na_filter=False,
+            dtype=str,
+        )
+        df.columns = [str(x) for x in range(df.shape[1])]
+        return df
+
+    except Exception as e:
+        print(f"Error al leer el archivo: {e}")
+        return None
+
+
+# --------------------------------------------------
 async def logout(connect: ConnectSIIF) -> None:
     await connect.home_page.locator("id=pt1:pt_np1:pt_cni1").click()
     await connect.home_page.wait_for_load_state("networkidle")
@@ -208,18 +225,7 @@ class SIIFReportManager(ABC):
                         "No se ha leído el archivo. 'self.download' es None."
                     )
                 file_path = await self.download.path()
-            with open(file_path, "rb") as f:
-                file_bytes = f.read()
-            # Convertir a DataFrame en memoria
-            df = pd.read_excel(
-                io.BytesIO(file_bytes),
-                index_col=None,
-                header=None,
-                na_filter=False,
-                dtype=str,
-            )
-            df.columns = [str(x) for x in range(df.shape[1])]
-            self.df = df
+            self.df = await read_xls_file(file_path=file_path)
             return self.df
 
         except Exception as e:
@@ -304,4 +310,4 @@ async def main():
 if __name__ == "__main__":
     asyncio.run(main())
     # From /invicofapy
-    # .venv/Scripts/python src/siif/utils/connect.py username password
+    # python -m src.siif.handlers.connect_siif

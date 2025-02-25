@@ -25,18 +25,13 @@ class TestRf602:
             self.rf602.siif.reports_page.locator("id=pt1:txtAnioEjercicio::content")
         ).to_be_visible()
 
-    async def test_download_report(self):
+    async def test_download_report_process_and_save(self, tmp_path):
         # Descargar el reporte para el año actual
         download = await self.rf602.download_report(
             ejercicio=str(dt.datetime.now().year)
         )
         assert download is not None, "No se pudo descargar el reporte."
-
-    async def test_process_dataframe(self):
-        # Leer el archivo descargado
         await self.rf602.read_xls_file()
-
-        # Procesar el DataFrame
         processed_df = await self.rf602.process_dataframe()
 
         # Verificar que el DataFrame procesado no está vacío
@@ -64,11 +59,17 @@ class TestRf602:
         assert all(col in processed_df.columns for col in expected_columns), (
             "Faltan columnas en el DataFrame procesado."
         )
-
-    async def test_save_xls_file(self, tmp_path):
         # Guardar el archivo en un directorio temporal
         save_path = tmp_path / "test_rf602.xls"
         await self.rf602.save_xls_file(save_path=tmp_path, file_name="test_rf602.xls")
 
         # Verificar que el archivo se ha guardado correctamente
         assert save_path.exists(), "El archivo no se ha guardado correctamente."
+
+    # async def test_save_xls_file(self, tmp_path):
+    #     # Guardar el archivo en un directorio temporal
+    #     save_path = tmp_path / "test_rf602.xls"
+    #     await self.rf602.save_xls_file(save_path=tmp_path, file_name="test_rf602.xls")
+
+    #     # Verificar que el archivo se ha guardado correctamente
+    #     assert save_path.exists(), "El archivo no se ha guardado correctamente."
