@@ -1,5 +1,6 @@
 from fastapi import APIRouter
 
+from ..models import Rf602ValidationOutput
 from ..services import Rf602ServiceDependency
 
 rf602_router = APIRouter(prefix="/rf602", tags=["SIIF - rf602"])
@@ -9,8 +10,8 @@ rf602_router = APIRouter(prefix="/rf602", tags=["SIIF - rf602"])
 async def siif_download(
     ejercicio: str,
     service: Rf602ServiceDependency,
-):
-    return await service.download_report(ejercicio=ejercicio)
+) -> Rf602ValidationOutput:
+    return await service.download_report_and_store(ejercicio=ejercicio)
 
 
 # @rf602_router.post("/start_playwright")

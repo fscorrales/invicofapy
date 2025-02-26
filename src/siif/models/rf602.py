@@ -1,6 +1,10 @@
-__all__ = ["StoredRf602"]
+__all__ = ["StoredRf602", "Rf602ValidationOutput"]
 
-from pydantic import BaseModel, PositiveFloat
+from typing import List
+
+from pydantic import BaseModel, NonNegativeFloat
+
+from ...utils import ErrorsWithDocId
 
 
 class StoredRf602(BaseModel):
@@ -14,9 +18,14 @@ class StoredRf602(BaseModel):
     grupo: str
     partida: str
     org: str
-    credito_original: PositiveFloat
-    credito_vigente: PositiveFloat
-    comprometido: PositiveFloat
-    ordenado: PositiveFloat
+    credito_original: NonNegativeFloat
+    credito_vigente: NonNegativeFloat
+    comprometido: NonNegativeFloat
+    ordenado: NonNegativeFloat
     saldo: float
     pendiente: float
+
+
+class Rf602ValidationOutput(BaseModel):
+    errors: List[ErrorsWithDocId]
+    validated: List[StoredRf602]

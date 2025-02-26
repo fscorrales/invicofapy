@@ -18,7 +18,7 @@ load_dotenv(env_path)
 # Set environment variables
 SIIF_USERNAME = os.getenv("SIIF_USERNAME", None)
 SIIF_PASSWORD = os.getenv("SIIF_PASSWORD", None)
-MONGODB_URI = os.getenv("MONGODB_URI", "mongodb://127.0.0.1:27017/invico_api")
+MONGODB_URI = os.getenv("MONGODB_URI", "mongodb://127.0.0.1:27017/invico")
 
 
 # JWT_SECRET = os.getenv("JWT_SECRET", "super_secret_key")
