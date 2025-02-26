@@ -18,7 +18,7 @@ class Rf602Service:
         self.collection = db[collection_name]
         self.rf602 = Rf602()
 
-    async def download_report_and_store(
+    async def download_and_update(
         self, ejercicio: int = dt.datetime.now().year
     ) -> Rf602ValidationOutput:
         """Downloads a report from SIIF, processes it, validates the data,
