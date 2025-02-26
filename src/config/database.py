@@ -2,9 +2,8 @@ __all__ = ["db", "COLLECTIONS"]
 
 from motor.motor_asyncio import AsyncIOMotorClient
 
-from .__base_config import MONGODB_URI, logger
+from .__base_config import MONGO_DB_NAME, MONGODB_URI, logger
 
-MONGO_DB_NAME = "invico"
 COLLECTIONS = ["siif_rf602"]
 
 # Inicializar la conexión con MongoDB

@@ -2,6 +2,7 @@ __all__ = [
     "SIIF_USERNAME",
     "SIIF_PASSWORD",
     "MONGODB_URI",
+    "MONGO_DB_NAME",
     "logger",
 ]
 
@@ -18,7 +19,8 @@ load_dotenv(env_path)
 # Set environment variables
 SIIF_USERNAME = os.getenv("SIIF_USERNAME", None)
 SIIF_PASSWORD = os.getenv("SIIF_PASSWORD", None)
-MONGODB_URI = os.getenv("MONGODB_URI", "mongodb://127.0.0.1:27017/invico")
+MONGODB_URI = os.getenv("MONGODB_URI", "mongodb://127.0.0.1:27017/INVICO")
+MONGO_DB_NAME = os.getenv("MONGO_DB_NAME", "invico")
 
 
 # JWT_SECRET = os.getenv("JWT_SECRET", "super_secret_key")

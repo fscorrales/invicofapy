@@ -11,7 +11,7 @@ async def siif_download(
     ejercicio: str,
     service: Rf602ServiceDependency,
 ) -> Rf602ValidationOutput:
-    return await service.download_report_and_store(ejercicio=ejercicio)
+    return await service.download_and_update(ejercicio=ejercicio)
 
 
 # @rf602_router.post("/start_playwright")
