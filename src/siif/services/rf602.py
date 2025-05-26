@@ -6,7 +6,7 @@ from fastapi.encoders import jsonable_encoder
 from playwright.async_api import async_playwright
 from pydantic import ValidationError
 
-from ...config import COLLECTIONS, SIIF_PASSWORD, SIIF_USERNAME, db, logger
+from ...config import settings, db, logger
 from ...utils import validate_and_extract_data_from_df
 from ..handlers import Rf602
 from ..models import Rf602ValidationOutput, StoredRf602
@@ -14,7 +14,7 @@ from ..models import Rf602ValidationOutput, StoredRf602
 
 class Rf602Service:
     def __init__(self) -> None:
-        assert (collection_name := "siif_rf602") in COLLECTIONS
+        assert (collection_name := "siif_rf602") in settings.COLLECTIONS
         self.collection = db[collection_name]
         self.rf602 = Rf602()
 
@@ -33,8 +33,8 @@ class Rf602Service:
         async with async_playwright() as p:
             try:
                 await self.rf602.login(
-                    username=SIIF_USERNAME,
-                    password=SIIF_PASSWORD,
+                    username=settings.SIIF_USERNAME,
+                    password=settings.SIIF_PASSWORD,
                     playwright=p,
                     headless=False,
                 )

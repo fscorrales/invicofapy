@@ -61,10 +61,10 @@ def get_args():
     args = parser.parse_args()
 
     if args.username is None or args.password is None:
-        from ...config import SIIF_PASSWORD, SIIF_USERNAME
+        from ...config import settings
 
-        args.username = SIIF_USERNAME
-        args.password = SIIF_PASSWORD
+        args.username = settings.SIIF_USERNAME
+        args.password = settings.SIIF_PASSWORD
         if args.username is None or args.password is None:
             parser.error("Both --username and --password are required.")
 
