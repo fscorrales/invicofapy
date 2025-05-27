@@ -9,7 +9,7 @@ from pydantic import ValidationError
 from ...config import settings, db, logger
 from ...utils import validate_and_extract_data_from_df
 from ..handlers import Rf602
-from ..models import Rf602ValidationOutput, StoredRf602
+from ..schemas import Rf602ValidationOutput, StoredRf602
 
 
 class Rf602Service:

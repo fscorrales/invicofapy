@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from ..models import Rf602ValidationOutput
+from ..schemas import Rf602ValidationOutput
 from ..services import Rf602ServiceDependency
 
 rf602_router = APIRouter(prefix="/rf602", tags=["SIIF - rf602"])

@@ -4,7 +4,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Form, Response
 
-from ..models import LoginUser
+from ..schemas import LoginUser
 from ..services import (
     AuthenticationDependency,
     # AuthorizationDependency,

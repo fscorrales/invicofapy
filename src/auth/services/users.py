@@ -8,7 +8,7 @@ from ...config import COLLECTIONS, Database
 
 # from pydantic_mongo import PydanticObjectId
 from ...utils import PyObjectId
-from ..models import (
+from ..schemas import (
     CreateUser,
     # UpdateUser,
     # FilterParamsUser,
