@@ -13,7 +13,8 @@ ModelType = TypeVar("ModelType", bound=BaseModel)
 
 MONGO_DB_NAME = "invico"
 COLLECTIONS = [
-    "siif_rf602"
+    "users",
+    "siif_rf602",
 ]
 
 
