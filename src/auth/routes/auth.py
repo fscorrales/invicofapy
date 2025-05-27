@@ -14,6 +14,7 @@ from ..services import (
 auth_router = APIRouter(prefix="/auth", tags=["Auth"])
 
 
+# -------------------------------------------------
 @auth_router.post("/login")
 async def login_with_cookie(
     user: Annotated[LoginUser, Form()],
@@ -21,7 +22,7 @@ async def login_with_cookie(
     users: UsersServiceDependency,
     auth: AuthenticationDependency,
 ):
-    db_user = await users.get_one(username=user.username, with_password=True)
+    db_user = await users.get_one(email=user.email, with_password=True)
     return auth.login_and_set_access_token(
         user=user, db_user=db_user, response=response
     )
@@ -32,6 +33,7 @@ async def login_with_cookie(
 #     return auth.get_current_user(id=ObjectId(security.auth_user_id))
 
 
+# -------------------------------------------------
 @auth_router.post("/logout", include_in_schema=False)
 def logout():
     pass
