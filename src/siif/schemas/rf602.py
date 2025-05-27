@@ -1,13 +1,15 @@
-__all__ = ["StoredRf602", "Rf602ValidationOutput"]
+__all__ = ["Rf602", "StoredRf602", "Rf602ValidationOutput"]
 
 from typing import List
 
-from pydantic import BaseModel, NonNegativeFloat
+from pydantic import BaseModel, NonNegativeFloat, Field
+from pydantic_mongo import PydanticObjectId
 
 from ...utils import ErrorsWithDocId
 
 
-class StoredRf602(BaseModel):
+# -------------------------------------------------
+class Rf602(BaseModel):
     ejercicio: str
     estructura: str
     fuente: str
@@ -25,7 +27,12 @@ class StoredRf602(BaseModel):
     saldo: float
     pendiente: float
 
+# -------------------------------------------------
+class StoredRf602(FCI):
+    id: PydanticObjectId = Field(alias="_id")
 
+
+# -------------------------------------------------
 class Rf602ValidationOutput(BaseModel):
     errors: List[ErrorsWithDocId]
     validated: List[StoredRf602]
