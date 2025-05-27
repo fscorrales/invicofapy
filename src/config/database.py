@@ -61,9 +61,11 @@ class BaseRepository(Generic[ModelType]):
                 )
 
         result = await self.collection.insert_one(doc)
-        doc["_id"] = result.inserted_id  # agregamos el _id devuelto por Mongo
+        # doc["_id"] = result.inserted_id  # agregamos el _id devuelto por Mongo
 
-        return self.model(**doc)  # devolvés el modelo reconstruido con _id incluido
+        # return self.model(**doc)  # devolvés el modelo reconstruido con _id incluido
+        return result
+
 
     # -------------------------------------------------
     async def save_all(self, data: List[ModelType]) -> List[ModelType]:
@@ -219,28 +221,3 @@ class BaseRepository(Generic[ModelType]):
         docs = await cursor.to_list(length=limit)
         # return [self.model(**doc) for doc in docs]
         return docs
-
-
-# __all__ = ["db", "COLLECTIONS"]
-
-# from motor.motor_asyncio import AsyncIOMotorClient
-
-# from .__base_config import MONGO_DB_NAME, MONGODB_URI, logger
-
-# COLLECTIONS = ["siif_rf602"]
-
-# # Inicializar la conexión con MongoDB
-# client = AsyncIOMotorClient(MONGODB_URI)
-# db = client[MONGO_DB_NAME]
-
-# # Send a ping to confirm a successful connection
-# try:
-#     client.admin.command("ping")
-#     logger.info("Pinged your deployment. You successfully connected to MongoDB!")
-# except Exception as e:
-#     print(e)
-
-
-# # Función para obtener la base de datos en servicios/repositorios
-# def get_database():
-#     return db

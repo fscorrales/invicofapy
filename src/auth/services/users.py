@@ -14,7 +14,7 @@ from ..repositories import (
 from ..schemas import (
     CreateUser,
     # UpdateUser,
-    # FilterParamsUser,
+    PrivateUser,
     PrivateStoredUser,
     PublicStoredUser,
 )
@@ -40,6 +40,7 @@ class UsersService:
         hash_password = Authentication.get_password_hash(user.password)
         insert_user = user.model_dump(exclude={"password"}, exclude_unset=False)
         insert_user.update(hash_password=hash_password)
+        insert_user = PrivateUser.model_validate(insert_user)
 
         new_user = await self.users.save(insert_user)
         # return new_user

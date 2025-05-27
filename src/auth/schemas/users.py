@@ -1,4 +1,4 @@
-__all__ = ["CreateUser", "LoginUser", "PublicStoredUser", "PrivateStoredUser"]
+__all__ = ["CreateUser", "LoginUser", "PublicStoredUser", "PrivateStoredUser", "PrivateUser"]
 
 from datetime import datetime
 from enum import Enum
@@ -42,8 +42,14 @@ class LoginUser(BaseUser):
 
 
 # -------------------------------------------------
-class PublicStoredUser(BaseUser):
+class PrivateUser(BaseUser):
     role: Role
+    hash_password: str
+    _not_empty = field_validator("email", "hash_password", mode="after")(validate_not_empty)
+
+
+# -------------------------------------------------
+class PublicStoredUser(PrivateUser):
     deactivated_at: datetime | None = Field(default=None)
     id: PyObjectId = Field(validation_alias=AliasChoices("_id", "id"))
 
