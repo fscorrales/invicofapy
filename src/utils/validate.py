@@ -1,4 +1,4 @@
-__all__ = ["validate_and_extract_data_from_df", "ErrorsWithDocId", "PyObjectId", "validate_not_empty"]
+__all__ = ["validate_and_extract_data_from_df", "ErrorsWithDocId", "PyObjectId", "validate_not_empty", "RouteReturnSchema"]
 
 from typing import List, Any
 
@@ -25,6 +25,13 @@ class ErrorsWithDocId(BaseModel):
 class ValidationResultSchema(BaseModel):
     errors: List[ErrorsWithDocId]
     validated: List[BaseModel]  # 🔹 Lista de modelos Pydantic
+
+
+# -------------------------------------------------
+class RouteReturnSchema(BaseModel):
+    deleted: int = 0
+    added: int = 0
+    errors: List[ErrorsWithDocId]
 
 
 # -------------------------------------------------
