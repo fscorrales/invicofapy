@@ -4,6 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .auth.routes import auth_router
+from .config import Database
 from .siif.routes import siif_router
 
 
@@ -19,6 +20,7 @@ async def lifespan(app: FastAPI):
     if Database.client:
         Database.client.close()
         print("🛑 MongoDB connection closed")
+
 
 # tags_metadata = [
 #     {"name": "Auth"},
