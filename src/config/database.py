@@ -66,7 +66,6 @@ class BaseRepository(Generic[ModelType]):
         # return self.model(**doc)  # devolvés el modelo reconstruido con _id incluido
         return result
 
-
     # -------------------------------------------------
     async def save_all(self, data: List[ModelType]) -> List[ModelType]:
         if isinstance(data, list):
