@@ -102,6 +102,7 @@ def apply_auto_filter(params: BaseFilterParams) -> None:
                 {field: {"$eq": value.value if hasattr(value, "value") else value}}
             )
 
+
 # -------------------------------------------------
 def parse_filter_keys(filters: dict) -> dict:
     """
