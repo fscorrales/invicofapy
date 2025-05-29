@@ -13,9 +13,9 @@ from ..repositories import (
 )
 from ..schemas import (
     CreateUser,
+    PrivateStoredUser,
     # UpdateUser,
     PrivateUser,
-    PrivateStoredUser,
     PublicStoredUser,
 )
 
