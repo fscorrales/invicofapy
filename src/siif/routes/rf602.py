@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends
 from ...auth.services import OptionalAuthorizationDependency
 from ...config import settings
 from ...utils import RouteReturnSchema, apply_auto_filter
-from ..schemas import Rf602Params, Rf602Document, Rf602Filter
+from ..schemas import Rf602Document, Rf602Filter, Rf602Params
 from ..services import Rf602ServiceDependency
 
 rf602_router = APIRouter(prefix="/rf602", tags=["SIIF - rf602"])

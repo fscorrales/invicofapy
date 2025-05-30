@@ -1,6 +1,5 @@
 __all__ = ["Rf602Service", "Rf602ServiceDependency"]
 
-import datetime as dt
 from dataclasses import dataclass, field
 from typing import Annotated, List
 
@@ -17,7 +16,7 @@ from ...utils import (
 )
 from ..handlers import Rf602
 from ..repositories import Rf602RepositoryDependency
-from ..schemas import Rf602Document, Rf602Report, Rf602Params
+from ..schemas import Rf602Document, Rf602Params, Rf602Report
 
 
 # -------------------------------------------------
@@ -32,7 +31,10 @@ class Rf602Service:
 
     # -------------------------------------------------
     async def sync_rf602_from_siif(
-        self, username: str, password: str, params: Rf602Params = None,
+        self,
+        username: str,
+        password: str,
+        params: Rf602Params = None,
     ) -> RouteReturnSchema:
         """Downloads a report from SIIF, processes it, validates the data,
         and stores it in MongoDB if valid.
