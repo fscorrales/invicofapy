@@ -37,7 +37,7 @@ class ValidationResultSchema(BaseModel):
 class RouteReturnSchema(BaseModel):
     deleted: int = 0
     added: int = 0
-    errors: List[ErrorsWithDocId]
+    errors: List[ErrorsWithDocId] = []
 
 
 # -------------------------------------------------

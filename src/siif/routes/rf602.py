@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends
 from ...auth.services import OptionalAuthorizationDependency
 from ...config import settings
 from ...utils import RouteReturnSchema, apply_auto_filter
-from ..schemas import EjercicioSIIF, Rf602Document, Rf602Filter
+from ..schemas import Rf602Params, Rf602Document, Rf602Filter
 from ..services import Rf602ServiceDependency
 
 rf602_router = APIRouter(prefix="/rf602", tags=["SIIF - rf602"])
@@ -15,7 +15,7 @@ rf602_router = APIRouter(prefix="/rf602", tags=["SIIF - rf602"])
 async def sync_rf602_from_siif(
     auth: OptionalAuthorizationDependency,
     service: Rf602ServiceDependency,
-    ejercicio: Annotated[EjercicioSIIF, Depends()],
+    params: Annotated[Rf602Params, Depends()],
     username: str = None,
     password: str = None,
 ):
@@ -24,7 +24,7 @@ async def sync_rf602_from_siif(
         password = settings.SIIF_PASSWORD
 
     return await service.sync_rf602_from_siif(
-        username=username, password=password, ejercicio=ejercicio.value
+        username=username, password=password, params=params
     )
 
 

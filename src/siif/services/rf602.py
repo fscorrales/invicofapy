@@ -17,7 +17,7 @@ from ...utils import (
 )
 from ..handlers import Rf602
 from ..repositories import Rf602RepositoryDependency
-from ..schemas import Rf602Document
+from ..schemas import Rf602Document, Rf602Report, Rf602Params
 
 
 # -------------------------------------------------
@@ -32,7 +32,7 @@ class Rf602Service:
 
     # -------------------------------------------------
     async def sync_rf602_from_siif(
-        self, username: str, password: str, ejercicio: int = dt.datetime.now().year
+        self, username: str, password: str, params: Rf602Params = None,
     ) -> RouteReturnSchema:
         """Downloads a report from SIIF, processes it, validates the data,
         and stores it in MongoDB if valid.
@@ -54,21 +54,21 @@ class Rf602Service:
                 )
                 await self.rf602.go_to_reports()
                 await self.rf602.go_to_specific_report()
-                await self.rf602.download_report(ejercicio=str(ejercicio))
+                await self.rf602.download_report(ejercicio=str(params.ejercicio))
                 await self.rf602.read_xls_file()
                 df = await self.rf602.process_dataframe()
 
                 # 🔹 Validar datos usando Pydantic
                 validate_and_errors = validate_and_extract_data_from_df(
-                    dataframe=df, model=Rf602Document, field_id="estructura"
+                    dataframe=df, model=Rf602Report, field_id="estructura"
                 )
 
                 # 🔹 Si hay registros validados, eliminar los antiguos e insertar los nuevos
                 if validate_and_errors.validated:
                     logger.info(
-                        f"Procesado ejercicio {ejercicio}. Errores: {len(validate_and_errors.errors)}"
+                        f"Procesado ejercicio {str(params.ejercicio)}. Errores: {len(validate_and_errors.errors)}"
                     )
-                    delete_dict = {"ejercicio": ejercicio}
+                    delete_dict = {"ejercicio": str(params.ejercicio)}
                     # Contar los instrumentos existentes antes de eliminarlos
                     deleted_count = await self.repository.count_by_fields(delete_dict)
                     await self.repository.delete_by_fields(delete_dict)

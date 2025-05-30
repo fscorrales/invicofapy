@@ -29,7 +29,7 @@ async def lifespan(app: FastAPI):
 # ]
 
 # app = FastAPI(title="Final Project API", openapi_tags=tags_metadata)
-app = FastAPI(title="Final Project API")
+app = FastAPI(title="Final Project API", lifespan=lifespan)
 
 # # Let's include our auth routes aside from the API routes
 app.include_router(auth_router)

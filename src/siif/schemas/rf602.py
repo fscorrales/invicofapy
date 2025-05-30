@@ -1,8 +1,9 @@
-__all__ = ["Rf602", "Rf602Document", "Rf602ValidationOutput", "Rf602Params", "Rf602Filter"]
+__all__ = ["Rf602Report", "Rf602Document", "Rf602ValidationOutput", "Rf602Params", "Rf602Filter"]
 
 from typing import List, Optional
+from datetime import date
 
-from pydantic import BaseModel, NonNegativeFloat, Field
+from pydantic import BaseModel, NonNegativeFloat, Field, field_validator
 from pydantic_mongo import PydanticObjectId
 
 from ...utils import ErrorsWithDocId, BaseFilterParams
@@ -10,11 +11,27 @@ from ...utils import ErrorsWithDocId, BaseFilterParams
 
 # --------------------------------------------------
 class Rf602Params(BaseModel):
-    ejercicio: Optional[str] = None
+    ejercicio: int = Field(
+        default_factory=lambda: date.today().year,
+        alias="ejercicio",
+        description="Año del ejercicio fiscal (entre 2010 y el año actual)",
+        example=2025,
+    )
+
+    @field_validator("ejercicio")
+    @classmethod
+    def validate_value(cls, v):
+        current_year = date.today().year
+        if not (2010 <= v <= current_year):
+            raise ValueError(f"Ejercicio debe estar entre 2010 y {current_year}")
+        return v
+
+    def __int__(self):
+        return self.ejercicio
 
 
 # -------------------------------------------------
-class Rf602(BaseModel):
+class Rf602Report(BaseModel):
     ejercicio: str
     estructura: str
     fuente: str
@@ -33,7 +50,7 @@ class Rf602(BaseModel):
     pendiente: float
 
 # -------------------------------------------------
-class Rf602Document(Rf602):
+class Rf602Document(Rf602Report):
     id: PydanticObjectId = Field(alias="_id")
 
 
