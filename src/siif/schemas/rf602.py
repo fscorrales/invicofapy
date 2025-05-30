@@ -38,7 +38,7 @@ class Rf602Params(BaseModel):
 
 # -------------------------------------------------
 class Rf602Report(BaseModel):
-    ejercicio: str
+    ejercicio: int
     estructura: str
     fuente: str
     programa: str

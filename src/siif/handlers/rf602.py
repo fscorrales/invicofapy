@@ -147,7 +147,7 @@ class Rf602(SIIFReportManager):
             df = self.df.copy()
         else:
             df = dataframe.copy()
-        df["ejercicio"] = df.iloc[5, 2][-4:]
+        df["ejercicio"] = int(df.iloc[5, 2][-4:])
         df = df.tail(-16)
         df = df.loc[
             :,
