@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Author : Fernando Corrales <fscpython@gamail.com>
+Author : Fernando Corrales <fscpython@gmail.com>
 Date   : 14-feb-2025
 Purpose: Read, process and write SIIF's rf602 (Prespuesto de Gastos por Fuente) report
 """
