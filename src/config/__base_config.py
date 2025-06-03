@@ -14,6 +14,8 @@ class BaseAppSettings(BaseSettings):
     APP_ENV: str = "dev"
     SIIF_USERNAME: str | None = None
     SIIF_PASSWORD: str | None = None
+    SGF_USERNAME: str | None = None
+    SGF_PASSWORD: str | None = None
     ADMIN_EMAIL: str | None = None
     ADMIN_PASSWORD: str | None = None
     DB_URI: str = "mongodb://127.0.0.1:27017/invico"
