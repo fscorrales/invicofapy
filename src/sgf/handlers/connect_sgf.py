@@ -16,21 +16,17 @@ __all__ = [
 ]
 
 import argparse
-import asyncio
-import datetime as dt
 import io
-import os
 import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from enum import Enum
 from pathlib import Path
 
 import pandas as pd
-
-from pywinauto import keyboard, WindowSpecification
+from pywinauto import WindowSpecification, keyboard
 from pywinauto.application import Application
 from pywinauto.timings import TimeoutError
+
 
 # --------------------------------------------------
 def get_args():
@@ -80,22 +76,21 @@ class ConnectSGF:
 
 
 # --------------------------------------------------
-def login(
-    username: str, password: str) -> ConnectSGF:
+def login(username: str, password: str) -> ConnectSGF:
     """Login to SGF"""
 
     app_path = r"\\ipvfiles\SISTEMAS\Pagos\Pagos.exe"
-    app = Application(backend='uia').start(app_path)
+    app = Application(backend="uia").start(app_path)
     try:
         time.sleep(3)
         main = app.window(title_re=".*Sistema de Gestión Financiera.*")
         if not main.is_maximized():
             main.maximize()
         cmb_user = main.child_window(
-            auto_id="1", control_type="ComboBox", found_index = 0
-        ).wait('exists enabled visible ready')
+            auto_id="1", control_type="ComboBox", found_index=0
+        ).wait("exists enabled visible ready")
         input_password = main.child_window(
-            auto_id="2", control_type="Edit", found_index = 0
+            auto_id="2", control_type="Edit", found_index=0
         ).wrapper_object()
         cmb_user.type_keys(username)
         input_password.type_keys(password)
@@ -104,11 +99,15 @@ def login(
         ).wrapper_object()
         btn_accept.click()
         main.child_window(
-        title="La contraseña no es válida. Vuelva a intentarlo", 
-        auto_id="65535", control_type="Text").wait_not('exists visible enabled', timeout=1)
+            title="La contraseña no es válida. Vuelva a intentarlo",
+            auto_id="65535",
+            control_type="Text",
+        ).wait_not("exists visible enabled", timeout=1)
     except TimeoutError:
         print("No se pudo conectar al SGF. Verifique sus credenciales")
-        close_button = main.child_window(title="Cerrar", control_type="Button", found_index=0)
+        close_button = main.child_window(
+            title="Cerrar", control_type="Button", found_index=0
+        )
         close_button.click()
         btn_cancel = main.child_window(
             title="Cancelar", auto_id="3", control_type="Button"
@@ -118,9 +117,7 @@ def login(
     #     print(f"Ocurrió un error: {e}, {type(e)}")
     #     self.quit()
 
-    return ConnectSGF(
-        app = app, main = main
-    )
+    return ConnectSGF(app=app, main=main)
 
     # try:
     #     "Open SIIF webpage"
@@ -163,7 +160,8 @@ def read_xls_file(file_path: Path) -> pd.DataFrame:
 
 # --------------------------------------------------
 def logout() -> None:
-    keyboard.send_keys('%s')
+    keyboard.send_keys("%s")
+
 
 # --------------------------------------------------
 @dataclass
@@ -173,9 +171,7 @@ class SGFReportManager(ABC):
     clean_df: pd.DataFrame = None
 
     # --------------------------------------------------
-    def login(
-        self, username: str, password: str
-    ) -> ConnectSGF:
+    def login(self, username: str, password: str) -> ConnectSGF:
         self.sgf = login(
             username=username,
             password=password,
@@ -209,7 +205,7 @@ def main():
 
     args = get_args()
 
-    connect_sgf= login(args.username, args.password)
+    connect_sgf = login(args.username, args.password)
     logout()
 
 
