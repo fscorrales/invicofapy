@@ -8,21 +8,22 @@ Purpose: Read, process and write SGF's 'Resumen de Rendiciones por Proveedores' 
 __all__ = ["ResumenRendProv"]
 
 import argparse
-import asyncio
 import datetime as dt
 import inspect
 import os
+import time
+from typing import List, Union
 
 import numpy as np
 import pandas as pd
+from pywinauto import findwindows, keyboard, mouse
 
+from ..schemas.common import Origen
 from .connect_sgf import (
     SGFReportManager,
     login,
 )
-from pywinauto import findwindows, keyboard, mouse
-from typing import List, Union
-from ..schemas.common import Origen
+
 
 # --------------------------------------------------
 def get_args():
@@ -63,13 +64,15 @@ def get_args():
     )
 
     parser.add_argument(
-        '-o', '--origenes', 
-        metavar = 'Origenes',
-        default = [c.value for c in Origen],
+        "-o",
+        "--origenes",
+        metavar="Origenes",
+        default=[c.value for c in Origen],
         type=str,
         nargs="+",
         choices=[c.value for c in Origen],
-        help = "Origenes to download from SGF")
+        help="Origenes to download from SGF",
+    )
 
     parser.add_argument(
         "-d", "--download", help="Download report from SGF", action="store_true"
@@ -110,9 +113,9 @@ class ResumenRendProv(SGFReportManager):
     # --------------------------------------------------
     def download_report(
         self,
-        dir_path:str, 
+        dir_path: str,
         ejercicios: Union[List, str] = str(dt.datetime.now().year),
-        origenes: Union[List, str] = [v.value for v in Origen]
+        origenes: Union[List, str] = [v.value for v in Origen],
     ) -> None:
         try:
             if not isinstance(origenes, list):
@@ -126,19 +129,23 @@ class ResumenRendProv(SGFReportManager):
 
                     dlg_resumen_rend = self.sgf.main.child_window(
                         title="Informes - Resumen de Rendiciones", control_type="Window"
-                    ).wait('exists')
+                    ).wait("exists")
 
                     int_ejercicio = int(ejercicio)
                     if int_ejercicio > 2010 and int_ejercicio <= dt.datetime.now().year:
                         # Origen
-                        cmb_origen = self.sgf.main.child_window(auto_id="24", control_type="ComboBox").wrapper_object()
+                        cmb_origen = self.sgf.main.child_window(
+                            auto_id="24", control_type="ComboBox"
+                        ).wrapper_object()
                         cmb_origen.type_keys("%{DOWN}")
-                        cmb_origen.type_keys(origen,  with_spaces=True) #EPAM, OBRAS, FUNCIONAMIENTO
-                        keyboard.send_keys('{ENTER}')
+                        cmb_origen.type_keys(
+                            origen, with_spaces=True
+                        )  # EPAM, OBRAS, FUNCIONAMIENTO
+                        keyboard.send_keys("{ENTER}")
                         btn_exportar = self.sgf.main.child_window(
                             title="Exportar", auto_id="4", control_type="Button"
-                        ).wait('enabled ready active', timeout=60)
-                        
+                        ).wait("enabled ready active", timeout=60)
+
                         # Fecha Desde
                         ## Click on año desde
                         time.sleep(1)
@@ -147,16 +154,18 @@ class ResumenRendProv(SGFReportManager):
                         ## Click on mes desde
                         time.sleep(1)
                         mouse.click(coords=(185, 415))
-                        keyboard.send_keys('01')
+                        keyboard.send_keys("01")
                         ## Click on día desde
                         time.sleep(1)
                         mouse.click(coords=(170, 415))
-                        keyboard.send_keys('01')
+                        keyboard.send_keys("01")
 
                         # Fecha Hasta
-                        fecha_hasta = dt.datetime(year=(int_ejercicio), month=12, day=31)
+                        fecha_hasta = dt.datetime(
+                            year=(int_ejercicio), month=12, day=31
+                        )
                         fecha_hasta = min(fecha_hasta, dt.datetime.now())
-                        fecha_hasta = dt.datetime.strftime(fecha_hasta, '%d/%m/%Y')
+                        fecha_hasta = dt.datetime.strftime(fecha_hasta, "%d/%m/%Y")
                         ## Click on año hasta
                         time.sleep(1)
                         mouse.click(coords=(495, 415))
@@ -174,12 +183,14 @@ class ResumenRendProv(SGFReportManager):
                         btn_exportar.click()
                         btn_accept = self.sgf.main.child_window(
                             title="Aceptar", auto_id="9", control_type="Button"
-                        ).wait('exists enabled visible ready', timeout=360)
+                        ).wait("exists enabled visible ready", timeout=360)
                         btn_accept.click()
                         time.sleep(5)
-                        export_dlg_handles = findwindows.find_windows(title='Exportar')
+                        export_dlg_handles = findwindows.find_windows(title="Exportar")
                         if export_dlg_handles:
-                            export_dlg = self.sgf.app.window_(handle=export_dlg_handles[0])
+                            export_dlg = self.sgf.app.window_(
+                                handle=export_dlg_handles[0]
+                            )
 
                         btn_escritorio = export_dlg.child_window(
                             title="Escritorio", control_type="TreeItem", found_index=1
@@ -187,17 +198,23 @@ class ResumenRendProv(SGFReportManager):
                         btn_escritorio.click_input()
 
                         cmb_tipo = export_dlg.child_window(
-                            title="Tipo:", auto_id="FileTypeControlHost", control_type="ComboBox"
+                            title="Tipo:",
+                            auto_id="FileTypeControlHost",
+                            control_type="ComboBox",
                         ).wrapper_object()
                         cmb_tipo.type_keys("%{DOWN}")
-                        cmb_tipo.select('Archivo ASCII separado por comas (*.csv)')
+                        cmb_tipo.select("Archivo ASCII separado por comas (*.csv)")
 
                         cmb_nombre = export_dlg.child_window(
-                            title="Nombre:", auto_id="FileNameControlHost", control_type="ComboBox"
+                            title="Nombre:",
+                            auto_id="FileNameControlHost",
+                            control_type="ComboBox",
                         ).wrapper_object()
                         cmb_nombre.click_input()
-                        report_name = ejercicio + ' Resumen de Rendiciones '+ origen +'.csv'
-                        cmb_nombre.type_keys(report_name,  with_spaces=True)
+                        report_name = (
+                            ejercicio + " Resumen de Rendiciones " + origen + ".csv"
+                        )
+                        cmb_nombre.type_keys(report_name, with_spaces=True)
                         btn_guardar = export_dlg.child_window(
                             title="Guardar", auto_id="1", control_type="Button"
                         ).wrapper_object()
@@ -211,9 +228,7 @@ class ResumenRendProv(SGFReportManager):
 
                         # Move file to destination
                         time.sleep(2)
-                        self.move_report(
-                            dir_path, report_name
-                        )
+                        self.move_report(dir_path, report_name)
 
         except Exception as e:
             print(f"Ocurrió un error: {e}, {type(e)}")
@@ -329,17 +344,12 @@ def main():
         os.path.abspath(inspect.getfile(inspect.currentframe()))
     )
 
-
-    connect_sgf = login(
-        args.username, args.password
-    )
+    connect_sgf = login(args.username, args.password)
     try:
         resumen_rend_prov = ResumenRendProv(sgf=connect_sgf)
         for ejercicio in args.ejercicios:
             resumen_rend_prov.download_report(
-                dir_path=save_path,
-                ejercicio=str(ejercicio),
-                origenes=args.origenes
+                dir_path=save_path, ejercicio=str(ejercicio), origenes=args.origenes
             )
             resumen_rend_prov.read_csv_file()
             print(resumen_rend_prov.df)

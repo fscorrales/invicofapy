@@ -17,6 +17,7 @@ __all__ = [
 
 import argparse
 import io
+import os
 import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
@@ -181,7 +182,7 @@ class SGFReportManager(ABC):
         return self.sgf
 
     # --------------------------------------------------
-    def move_report(self, dir_path:str, name:str):
+    def move_report(self, dir_path: str, name: str):
         old_file_path = os.path.join(r"D:\Users\fcorrales\Desktop", name)
         new_file_path = os.path.join(dir_path, name)
         while not os.path.exists(old_file_path):
