@@ -75,6 +75,15 @@ class ConnectSGF:
     app: Application
     main: WindowSpecification
 
+    def __enter__(self):
+        return self  # Devuelve el objeto para ser usado en el bloque with
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        try:
+            logout()
+        except Exception as e:
+            print(f"Error al cerrar sesión: {e}")
+
 
 # --------------------------------------------------
 def login(username: str, password: str) -> ConnectSGF:
@@ -163,7 +172,11 @@ def read_csv_file(file_path: Path) -> pd.DataFrame:
 
 # --------------------------------------------------
 def logout() -> None:
-    keyboard.send_keys("%s")
+    try:
+        keyboard.send_keys("%s")  # Alt+S o el atajo que uses para salir
+        time.sleep(1)
+    except Exception as e:
+        print(f"Error en logout: {e}")
 
 
 # --------------------------------------------------
@@ -237,8 +250,16 @@ def main():
 
     args = get_args()
 
-    connect_sgf = login(args.username, args.password)
-    logout()
+    with login(args.username, args.password) as conn:
+        print(f"Connected to SGF as {args.username}")
+        time.sleep(2)  # o lo que necesites
+        # Here you can add more operations with the SGF connection
+
+    # Al salir del bloque, se ejecuta logout automáticamente
+    print("Sesión cerrada")
+
+    # connect_sgf = login(args.username, args.password)
+    # logout()
 
 
 # --------------------------------------------------
