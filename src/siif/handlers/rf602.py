@@ -147,95 +147,103 @@ class Rf602(SIIFReportManager):
             df = self.df.copy()
         else:
             df = dataframe.copy()
-        df["ejercicio"] = int(df.iloc[5, 2][-4:])
-        df = df.tail(-16)
-        df = df.loc[
-            :,
-            [
-                "ejercicio",
-                "2",
-                "3",
-                "6",
-                "7",
-                "8",
-                "9",
-                "10",
-                "13",
-                "14",
-                "15",
-                "16",
-                "18",
-                "20",
-            ],
-        ]
-        df = df.replace(to_replace="", value=None)
-        df = df.dropna(subset=["2"])
-        df = df.rename(
-            columns={
-                "2": "programa",
-                "3": "subprograma",
-                "6": "proyecto",
-                "7": "actividad",
-                "8": "partida",
-                "9": "fuente",
-                "10": "org",
-                "13": "credito_original",
-                "14": "credito_vigente",
-                "15": "comprometido",
-                "16": "ordenado",
-                "18": "saldo",
-                "20": "pendiente",
-            }
-        )
-        df["programa"] = df["programa"].str.zfill(2)
-        df["subprograma"] = df["subprograma"].str.zfill(2)
-        df["proyecto"] = df["proyecto"].str.zfill(2)
-        df["actividad"] = df["actividad"].str.zfill(2)
-        df["grupo"] = df["partida"].str[0] + "00"
-        df["estructura"] = (
-            df["programa"]
-            + "-"
-            + df["subprograma"]
-            + "-"
-            + df["proyecto"]
-            + "-"
-            + df["actividad"]
-            + "-"
-            + df["partida"]
-        )
-        df = df.loc[
-            :,
-            [
-                "ejercicio",
-                "estructura",
-                "fuente",
-                "programa",
-                "subprograma",
-                "proyecto",
-                "actividad",
-                "grupo",
-                "partida",
-                "org",
-                "credito_original",
-                "credito_vigente",
-                "comprometido",
-                "ordenado",
-                "saldo",
-                "pendiente",
-            ],
-        ]
-        to_numeric_cols = [
-            "credito_original",
-            "credito_vigente",
-            "comprometido",
-            "ordenado",
-            "saldo",
-            "pendiente",
-        ]
-        df[to_numeric_cols] = (
-            df[to_numeric_cols].apply(pd.to_numeric).astype(np.float64)
+        df['origen'] = df['6'].str.split('-', n = 1).str[0]
+        df['origen'] = df['origen'].str.split('=', n = 1).str[1]
+        df['origen'] = df['origen'].str.replace('"','')
+        df['origen'] = df['origen'].str.strip()
+        
+        if df.loc[0, 'origen'] == 'OBRAS':
+            df = df.rename(columns = {
+                '23':'beneficiario',
+                '25':'libramiento_sgf',
+                '26':'fecha',
+                '27':'movimiento',
+                '24':'cta_cte',
+                '28':'importe_bruto',
+                '29':'gcias',
+                '30':'sellos',
+                '31':'iibb',
+                '32':'suss',
+                '33':'invico',
+                '34':'otras',
+                '35':'importe_neto',
+            })
+            df['destino'] = ''
+            df['seguro'] = '0'
+            df['salud'] = '0'
+            df['mutual'] = '0'
+        else:
+            df = df.rename(columns = {
+                '26':'beneficiario',
+                '27':'destino',
+                '29':'libramiento_sgf',
+                '30':'fecha',
+                '31':'movimiento',
+                '28':'cta_cte',
+                '32':'importe_bruto',
+                '33':'gcias',
+                '34':'sellos',
+                '35':'iibb',
+                '36':'suss',
+                '37':'invico',
+                '38':'seguro',
+                '39':'salud',
+                '40':'mutual',
+                '41':'importe_neto',
+            })
+            df['otras'] = '0'
+
+        df['ejercicio'] = df['fecha'].str[-4:]
+        df['mes'] = df['fecha'].str[3:5] + '/' + df['ejercicio']
+        df['cta_cte'] = np.where(
+            df['beneficiario'] == 'CREDITO ESPECIAL',
+            '130832-07', 
+            df['cta_cte']
         )
 
+        df = df.loc[:, [
+            'origen', 'ejercicio', 'mes', 'fecha', 
+            'beneficiario', 'destino', 'libramiento_sgf',
+            'movimiento', 'cta_cte', 'importe_bruto', 'gcias', 'sellos',
+            'iibb', 'suss', 'invico', 'seguro', 'salud', 'mutual', 'otras',
+            'importe_neto'
+        ]]
+        
+        df.loc[:, 'importe_bruto':] = df.loc[:, 'importe_bruto':].apply(
+            lambda x: x.str.replace(',', '').astype(float)
+        )
+        # df.loc[:,'importe_bruto':] = df.loc[:,'importe_bruto':].stack(
+        # ).str.replace(',','').unstack()
+        # df.loc[:,'importe_bruto':] = df.loc[:,'importe_bruto':].stack(
+        # ).astype(float).unstack()
+        df['retenciones'] = df.loc[:,'gcias':'otras'].sum(axis=1)
+
+        df['importe_bruto'] = np.where(
+            df['origen'] == 'EPAM', 
+            df['importe_bruto'] + df['invico'],
+            df['importe_bruto']
+        )
+        # Reubica la columna 'retenciones' antes de la columna 'importe_neto'
+        columns = df.columns.tolist()
+
+        # Reordena las columnas para que 'retenciones' esté antes de 'importe_neto'
+        new_columns = [column for column in columns if column != 'retenciones'] + ['retenciones'] + [column for column in columns if column == 'importe_neto']
+
+        # Reindexa el DataFrame con las nuevas columnas
+        df = df.reindex(columns=new_columns, copy=False)
+        
+        df['ejercicio'] = df['fecha'].str[-4:]
+        df['mes'] = df['fecha'].str[3:5] + '/' + df['ejercicio']
+        df['cta_cte'] = np.where(
+            df['beneficiario'] == 'CREDITO ESPECIAL',
+            '130832-07', 
+            df['cta_cte']
+        )
+
+        df['fecha'] = pd.to_datetime(
+            df['fecha'], format='%d/%m/%Y'
+        )
+        
         self.clean_df = df
         return self.clean_df
 

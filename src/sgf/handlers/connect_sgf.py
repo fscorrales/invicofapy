@@ -137,14 +137,16 @@ def login(username: str, password: str) -> ConnectSGF:
 
 
 # --------------------------------------------------
-def read_xls_file(file_path: Path) -> pd.DataFrame:
-    """Read xls file"""
+def read_csv_file(file_path: Path) -> pd.DataFrame:
+    """Read csv file"""
     try:
         with open(file_path, "rb") as f:
             file_bytes = f.read()
+        # Convertir los bytes a texto
+        file_text = io.StringIO(file_bytes.decode("utf-8"))
         # Convertir a DataFrame en memoria
-        df = pd.read_excel(
-            io.BytesIO(file_bytes),
+        df = pd.read_csv(
+            file_text,
             index_col=None,
             header=None,
             na_filter=False,
@@ -179,20 +181,49 @@ class SGFReportManager(ABC):
         return self.sgf
 
     # --------------------------------------------------
-    # async def go_to_reports(self) -> None:
-    #     await go_to_reports(connect=self.siif)
+    def move_report(self, dir_path:str, name:str):
+        old_file_path = os.path.join(r"D:\Users\fcorrales\Desktop", name)
+        new_file_path = os.path.join(dir_path, name)
+        while not os.path.exists(old_file_path):
+            time.sleep(1)
+            while self.is_locked(old_file_path):
+                time.sleep(1)
 
-    # --------------------------------------------------
-    @abstractmethod
-    def go_to_specific_report(self) -> None:
-        """Go to specific report"""
-        pass
+        if os.path.isfile(old_file_path):
+            if os.path.isfile(new_file_path):
+                os.remove(new_file_path)
+            os.rename(old_file_path, new_file_path)
+        else:
+            raise ValueError("%s isn't a file!" % old_file_path)
 
     # --------------------------------------------------
     @abstractmethod
     def process_dataframe(self, dataframe: pd.DataFrame = None) -> pd.DataFrame:
-        """ "Transform read xls file"""
+        """ "Transform read csv file"""
         pass
+
+    # --------------------------------------------------
+    def read_csv_file(self, file_path: Path) -> pd.DataFrame:
+        """Read xls file"""
+        try:
+            self.df = await read_csv_file(file_path=file_path)
+            return self.df
+
+        except Exception as e:
+            print(f"Error al leer el archivo: {e}")
+            return None
+
+    # def from_external_report(self, csv_path:str) -> pd.DataFrame:
+    #     """"Read from csv SGF's report"""
+    #     df = self.read_csv(csv_path, names = list(range(0,70)))
+    #     read_title = df['1'].iloc[0][0:32]
+    #     if read_title == self._REPORT_TITLE:
+    #         self.df = df
+    #         self.transform_df()
+    #     else:
+    #         # Future exception raise
+    #         pass
+    #     return self.df
 
     # --------------------------------------------------
     def logout(self) -> None:
