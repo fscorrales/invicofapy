@@ -206,7 +206,7 @@ class SGFReportManager(ABC):
     def read_csv_file(self, file_path: Path) -> pd.DataFrame:
         """Read xls file"""
         try:
-            self.df = await read_csv_file(file_path=file_path)
+            self.df = read_csv_file(file_path=file_path)
             return self.df
 
         except Exception as e:

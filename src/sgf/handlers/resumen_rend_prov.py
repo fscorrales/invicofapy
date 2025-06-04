@@ -16,14 +16,13 @@ import os
 import numpy as np
 import pandas as pd
 
-from .connect_siif import (
-    ReportCategory,
+from .connect_sgf import (
     SGFReportManager,
     login,
 )
 from pywinauto import findwindows, keyboard, mouse
 from typing import List, Union
-from .schemas.common import Origen
+from ..schemas.common import Origen
 
 # --------------------------------------------------
 def get_args():
@@ -112,7 +111,7 @@ class ResumenRendProv(SGFReportManager):
     def download_report(
         self,
         dir_path:str, 
-        ejercicios: Union[List, str] = str(dt.datetime.now().year)
+        ejercicios: Union[List, str] = str(dt.datetime.now().year),
         origenes: Union[List, str] = [v.value for v in Origen]
     ) -> None:
         try:
@@ -321,7 +320,7 @@ class ResumenRendProv(SGFReportManager):
 
 
 # --------------------------------------------------
-async def main():
+def main():
     """Make a jazz noise here"""
 
     args = get_args()
@@ -339,7 +338,7 @@ async def main():
         for ejercicio in args.ejercicios:
             resumen_rend_prov.download_report(
                 dir_path=save_path,
-                ejercicio=str(ejercicio)
+                ejercicio=str(ejercicio),
                 origenes=args.origenes
             )
             resumen_rend_prov.read_csv_file()
