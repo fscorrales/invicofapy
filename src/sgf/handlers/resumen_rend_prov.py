@@ -344,21 +344,20 @@ def main():
         os.path.abspath(inspect.getfile(inspect.currentframe()))
     )
 
-    connect_sgf = login(args.username, args.password)
-    try:
-        resumen_rend_prov = ResumenRendProv(sgf=connect_sgf)
-        for ejercicio in args.ejercicios:
-            resumen_rend_prov.download_report(
-                dir_path=save_path, ejercicio=str(ejercicio), origenes=args.origenes
-            )
-            resumen_rend_prov.read_csv_file()
-            print(resumen_rend_prov.df)
-            resumen_rend_prov.process_dataframe()
-            print(resumen_rend_prov.clean_df)
-    except Exception as e:
-        print(f"Error al iniciar sesión: {e}")
-    finally:
-        resumen_rend_prov.logout()
+    # connect_sgf = login(args.username, args.password)
+    with login(args.username, args.password) as conn:
+        try:
+            resumen_rend_prov = ResumenRendProv(sgf=conn)
+            for ejercicio in args.ejercicios:
+                resumen_rend_prov.download_report(
+                    dir_path=save_path, ejercicio=str(ejercicio), origenes=args.origenes
+                )
+                resumen_rend_prov.read_csv_file()
+                print(resumen_rend_prov.df)
+                resumen_rend_prov.process_dataframe()
+                print(resumen_rend_prov.clean_df)
+        except Exception as e:
+            print(f"Error al iniciar sesión: {e}")
 
 
 # --------------------------------------------------
