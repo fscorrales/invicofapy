@@ -75,10 +75,10 @@ def logout(window: WindowSpecification = None) -> None:
         if window:
             print("Activando ventana antes de logout")
             window.set_focus()  # Asegura que la ventana tenga foco
-            time.sleep(1)       # Espera breve para evitar errores de timing
-        
+            time.sleep(1)  # Espera breve para evitar errores de timing
+
         print("Enviando Alt+S")
-        keyboard.send_keys('%s')  # Alt+S o el atajo que uses para salir
+        keyboard.send_keys("%s")  # Alt+S o el atajo que uses para salir
         time.sleep(1)
     except Exception as e:
         print(f"Error en logout: {e}")
