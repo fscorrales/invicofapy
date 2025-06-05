@@ -350,7 +350,9 @@ def main():
             resumen_rend_prov = ResumenRendProv(sgf=conn)
             for ejercicio in args.ejercicios:
                 resumen_rend_prov.download_report(
-                    dir_path=save_path, ejercicios=str(ejercicio), origenes=args.origenes
+                    dir_path=save_path,
+                    ejercicios=str(ejercicio),
+                    origenes=args.origenes,
                 )
                 resumen_rend_prov.read_csv_file()
                 print(resumen_rend_prov.df)
