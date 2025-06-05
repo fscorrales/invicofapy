@@ -70,6 +70,21 @@ def get_args():
 
 
 # --------------------------------------------------
+def logout(window: WindowSpecification = None) -> None:
+    try:
+        if window:
+            print("Activando ventana antes de logout")
+            window.set_focus()  # Asegura que la ventana tenga foco
+            time.sleep(1)       # Espera breve para evitar errores de timing
+        
+        print("Enviando Alt+S")
+        keyboard.send_keys('%s')  # Alt+S o el atajo que uses para salir
+        time.sleep(1)
+    except Exception as e:
+        print(f"Error en logout: {e}")
+
+
+# --------------------------------------------------
 @dataclass
 class ConnectSGF:
     app: Application
@@ -80,7 +95,7 @@ class ConnectSGF:
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         try:
-            logout()
+            logout(window=self.main)
         except Exception as e:
             print(f"Error al cerrar sesión: {e}")
 
@@ -123,6 +138,9 @@ def login(username: str, password: str) -> ConnectSGF:
             title="Cancelar", auto_id="3", control_type="Button"
         ).wrapper_object()
         btn_cancel.click()
+    except Exception as e:
+        print(f"Ocurrió un error durante el login: {e}")
+        raise  # <- Muy importante
     # except Exception as e:
     #     print(f"Ocurrió un error: {e}, {type(e)}")
     #     self.quit()
@@ -168,15 +186,6 @@ def read_csv_file(file_path: Path) -> pd.DataFrame:
     except Exception as e:
         print(f"Error al leer el archivo: {e}")
         return None
-
-
-# --------------------------------------------------
-def logout() -> None:
-    try:
-        keyboard.send_keys("%s")  # Alt+S o el atajo que uses para salir
-        time.sleep(1)
-    except Exception as e:
-        print(f"Error en logout: {e}")
 
 
 # --------------------------------------------------
@@ -241,7 +250,7 @@ class SGFReportManager(ABC):
 
     # --------------------------------------------------
     def logout(self) -> None:
-        logout()
+        logout(window=self.main)
 
 
 # --------------------------------------------------
@@ -252,7 +261,8 @@ def main():
 
     with login(args.username, args.password) as conn:
         print(f"Connected to SGF as {args.username}")
-        time.sleep(2)  # o lo que necesites
+        time.sleep(3)  # o lo que necesites
+        pass
         # Here you can add more operations with the SGF connection
 
     # Al salir del bloque, se ejecuta logout automáticamente
