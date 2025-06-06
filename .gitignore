@@ -14,6 +14,9 @@ __pycache__/
 *.xls
 *.xlsx
 
+# Coma flotante extensions
+*.csv
+
 # Distribution / packaging
 .Python
 build/
