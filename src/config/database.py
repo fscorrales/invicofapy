@@ -15,6 +15,7 @@ MONGO_DB_NAME = "invico"
 COLLECTIONS = [
     "users",
     "siif_rf602",
+    "sgf_resumen_rend_prov",
 ]
 
 

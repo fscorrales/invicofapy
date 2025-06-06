@@ -1,5 +1,6 @@
 __all__ = [
     "ResumenRendProvParams",
+    "ResumenRendProvReport",
 ]
 
 from datetime import date
@@ -18,7 +19,7 @@ class ResumenRendProvParams(BaseModel):
 
 
 # -------------------------------------------------
-class Rf602Report(BaseModel):
+class ResumenRendProvReport(BaseModel):
     ejercicio: int
     estructura: str
     fuente: str
