@@ -1,4 +1,4 @@
-__all__ = ["Rf602Service", "Rf602ServiceDependency"]
+__all__ = ["ResumenRendProvService", "ResumenRendProvServiceDependency"]
 
 from dataclasses import dataclass, field
 from typing import Annotated, List
@@ -26,17 +26,13 @@ class ResumenRendProvService:
     resumen_rend_prov: ResumenRendProv = field(init=False)  # No se pasa como argumento
 
     # -------------------------------------------------
-    def __post_init__(self):
-        self.resumen_rend_prov = ResumenRendProv()
-
-    # -------------------------------------------------
     async def sync_resumen_rend_prov_from_sgf(
         self,
         username: str,
         password: str,
         params: ResumenRendProvParams = None,
     ) -> RouteReturnSchema:
-        """Downloads a report from SIIF, processes it, validates the data,
+        """Downloads a report from SGF, processes it, validates the data,
         and stores it in MongoDB if valid.
 
         Args:
@@ -46,23 +42,31 @@ class ResumenRendProvService:
             RouteReturnSchema
         """
         return_schema = RouteReturnSchema()
-        async with async_playwright() as p:
+        with login(username, password) as conn:
             try:
-                await self.rf602.login(
-                    username=username,
-                    password=password,
-                    playwright=p,
-                    headless=False,
+                resumen_rend_prov = ResumenRendProv(sgf=conn)
+                resumen_rend_prov.download_report(
+                    dir_path=save_path,
+                    ejercicios=str(ejercicio),
+                    origenes=args.origenes,
                 )
-                await self.rf602.go_to_reports()
-                await self.rf602.go_to_specific_report()
-                await self.rf602.download_report(ejercicio=str(params.ejercicio))
-                await self.rf602.read_xls_file()
-                df = await self.rf602.process_dataframe()
+                resumen_rend_prov.read_csv_file()
+                df = resumen_rend_prov.process_dataframe()
+                # await self.rf602.login(
+                #     username=username,
+                #     password=password,
+                #     playwright=p,
+                #     headless=False,
+                # )
+                # await self.rf602.go_to_reports()
+                # await self.rf602.go_to_specific_report()
+                # await self.rf602.download_report(ejercicio=str(params.ejercicio))
+                # await self.rf602.read_xls_file()
+                # df = await self.rf602.process_dataframe()
 
                 # 🔹 Validar datos usando Pydantic
                 validate_and_errors = validate_and_extract_data_from_df(
-                    dataframe=df, model=Rf602Report, field_id="estructura"
+                    dataframe=df, model=ResumenRendProvReport, field_id="estructura"
                 )
 
                 # 🔹 Si hay registros validados, eliminar los antiguos e insertar los nuevos
@@ -101,18 +105,18 @@ class ResumenRendProvService:
                 return return_schema
 
     # -------------------------------------------------
-    async def get_rf602_from_db(self, params: BaseFilterParams) -> List[Rf602Document]:
+    async def get_resumend_rend_prov_from_db(self, params: BaseFilterParams) -> List[ResumenRendProvDocument]:
         try:
             return await self.instruments.find_with_filter_params(params=params)
         except Exception as e:
-            logger.error(f"Error retrieving SIIF's rf602 from database: {e}")
+            logger.error(f"Error retrieving SGF's Resumen Rend Prov. from database: {e}")
             raise HTTPException(
                 status_code=500,
-                detail="Error retrieving SIIF's rf602 from the database",
+                detail="Error retrieving SGF's Resumen Rend Prov. from the database",
             )
 
 
-Rf602ServiceDependency = Annotated[Rf602Service, Depends()]
+ResumenRendProvServiceDependency = Annotated[ResumenRendProvService, Depends()]
 
 
 # class Rf602Service:

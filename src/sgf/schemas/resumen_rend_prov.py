@@ -1,6 +1,7 @@
 __all__ = [
     "ResumenRendProvParams",
     "ResumenRendProvReport",
+    "ResumenRendProvDocument",
 ]
 
 from datetime import date
@@ -39,16 +40,16 @@ class ResumenRendProvReport(BaseModel):
 
 
 # -------------------------------------------------
-class Rf602Document(Rf602Report):
+class ResumenRendProvDocument(ResumenRendProvReport):
     id: PydanticObjectId = Field(alias="_id")
 
 
 # -------------------------------------------------
-class Rf602Filter(BaseFilterParams):
+class ResumenRendProvFilter(BaseFilterParams):
     ejercicio: Optional[int] = None
 
 
 # -------------------------------------------------
-class Rf602ValidationOutput(BaseModel):
+class ResumenRendProvValidationOutput(BaseModel):
     errors: List[ErrorsWithDocId]
-    validated: List[Rf602Document]
+    validated: List[ResumenRendProvDocument]
