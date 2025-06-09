@@ -65,7 +65,10 @@ class ResumenRendProvDocument(ResumenRendProvReport):
 
 # -------------------------------------------------
 class ResumenRendProvFilter(BaseFilterParams):
+    origen: Optional[Origen] = None
     ejercicio: Optional[int] = None
+    beneficiario: Optional[str] = None
+    cta_cte: Optional[str] = None
 
 
 # -------------------------------------------------
