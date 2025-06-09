@@ -4,10 +4,10 @@ __all__ = [
     "ResumenRendProvDocument",
 ]
 
-from datetime import date
+
 from typing import List, Optional
 
-from pydantic import BaseModel, Field, NonNegativeFloat, field_validator
+from pydantic import BaseModel, Field, NonNegativeFloat
 from pydantic_mongo import PydanticObjectId
 
 from ...utils import BaseFilterParams, ErrorsWithDocId
