@@ -5,7 +5,6 @@ from typing import Annotated, List
 
 from fastapi import Depends, HTTPException
 from fastapi.encoders import jsonable_encoder
-from playwright.async_api import async_playwright
 from pydantic import ValidationError
 
 from ...config import logger
@@ -16,7 +15,11 @@ from ...utils import (
 )
 from ..handlers import ResumenRendProv, login
 from ..repositories import ResumenRendProvRepositoryDependency
-from ..schemas import ResumenRendProvDocument, ResumenRendProvParams, ResumenRendProvReport
+from ..schemas import (
+    ResumenRendProvDocument,
+    ResumenRendProvParams,
+    ResumenRendProvReport,
+)
 
 
 # -------------------------------------------------
@@ -46,9 +49,9 @@ class ResumenRendProvService:
             try:
                 resumen_rend_prov = ResumenRendProv(sgf=conn)
                 resumen_rend_prov.download_report(
-                    dir_path=save_path,
-                    ejercicios=str(ejercicio),
-                    origenes=args.origenes,
+                    # dir_path=save_path,
+                    ejercicios=str(params.ejercicio),
+                    origenes=params.origen,
                 )
                 resumen_rend_prov.read_csv_file()
                 df = resumen_rend_prov.process_dataframe()
@@ -105,11 +108,15 @@ class ResumenRendProvService:
                 return return_schema
 
     # -------------------------------------------------
-    async def get_resumend_rend_prov_from_db(self, params: BaseFilterParams) -> List[ResumenRendProvDocument]:
+    async def get_resumend_rend_prov_from_db(
+        self, params: BaseFilterParams
+    ) -> List[ResumenRendProvDocument]:
         try:
             return await self.instruments.find_with_filter_params(params=params)
         except Exception as e:
-            logger.error(f"Error retrieving SGF's Resumen Rend Prov. from database: {e}")
+            logger.error(
+                f"Error retrieving SGF's Resumen Rend Prov. from database: {e}"
+            )
             raise HTTPException(
                 status_code=500,
                 detail="Error retrieving SGF's Resumen Rend Prov. from the database",
