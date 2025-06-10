@@ -389,8 +389,15 @@ def main():
                     if args.file:
                         filename = args.file
                     else:
-                        filename = str(ejercicio) + ' Resumen de Rendiciones '+ origen + '.csv'
-                    resumen_rend_prov.read_csv_file(Path(os.path.join(save_path, filename)))
+                        filename = (
+                            str(ejercicio)
+                            + " Resumen de Rendiciones "
+                            + origen
+                            + ".csv"
+                        )
+                    resumen_rend_prov.read_csv_file(
+                        Path(os.path.join(save_path, filename))
+                    )
                     print(resumen_rend_prov.df)
                     resumen_rend_prov.process_dataframe()
                     print(resumen_rend_prov.clean_df)

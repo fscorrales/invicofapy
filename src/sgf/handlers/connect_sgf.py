@@ -16,7 +16,6 @@ __all__ = [
 ]
 
 import argparse
-import io
 import os
 import time
 from abc import ABC, abstractmethod
@@ -168,18 +167,13 @@ def login(username: str, password: str) -> ConnectSGF:
 def read_csv_file(file_path: Path) -> pd.DataFrame:
     """Read csv file"""
     try:
-        # with open(file_path, "rb") as f:
-        #     file_bytes = f.read()
-        # # Convertir los bytes a texto
-        # file_text = io.StringIO(file_bytes.decode("utf-8"))
-        # Convertir a DataFrame en memoria
         df = pd.read_csv(
             file_path,
             index_col=None,
             header=None,
             na_filter=False,
             dtype=str,
-            encoding = 'ISO-8859-1',
+            encoding="ISO-8859-1",
         )
         df.columns = [str(x) for x in range(df.shape[1])]
         return df
