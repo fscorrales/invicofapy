@@ -12,6 +12,7 @@ import datetime as dt
 import inspect
 import os
 import time
+from pathlib import Path
 from typing import List, Union
 
 import numpy as np
@@ -67,7 +68,7 @@ def get_args():
         "-o",
         "--origenes",
         metavar="Origenes",
-        default=[c.value for c in Origen],
+        default=[Origen.epam.value],
         type=str,
         nargs="+",
         choices=[c.value for c in Origen],
@@ -350,8 +351,9 @@ class ResumenRendProv(SGFReportManager):
         # Reindexa el DataFrame con las nuevas columnas
         df = df.reindex(columns=new_columns, copy=False)
 
-        df["ejercicio"] = int(df["fecha"].str[-4:])
+        df["ejercicio"] = df["fecha"].str[-4:]
         df["mes"] = df["fecha"].str[3:5] + "/" + df["ejercicio"]
+        df["ejercicio"] = pd.to_numeric(df["ejercicio"], errors="coerce")
         df["cta_cte"] = np.where(
             df["beneficiario"] == "CREDITO ESPECIAL", "130832-07", df["cta_cte"]
         )
@@ -376,16 +378,22 @@ def main():
     with login(args.username, args.password) as conn:
         try:
             resumen_rend_prov = ResumenRendProv(sgf=conn)
-            for ejercicio in args.ejercicios:
-                resumen_rend_prov.download_report(
-                    dir_path=save_path,
-                    ejercicios=str(ejercicio),
-                    origenes=args.origenes,
-                )
-                resumen_rend_prov.read_csv_file()
-                print(resumen_rend_prov.df)
-                resumen_rend_prov.process_dataframe()
-                print(resumen_rend_prov.clean_df)
+            for origen in args.origenes:
+                for ejercicio in args.ejercicios:
+                    if args.download:
+                        resumen_rend_prov.download_report(
+                            dir_path=save_path,
+                            ejercicios=str(ejercicio),
+                            origenes=args.origenes,
+                        )
+                    if args.file:
+                        filename = args.file
+                    else:
+                        filename = str(ejercicio) + ' Resumen de Rendiciones '+ origen + '.csv'
+                    resumen_rend_prov.read_csv_file(Path(os.path.join(save_path, filename)))
+                    print(resumen_rend_prov.df)
+                    resumen_rend_prov.process_dataframe()
+                    print(resumen_rend_prov.clean_df)
         except Exception as e:
             print(f"Error al iniciar sesión: {e}")
 
@@ -395,4 +403,4 @@ if __name__ == "__main__":
     main()
     # From /invicofapy
 
-    # poetry run python -m src.sgf.handlers.resumen_rend_prov
+    # poetry run python -m src.sgf.handlers.resumen_rend_prov -d

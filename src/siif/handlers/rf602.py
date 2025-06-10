@@ -288,4 +288,4 @@ if __name__ == "__main__":
     # From /invicofapy
     # .venv/Scripts/python src/siif/services/rf602.py
 
-    # python -m src.siif.handlers.rf602
+    # poetry run python -m src.siif.handlers.rf602
