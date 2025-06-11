@@ -13,8 +13,8 @@ from ...config import logger
 from ...utils import (
     BaseFilterParams,
     RouteReturnSchema,
-    validate_and_extract_data_from_df,
     get_download_sgf_path,
+    validate_and_extract_data_from_df,
 )
 from ..handlers import ResumenRendProv, login
 from ..repositories import ResumenRendProvRepositoryDependency
@@ -50,21 +50,29 @@ class ResumenRendProvService:
         return_schema = RouteReturnSchema()
         with login(username, password) as conn:
             try:
-                save_path = os.path.join(get_download_sgf_path(), "Resumen de Rendiciones SGF")
+                save_path = os.path.join(
+                    get_download_sgf_path(), "Resumen de Rendiciones SGF"
+                )
                 resumen_rend_prov = ResumenRendProv(sgf=conn)
                 resumen_rend_prov.download_report(
                     dir_path=save_path,
                     ejercicios=str(params.ejercicio),
                     origenes=params.origen.value,
                 )
-                filename = (str(params.ejercicio) + " Resumen de Rendiciones " + params.origen + ".csv"
+                filename = (
+                    str(params.ejercicio)
+                    + " Resumen de Rendiciones "
+                    + params.origen
+                    + ".csv"
                 )
                 resumen_rend_prov.read_csv_file(Path(os.path.join(save_path, filename)))
                 resumen_rend_prov.process_dataframe()
 
                 # 🔹 Validar datos usando Pydantic
                 validate_and_errors = validate_and_extract_data_from_df(
-                    dataframe=resumen_rend_prov.clean_df, model=ResumenRendProvReport, field_id="libramiento_sgf"
+                    dataframe=resumen_rend_prov.clean_df,
+                    model=ResumenRendProvReport,
+                    field_id="libramiento_sgf",
                 )
 
                 # 🔹 Si hay registros validados, eliminar los antiguos e insertar los nuevos
@@ -72,7 +80,10 @@ class ResumenRendProvService:
                     logger.info(
                         f"Procesado origen {params.origen.value} para ejercicio {params.ejercicio}. Errores: {len(validate_and_errors.errors)}"
                     )
-                    delete_dict = {"ejercicio": params.ejercicio, "origen": params.origen.value}
+                    delete_dict = {
+                        "ejercicio": params.ejercicio,
+                        "origen": params.origen.value,
+                    }
                     # Contar los instrumentos existentes antes de eliminarlos
                     deleted_count = await self.repository.count_by_fields(delete_dict)
                     await self.repository.delete_by_fields(delete_dict)
