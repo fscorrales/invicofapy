@@ -6,9 +6,8 @@ import os
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Annotated, List, Tuple
+from typing import Annotated, List
 
-import pandas as pd
 from fastapi import Depends, HTTPException
 from fastapi.encoders import jsonable_encoder
 from pydantic import ValidationError
@@ -144,7 +143,7 @@ class ResumenRendProvService:
         filename = (
             f"{params.ejercicio} Resumen de Rendiciones {params.origen.value}.csv"
         )
-        full_path = os.path.join(save_path, filename)
+        full_path = Path(os.path.join(save_path, filename))
 
         with login(username, password) as conn:
             resumen_rend_prov = ResumenRendProv(sgf=conn)
@@ -183,7 +182,7 @@ class ResumenRendProvService:
             return validate_and_errors
 
     # -------------------------------------------------
-    async def get_resumend_rend_prov_from_db(
+    async def get_resumen_rend_prov_from_db(
         self, params: BaseFilterParams
     ) -> List[ResumenRendProvDocument]:
         try:
