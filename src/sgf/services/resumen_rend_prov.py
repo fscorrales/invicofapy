@@ -1,6 +1,8 @@
 __all__ = ["ResumenRendProvService", "ResumenRendProvServiceDependency"]
 
+import getpass
 import os
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Annotated, List
@@ -65,7 +67,26 @@ class ResumenRendProvService:
                     + params.origen
                     + ".csv"
                 )
-                resumen_rend_prov.read_csv_file(Path(os.path.join(save_path, filename)))
+                full_path = Path(os.path.join(save_path, filename))
+                logger.info(f"Usuario: {getpass.getuser()}")
+                logger.info(f"Working directory: {os.getcwd()}")
+                logger.info(f"Archivo esperado: {full_path}")
+                # Esperar hasta que el archivo exista, con timeout
+                for _ in range(10):  # Máximo 10 intentos (~5 segundos)
+                    if full_path.exists():
+                        break
+                    time.sleep(0.5)
+                else:
+                    raise FileNotFoundError(
+                        f"No se encontró el archivo descargado en: {full_path}"
+                    )
+
+                try:
+                    resumen_rend_prov.read_csv_file(full_path)
+                except FileNotFoundError as e:
+                    logger.error(f"No se pudo leer el archivo: {full_path}. Error: {e}")
+                    raise
+
                 resumen_rend_prov.process_dataframe()
 
                 # 🔹 Validar datos usando Pydantic

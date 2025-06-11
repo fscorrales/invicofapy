@@ -177,7 +177,6 @@ def read_csv_file(file_path: Path) -> pd.DataFrame:
         )
         df.columns = [str(x) for x in range(df.shape[1])]
         return df
-
     except Exception as e:
         print(f"Error al leer el archivo: {e}")
         return None
@@ -202,6 +201,16 @@ class SGFReportManager(ABC):
     def move_report(self, dir_path: str, name: str):
         old_file_path = os.path.join(r"D:\Users\fcorrales\Desktop", name)
         new_file_path = os.path.join(dir_path, name)
+
+        for _ in range(10):  # Máximo 10 intentos (~5 segundos)
+            if old_file_path.exists():
+                break
+            time.sleep(0.5)
+        else:
+            raise FileNotFoundError(
+                f"No se encontró el archivo descargado en: {old_file_path}"
+            )
+
         while not os.path.exists(old_file_path):
             time.sleep(1)
             while self.is_locked(old_file_path):
