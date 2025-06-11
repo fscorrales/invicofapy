@@ -30,6 +30,14 @@ def get_download_path():
     )
     return dir_path
 
+
+# --------------------------------------------------
+def get_download_sgf_path():
+    dir_path = os.path.join(
+        get_download_path(),'Sistema Gestion Financiera'
+    )
+    return dir_path
+
 # --------------------------------------------------
 def get_db_path():
     db_path = os.path.join(get_outside_path() ,'Python Output')
