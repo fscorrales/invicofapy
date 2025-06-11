@@ -1,4 +1,4 @@
-__all__ = ["get_utils_path", "get_src_path", "get_outside_path", "get_download_path", "get_db_path", "get_r_icaro_path", "get_slave_path"]
+__all__ = ["get_utils_path", "get_src_path", "get_outside_path", "get_download_path", "get_download_sgf_path","get_db_path", "get_r_icaro_path", "get_slave_path"]
 
 import os
 import inspect
