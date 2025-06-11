@@ -29,7 +29,7 @@ async def sync_resumen_rend_prov_from_sgf(
         username = settings.SGF_USERNAME
         password = settings.SGF_PASSWORD
 
-    return await service.sync_resumen_rend_prov_from_siif(
+    return await service.sync_resumen_rend_prov_from_sgf(
         username=username, password=password, params=params
     )
 
