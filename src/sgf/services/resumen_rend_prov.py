@@ -1,12 +1,14 @@
 __all__ = ["ResumenRendProvService", "ResumenRendProvServiceDependency"]
 
+import asyncio
 import getpass
 import os
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Annotated, List
+from typing import Annotated, List, Tuple
 
+import pandas as pd
 from fastapi import Depends, HTTPException
 from fastapi.encoders import jsonable_encoder
 from pydantic import ValidationError
@@ -50,87 +52,135 @@ class ResumenRendProvService:
             RouteReturnSchema
         """
         return_schema = RouteReturnSchema()
+        try:
+            loop = asyncio.get_running_loop()
+            validate_and_errors = await loop.run_in_executor(
+                None,
+                lambda: self._blocking_download_and_process(username, password, params),
+            )
+            # save_path = os.path.join(
+            #     get_download_sgf_path(), "Resumen de Rendiciones SGF"
+            # )
+            # resumen_rend_prov = ResumenRendProv(sgf=conn)
+            # resumen_rend_prov.download_report(
+            #     dir_path=save_path,
+            #     ejercicios=str(params.ejercicio),
+            #     origenes=params.origen.value,
+            # )
+            # filename = (
+            #     str(params.ejercicio)
+            #     + " Resumen de Rendiciones "
+            #     + params.origen
+            #     + ".csv"
+            # )
+            # full_path = Path(os.path.join(save_path, filename))
+            # logger.info(f"Usuario: {getpass.getuser()}")
+            # logger.info(f"Working directory: {os.getcwd()}")
+            # logger.info(f"Archivo esperado: {full_path}")
+            # # Esperar hasta que el archivo exista, con timeout
+            # for _ in range(10):  # Máximo 10 intentos (~5 segundos)
+            #     if full_path.exists():
+            #         break
+            #     time.sleep(0.5)
+            # else:
+            #     raise FileNotFoundError(
+            #         f"No se encontró el archivo descargado en: {full_path}"
+            #     )
+
+            # try:
+            #     resumen_rend_prov.read_csv_file(full_path)
+            # except FileNotFoundError as e:
+            #     logger.error(f"No se pudo leer el archivo: {full_path}. Error: {e}")
+            #     raise
+
+            # resumen_rend_prov.process_dataframe()
+
+            # # 🔹 Validar datos usando Pydantic
+            # validate_and_errors = validate_and_extract_data_from_df(
+            #     dataframe=resumen_rend_prov.clean_df,
+            #     model=ResumenRendProvReport,
+            #     field_id="libramiento_sgf",
+            # )
+
+            # 🔹 Si hay registros validados, eliminar los antiguos e insertar los nuevos
+            if validate_and_errors.validated:
+                logger.info(
+                    f"Procesado origen {params.origen.value} para ejercicio {params.ejercicio}. Errores: {len(validate_and_errors.errors)}"
+                )
+                delete_dict = {
+                    "ejercicio": params.ejercicio,
+                    "origen": params.origen.value,
+                }
+                # Contar los instrumentos existentes antes de eliminarlos
+                deleted_count = await self.repository.count_by_fields(delete_dict)
+                await self.repository.delete_by_fields(delete_dict)
+                # await self.collection.delete_many({"ejercicio": ejercicio})
+                data_to_store = jsonable_encoder(validate_and_errors.validated)
+                inserted_records = await self.repository.save_all(data_to_store)
+                logger.info(
+                    f"Inserted {len(inserted_records.inserted_ids)} records into MongoDB."
+                )
+                return_schema.deleted = deleted_count
+                return_schema.added = len(data_to_store)
+                return_schema.errors = validate_and_errors.errors
+
+        except ValidationError as e:
+            logger.error(f"Validation Error: {e}")
+            raise HTTPException(
+                status_code=400, detail="Invalid response format from SIIF"
+            )
+        except Exception as e:
+            logger.error(f"Error during report processing: {e}")
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid credentials or unable to authenticate",
+            )
+        finally:
+            return return_schema
+
+    # -------------------------------------------------
+    def _blocking_download_and_process(self, username, password, params):
+        save_path = os.path.join(get_download_sgf_path(), "Resumen de Rendiciones SGF")
+        filename = (
+            f"{params.ejercicio} Resumen de Rendiciones {params.origen.value}.csv"
+        )
+        full_path = os.path.join(save_path, filename)
+
         with login(username, password) as conn:
+            resumen_rend_prov = ResumenRendProv(sgf=conn)
+            resumen_rend_prov.download_report(
+                dir_path=save_path,
+                ejercicios=str(params.ejercicio),
+                origenes=params.origen.value,
+            )
+
+            logger.info(f"Usuario: {getpass.getuser()}")
+            logger.info(f"Working directory: {os.getcwd()}")
+            logger.info(f"Archivo esperado: {full_path}")
+            # Esperar hasta que el archivo exista, con timeout
+            for _ in range(10):  # Máximo 10 intentos (~5 segundos)
+                if full_path.exists():
+                    break
+                time.sleep(0.5)
+            else:
+                raise FileNotFoundError(
+                    f"No se encontró el archivo descargado en: {full_path}"
+                )
+
             try:
-                save_path = os.path.join(
-                    get_download_sgf_path(), "Resumen de Rendiciones SGF"
-                )
-                resumen_rend_prov = ResumenRendProv(sgf=conn)
-                resumen_rend_prov.download_report(
-                    dir_path=save_path,
-                    ejercicios=str(params.ejercicio),
-                    origenes=params.origen.value,
-                )
-                filename = (
-                    str(params.ejercicio)
-                    + " Resumen de Rendiciones "
-                    + params.origen
-                    + ".csv"
-                )
-                full_path = Path(os.path.join(save_path, filename))
-                logger.info(f"Usuario: {getpass.getuser()}")
-                logger.info(f"Working directory: {os.getcwd()}")
-                logger.info(f"Archivo esperado: {full_path}")
-                # Esperar hasta que el archivo exista, con timeout
-                for _ in range(10):  # Máximo 10 intentos (~5 segundos)
-                    if full_path.exists():
-                        break
-                    time.sleep(0.5)
-                else:
-                    raise FileNotFoundError(
-                        f"No se encontró el archivo descargado en: {full_path}"
-                    )
+                resumen_rend_prov.read_csv_file(full_path)
+            except FileNotFoundError as e:
+                logger.error(f"No se pudo leer el archivo: {full_path}. Error: {e}")
+                raise
 
-                try:
-                    resumen_rend_prov.read_csv_file(full_path)
-                except FileNotFoundError as e:
-                    logger.error(f"No se pudo leer el archivo: {full_path}. Error: {e}")
-                    raise
+            resumen_rend_prov.process_dataframe()
 
-                resumen_rend_prov.process_dataframe()
-
-                # 🔹 Validar datos usando Pydantic
-                validate_and_errors = validate_and_extract_data_from_df(
-                    dataframe=resumen_rend_prov.clean_df,
-                    model=ResumenRendProvReport,
-                    field_id="libramiento_sgf",
-                )
-
-                # 🔹 Si hay registros validados, eliminar los antiguos e insertar los nuevos
-                if validate_and_errors.validated:
-                    logger.info(
-                        f"Procesado origen {params.origen.value} para ejercicio {params.ejercicio}. Errores: {len(validate_and_errors.errors)}"
-                    )
-                    delete_dict = {
-                        "ejercicio": params.ejercicio,
-                        "origen": params.origen.value,
-                    }
-                    # Contar los instrumentos existentes antes de eliminarlos
-                    deleted_count = await self.repository.count_by_fields(delete_dict)
-                    await self.repository.delete_by_fields(delete_dict)
-                    # await self.collection.delete_many({"ejercicio": ejercicio})
-                    data_to_store = jsonable_encoder(validate_and_errors.validated)
-                    inserted_records = await self.repository.save_all(data_to_store)
-                    logger.info(
-                        f"Inserted {len(inserted_records.inserted_ids)} records into MongoDB."
-                    )
-                    return_schema.deleted = deleted_count
-                    return_schema.added = len(data_to_store)
-                    return_schema.errors = validate_and_errors.errors
-
-            except ValidationError as e:
-                logger.error(f"Validation Error: {e}")
-                raise HTTPException(
-                    status_code=400, detail="Invalid response format from SIIF"
-                )
-            except Exception as e:
-                logger.error(f"Error during report processing: {e}")
-                raise HTTPException(
-                    status_code=401,
-                    detail="Invalid credentials or unable to authenticate",
-                )
-            finally:
-                return return_schema
+            validate_and_errors = validate_and_extract_data_from_df(
+                dataframe=resumen_rend_prov.clean_df,
+                model=ResumenRendProvReport,
+                field_id="libramiento_sgf",
+            )
+            return validate_and_errors
 
     # -------------------------------------------------
     async def get_resumend_rend_prov_from_db(
