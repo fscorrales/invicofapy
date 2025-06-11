@@ -1,6 +1,8 @@
 __all__ = ["ResumenRendProvService", "ResumenRendProvServiceDependency"]
 
+import os
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Annotated, List
 
 from fastapi import Depends, HTTPException
@@ -12,6 +14,7 @@ from ...utils import (
     BaseFilterParams,
     RouteReturnSchema,
     validate_and_extract_data_from_df,
+    get_download_sgf_path,
 )
 from ..handlers import ResumenRendProv, login
 from ..repositories import ResumenRendProvRepositoryDependency
@@ -47,37 +50,29 @@ class ResumenRendProvService:
         return_schema = RouteReturnSchema()
         with login(username, password) as conn:
             try:
+                save_path = os.path.join(get_download_sgf_path(), "Resumen de Rendiciones SGF")
                 resumen_rend_prov = ResumenRendProv(sgf=conn)
                 resumen_rend_prov.download_report(
-                    # dir_path=save_path,
+                    dir_path=save_path,
                     ejercicios=str(params.ejercicio),
-                    origenes=params.origen,
+                    origenes=params.origen.value,
                 )
-                resumen_rend_prov.read_csv_file()
-                df = resumen_rend_prov.process_dataframe()
-                # await self.rf602.login(
-                #     username=username,
-                #     password=password,
-                #     playwright=p,
-                #     headless=False,
-                # )
-                # await self.rf602.go_to_reports()
-                # await self.rf602.go_to_specific_report()
-                # await self.rf602.download_report(ejercicio=str(params.ejercicio))
-                # await self.rf602.read_xls_file()
-                # df = await self.rf602.process_dataframe()
+                filename = (str(params.ejercicio) + " Resumen de Rendiciones " + params.origen + ".csv"
+                )
+                resumen_rend_prov.read_csv_file(Path(os.path.join(save_path, filename)))
+                resumen_rend_prov.process_dataframe()
 
                 # 🔹 Validar datos usando Pydantic
                 validate_and_errors = validate_and_extract_data_from_df(
-                    dataframe=df, model=ResumenRendProvReport, field_id="estructura"
+                    dataframe=resumen_rend_prov.clean_df, model=ResumenRendProvReport, field_id="libramiento_sgf"
                 )
 
                 # 🔹 Si hay registros validados, eliminar los antiguos e insertar los nuevos
                 if validate_and_errors.validated:
                     logger.info(
-                        f"Procesado ejercicio {str(params.ejercicio)}. Errores: {len(validate_and_errors.errors)}"
+                        f"Procesado origen {params.origen.value} para ejercicio {params.ejercicio}. Errores: {len(validate_and_errors.errors)}"
                     )
-                    delete_dict = {"ejercicio": str(params.ejercicio)}
+                    delete_dict = {"ejercicio": params.ejercicio, "origen": params.origen.value}
                     # Contar los instrumentos existentes antes de eliminarlos
                     deleted_count = await self.repository.count_by_fields(delete_dict)
                     await self.repository.delete_by_fields(delete_dict)
@@ -103,8 +98,6 @@ class ResumenRendProvService:
                     detail="Invalid credentials or unable to authenticate",
                 )
             finally:
-                if hasattr(self.rf602, "logout"):
-                    await self.rf602.logout()
                 return return_schema
 
     # -------------------------------------------------

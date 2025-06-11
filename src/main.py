@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from .auth.routes import auth_router
 from .config import Database
 from .siif.routes import siif_router
+from .sgf.routes import sgf_router
 
 
 @asynccontextmanager
@@ -35,6 +36,7 @@ app = FastAPI(title="Final Project API", lifespan=lifespan)
 app.include_router(auth_router)
 # Include our API routes
 app.include_router(siif_router)
+app.include_router(sgf_router)
 
 
 # Set up CORS middleware
