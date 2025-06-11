@@ -62,6 +62,7 @@ def main():
     print(f"Src Path: {get_src_path()}")
     print(f"Outside Path: {get_outside_path()}")
     print(f"Download Path: {get_download_path()}")
+    print(f"Download SGF Path: {get_download_sgf_path()}")
     print(f"DB Path: {get_db_path()}")
     print(f"R Icaro Path: {get_r_icaro_path()}")
     print(f"Slave Path: {get_slave_path()}")
