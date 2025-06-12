@@ -61,8 +61,8 @@ def validate_and_extract_data_from_df(
     """
     errors_list: List[ErrorsWithDocId] = []
     validated_list: List[model] = []
-    duplicates = dataframe.columns[dataframe.columns.duplicated()]
-    print("Columnas duplicadas:", duplicates)
+    # duplicates = dataframe.columns[dataframe.columns.duplicated()]
+    # print("Columnas duplicadas:", duplicates)
     df_dict = dataframe.to_dict(orient="records")
     for record in df_dict:
         try:
