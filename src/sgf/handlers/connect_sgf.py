@@ -198,9 +198,9 @@ class SGFReportManager(ABC):
         return self.sgf
 
     # --------------------------------------------------
-    def move_report(self, dir_path: str, name: str):
-        old_file_path = os.path.join(r"D:\Users\fcorrales\Desktop", name)
-        new_file_path = os.path.join(dir_path, name)
+    def move_report(self, dir_path: Path, name: str):
+        old_file_path = Path(os.path.join(r"D:\Users\fcorrales\Desktop", name))
+        new_file_path = dir_path / name
 
         for _ in range(10):  # Máximo 10 intentos (~5 segundos)
             if old_file_path.exists():

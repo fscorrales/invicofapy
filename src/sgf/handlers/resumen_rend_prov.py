@@ -114,7 +114,7 @@ class ResumenRendProv(SGFReportManager):
     # --------------------------------------------------
     def download_report(
         self,
-        dir_path: str,
+        dir_path: Path,
         ejercicios: Union[List, str] = str(dt.datetime.now().year),
         origenes: Union[List, str] = [v.value for v in Origen],
     ) -> None:

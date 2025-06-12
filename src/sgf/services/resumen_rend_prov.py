@@ -1,7 +1,6 @@
 __all__ = ["ResumenRendProvService", "ResumenRendProvServiceDependency"]
 
 import asyncio
-import getpass
 import os
 import time
 from dataclasses import dataclass, field
@@ -139,11 +138,11 @@ class ResumenRendProvService:
 
     # -------------------------------------------------
     def _blocking_download_and_process(self, username, password, params):
-        save_path = os.path.join(get_download_sgf_path(), "Resumen de Rendiciones SGF")
+        save_path = Path(os.path.join(get_download_sgf_path(), "Resumen de Rendiciones SGF"))
         filename = (
             f"{params.ejercicio} Resumen de Rendiciones {params.origen.value}.csv"
         )
-        full_path = Path(os.path.join(save_path, filename))
+        full_path = Path(save_path / filename)
 
         with login(username, password) as conn:
             resumen_rend_prov = ResumenRendProv(sgf=conn)
@@ -153,9 +152,6 @@ class ResumenRendProvService:
                 origenes=params.origen.value,
             )
 
-            logger.info(f"Usuario: {getpass.getuser()}")
-            logger.info(f"Working directory: {os.getcwd()}")
-            logger.info(f"Archivo esperado: {full_path}")
             # Esperar hasta que el archivo exista, con timeout
             for _ in range(10):  # Máximo 10 intentos (~5 segundos)
                 if full_path.exists():
