@@ -56,49 +56,6 @@ class ResumenRendProvService:
                 None,
                 lambda: self._blocking_download_and_process(username, password, params),
             )
-            # save_path = os.path.join(
-            #     get_download_sgf_path(), "Resumen de Rendiciones SGF"
-            # )
-            # resumen_rend_prov = ResumenRendProv(sgf=conn)
-            # resumen_rend_prov.download_report(
-            #     dir_path=save_path,
-            #     ejercicios=str(params.ejercicio),
-            #     origenes=params.origen.value,
-            # )
-            # filename = (
-            #     str(params.ejercicio)
-            #     + " Resumen de Rendiciones "
-            #     + params.origen
-            #     + ".csv"
-            # )
-            # full_path = Path(os.path.join(save_path, filename))
-            # logger.info(f"Usuario: {getpass.getuser()}")
-            # logger.info(f"Working directory: {os.getcwd()}")
-            # logger.info(f"Archivo esperado: {full_path}")
-            # # Esperar hasta que el archivo exista, con timeout
-            # for _ in range(10):  # Máximo 10 intentos (~5 segundos)
-            #     if full_path.exists():
-            #         break
-            #     time.sleep(0.5)
-            # else:
-            #     raise FileNotFoundError(
-            #         f"No se encontró el archivo descargado en: {full_path}"
-            #     )
-
-            # try:
-            #     resumen_rend_prov.read_csv_file(full_path)
-            # except FileNotFoundError as e:
-            #     logger.error(f"No se pudo leer el archivo: {full_path}. Error: {e}")
-            #     raise
-
-            # resumen_rend_prov.process_dataframe()
-
-            # # 🔹 Validar datos usando Pydantic
-            # validate_and_errors = validate_and_extract_data_from_df(
-            #     dataframe=resumen_rend_prov.clean_df,
-            #     model=ResumenRendProvReport,
-            #     field_id="libramiento_sgf",
-            # )
 
             # 🔹 Si hay registros validados, eliminar los antiguos e insertar los nuevos
             if validate_and_errors.validated:
@@ -138,7 +95,9 @@ class ResumenRendProvService:
 
     # -------------------------------------------------
     def _blocking_download_and_process(self, username, password, params):
-        save_path = Path(os.path.join(get_download_sgf_path(), "Resumen de Rendiciones SGF"))
+        save_path = Path(
+            os.path.join(get_download_sgf_path(), "Resumen de Rendiciones SGF")
+        )
         filename = (
             f"{params.ejercicio} Resumen de Rendiciones {params.origen.value}.csv"
         )
