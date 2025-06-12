@@ -327,10 +327,7 @@ class ResumenRendProv(SGFReportManager):
         df.loc[:, "importe_bruto":] = df.loc[:, "importe_bruto":].apply(
             lambda x: x.str.replace(",", "").astype(float)
         )
-        # df.loc[:,'importe_bruto':] = df.loc[:,'importe_bruto':].stack(
-        # ).str.replace(',','').unstack()
-        # df.loc[:,'importe_bruto':] = df.loc[:,'importe_bruto':].stack(
-        # ).astype(float).unstack()
+
         df["retenciones"] = df.loc[:, "gcias":"otras"].sum(axis=1)
 
         df["importe_bruto"] = np.where(
@@ -338,18 +335,6 @@ class ResumenRendProv(SGFReportManager):
             df["importe_bruto"] + df["invico"],
             df["importe_bruto"],
         )
-        # Reubica la columna 'retenciones' antes de la columna 'importe_neto'
-        columns = df.columns.tolist()
-
-        # Reordena las columnas para que 'retenciones' esté antes de 'importe_neto'
-        new_columns = (
-            [column for column in columns if column != "retenciones"]
-            + ["retenciones"]
-            + [column for column in columns if column == "importe_neto"]
-        )
-
-        # Reindexa el DataFrame con las nuevas columnas
-        df = df.reindex(columns=new_columns, copy=False)
 
         df["ejercicio"] = df["fecha"].str[-4:]
         df["mes"] = df["fecha"].str[3:5] + "/" + df["ejercicio"]
