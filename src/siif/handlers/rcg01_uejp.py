@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
 Author : Fernando Corrales <fscpython@gmail.com>
-Date   : 14-feb-2025
-Purpose: Read, process and write SIIF's rf602 (Prespuesto de Gastos por Fuente) report
+Date   : 13-jun-2025
+Purpose: Read, process and write SIIF's rcg01_uejp (Comprobantes Ingresados por Entidad y Unidad Ejecutora) report
 """
 
-__all__ = ["Rf602"]
+__all__ = ["Rcg01Uejp"]
 
 import argparse
 import asyncio
@@ -29,7 +29,7 @@ def get_args():
     """Get command-line arguments"""
 
     parser = argparse.ArgumentParser(
-        description="Read, process and write SIIF's rf602",
+        description="Read, process and write SIIF's rcg01_uejp",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
 
@@ -96,11 +96,11 @@ def get_args():
 
 
 # --------------------------------------------------
-class Rf602(SIIFReportManager):
+class Rcg01Uejp(SIIFReportManager):
     # --------------------------------------------------
     async def go_to_specific_report(self) -> None:
         await self.select_report_module(module=ReportCategory.Gastos)
-        await self.select_specific_report_by_id(report_id="38")
+        await self.select_specific_report_by_id(report_id="839")
 
     # --------------------------------------------------
     async def download_report(
@@ -112,6 +112,9 @@ class Rf602(SIIFReportManager):
             input_ejercicio = self.siif.reports_page.locator(
                 "//input[@id='pt1:txtAnioEjercicio::content']"
             )
+            input_fecha_desde = self.siif.reports_page.locator(
+                "//input[@id='pt1:idFechaDesde::content']"
+            )
             btn_get_reporte = self.siif.reports_page.locator(
                 "//div[@id='pt1:btnVerReporte']"
             )
@@ -119,6 +122,20 @@ class Rf602(SIIFReportManager):
                 "//input[@id='pt1:rbtnXLS::content']"
             )
             await btn_xls.click()
+            # input_fecha_hasta = self.get_dom_element(
+            #     "//input[@id='pt1:idFechaHasta::content']"
+            # )
+            # input_unidad_ejecutora = self.get_dom_element(
+            #     "//input[@id='pt1:txtUnidadEjecutora::content']"
+            # )
+            # input_unidad_ejecutora.send_keys('0')
+            # btn_get_reporte = self.get_dom_element(
+            #     "//div[@id='pt1:btnVerReporte']"
+            # )
+            # btn_xls = self.get_dom_element(
+            #     "//input[@id='pt1:rbtnXLS::content']"
+            # )
+            # btn_xls.click()
 
             await input_ejercicio.clear()
             await input_ejercicio.fill(str(ejercicio))
@@ -148,50 +165,50 @@ class Rf602(SIIFReportManager):
         else:
             df = dataframe.copy()
 
-        df['ejercicio'] = pd.to_numeric(df.iloc[5,2][-4:], errors='coerce')
+        df = df.replace(to_replace='', value=None)   
+        df['ejercicio'] = df.iloc[2,1][-4:]
         df = df.tail(-16)
-        df = df.loc[:,[
-            'ejercicio', '2', '3', '6', '7', '8', 
-            '9', '10', '13', '14', '15', '16', '18', '20'
-        ]]
-        df = df.replace(to_replace='', value=None)
-        df = df.dropna(subset=['2'])
+        df = df.drop(columns=['0', '17', '18'])
         df = df.rename(columns={
-            '2':'programa', 
-            '3':'subprograma', 
-            '6':'proyecto', 
-            '7':'actividad', 
-            '8':'partida', 
-            '9':'fuente', 
-            '10':'org', 
-            '13':'credito_original', 
-            '14':'credito_vigente', 
-            '15':'comprometido', 
-            '16':'ordenado', 
-            '18':'saldo', 
-            '20':'pendiente'
+            '1': 'nro_entrada',
+            '2': 'nro_origen',
+            '3': 'fuente',
+            '4': 'clase_reg',
+            '5': 'clase_mod',
+            '6': 'clase_gto',
+            '7': 'fecha',
+            '8': 'importe',
+            '9': 'cuit',
+            '10': 'beneficiario',
+            '11': 'nro_expte',
+            '12': 'cta_cte',
+            '13': 'es_comprometido',
+            '14': 'es_verificado',
+            '15': 'es_aprobado',
+            '16': 'es_pagado',
+            '19': 'nro_fondo'
         })
-        df['programa'] = df['programa'].str.zfill(2)
-        df['subprograma'] = df['subprograma'].str.zfill(2)
-        df['proyecto'] = df['proyecto'].str.zfill(2)
-        df['actividad'] = df['actividad'].str.zfill(2)
-        df['grupo'] = df['partida'].str[0] + '00'
-        df['estructura'] = (
-            df['programa'] + '-' + df['subprograma'] + '-' + df['proyecto'] + '-' + 
-            df['actividad'] + '-' + df['partida']
+        df = df.dropna(subset=['cuit'])
+        df = df.dropna(subset=['nro_entrada'])   
+        df['beneficiario'] = df['beneficiario'].str.replace("\t", "")
+        df['importe'] = pd.to_numeric(df['importe']).astype(np.float64)
+        df['es_comprometido'] = df['es_comprometido'] == 'S'
+        df['es_verificado'] = df['es_verificado'] == 'S'
+        df['es_aprobado'] = df['es_aprobado'] == 'S'
+        df['es_pagado'] = df['es_pagado'] == 'S'
+        df['fecha'] = pd.to_datetime(
+            df['fecha'], format='%Y-%m-%d'
         )
-        df = df.loc[:,[
-            'ejercicio', 'estructura', 'fuente', 
-            'programa', 'subprograma', 'proyecto', 
-            'actividad', 'grupo', 'partida',
-            'org', 'credito_original', 'credito_vigente',
-            'comprometido', 'ordenado', 'saldo', 'pendiente'
+        df['mes'] = df['fecha'].dt.strftime('%m/%Y')
+        df['nro_comprobante'] = df['nro_entrada'].str.zfill(5) + '/' + df['mes'].str[-2:]
+
+        df = df.loc[:, [
+            'ejercicio', 'mes', 'fecha', 'nro_comprobante', 'importe', 
+            'fuente', 'cta_cte', 'cuit', 'nro_expte', 'nro_fondo',
+            'nro_entrada', 'nro_origen', 'clase_reg','clase_mod',
+            'clase_gto', 'beneficiario', 'es_comprometido',
+            'es_verificado', 'es_aprobado', 'es_pagado',
         ]]
-        to_numeric_cols = [
-            'credito_original', 'credito_vigente', 
-            'comprometido', 'ordenado', 'saldo', 'pendiente'
-        ]
-        df[to_numeric_cols] = df[to_numeric_cols].apply(pd.to_numeric).astype(np.float64) 
         
         self.clean_df = df
         return self.clean_df
@@ -212,30 +229,29 @@ async def main():
             args.username, args.password, playwright=p, headless=False
         )
         try:
-            rf602 = Rf602(siif=connect_siif)
-            await rf602.go_to_reports()
-            await rf602.go_to_specific_report()
+            rcg01_uejp = Rcg01Uejp(siif=connect_siif)
+            await rcg01_uejp.go_to_reports()
+            await rcg01_uejp.go_to_specific_report()
             for ejercicio in args.ejercicios:
                 if args.download:
-                    await rf602.download_report(ejercicio=str(ejercicio))
-                    await rf602.save_xls_file(
+                    await rcg01_uejp.download_report(ejercicio=str(ejercicio))
+                    await rcg01_uejp.save_xls_file(
                         save_path=save_path,
-                        file_name=str(ejercicio) + "-rf602.xls",
+                        file_name=str(ejercicio) + "-rcg01_uejp.xls",
                     )
-                await rf602.read_xls_file(args.file)
-                print(rf602.df)
-                await rf602.process_dataframe()
-                print(rf602.clean_df)
+                await rcg01_uejp.read_xls_file(args.file)
+                print(rcg01_uejp.df)
+                await rcg01_uejp.process_dataframe()
+                print(rcg01_uejp.clean_df)
         except Exception as e:
             print(f"Error al iniciar sesión: {e}")
         finally:
-            await rf602.logout()
+            await rcg01_uejp.logout()
 
 
 # --------------------------------------------------
 if __name__ == "__main__":
     asyncio.run(main())
     # From /invicofapy
-    # .venv/Scripts/python src/siif/services/rf602.py
 
-    # poetry run python -m src.siif.handlers.rf602 -d
+    # poetry run python -m src.siif.handlers.rcg01_uejp -d
