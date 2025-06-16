@@ -148,51 +148,95 @@ class Rf602(SIIFReportManager):
         else:
             df = dataframe.copy()
 
-        df['ejercicio'] = pd.to_numeric(df.iloc[5,2][-4:], errors='coerce')
+        df["ejercicio"] = pd.to_numeric(df.iloc[5, 2][-4:], errors="coerce")
         df = df.tail(-16)
-        df = df.loc[:,[
-            'ejercicio', '2', '3', '6', '7', '8', 
-            '9', '10', '13', '14', '15', '16', '18', '20'
-        ]]
-        df = df.replace(to_replace='', value=None)
-        df = df.dropna(subset=['2'])
-        df = df.rename(columns={
-            '2':'programa', 
-            '3':'subprograma', 
-            '6':'proyecto', 
-            '7':'actividad', 
-            '8':'partida', 
-            '9':'fuente', 
-            '10':'org', 
-            '13':'credito_original', 
-            '14':'credito_vigente', 
-            '15':'comprometido', 
-            '16':'ordenado', 
-            '18':'saldo', 
-            '20':'pendiente'
-        })
-        df['programa'] = df['programa'].str.zfill(2)
-        df['subprograma'] = df['subprograma'].str.zfill(2)
-        df['proyecto'] = df['proyecto'].str.zfill(2)
-        df['actividad'] = df['actividad'].str.zfill(2)
-        df['grupo'] = df['partida'].str[0] + '00'
-        df['estructura'] = (
-            df['programa'] + '-' + df['subprograma'] + '-' + df['proyecto'] + '-' + 
-            df['actividad'] + '-' + df['partida']
-        )
-        df = df.loc[:,[
-            'ejercicio', 'estructura', 'fuente', 
-            'programa', 'subprograma', 'proyecto', 
-            'actividad', 'grupo', 'partida',
-            'org', 'credito_original', 'credito_vigente',
-            'comprometido', 'ordenado', 'saldo', 'pendiente'
-        ]]
-        to_numeric_cols = [
-            'credito_original', 'credito_vigente', 
-            'comprometido', 'ordenado', 'saldo', 'pendiente'
+        df = df.loc[
+            :,
+            [
+                "ejercicio",
+                "2",
+                "3",
+                "6",
+                "7",
+                "8",
+                "9",
+                "10",
+                "13",
+                "14",
+                "15",
+                "16",
+                "18",
+                "20",
+            ],
         ]
-        df[to_numeric_cols] = df[to_numeric_cols].apply(pd.to_numeric).astype(np.float64) 
-        
+        df = df.replace(to_replace="", value=None)
+        df = df.dropna(subset=["2"])
+        df = df.rename(
+            columns={
+                "2": "programa",
+                "3": "subprograma",
+                "6": "proyecto",
+                "7": "actividad",
+                "8": "partida",
+                "9": "fuente",
+                "10": "org",
+                "13": "credito_original",
+                "14": "credito_vigente",
+                "15": "comprometido",
+                "16": "ordenado",
+                "18": "saldo",
+                "20": "pendiente",
+            }
+        )
+        df["programa"] = df["programa"].str.zfill(2)
+        df["subprograma"] = df["subprograma"].str.zfill(2)
+        df["proyecto"] = df["proyecto"].str.zfill(2)
+        df["actividad"] = df["actividad"].str.zfill(2)
+        df["grupo"] = df["partida"].str[0] + "00"
+        df["estructura"] = (
+            df["programa"]
+            + "-"
+            + df["subprograma"]
+            + "-"
+            + df["proyecto"]
+            + "-"
+            + df["actividad"]
+            + "-"
+            + df["partida"]
+        )
+        df = df.loc[
+            :,
+            [
+                "ejercicio",
+                "estructura",
+                "fuente",
+                "programa",
+                "subprograma",
+                "proyecto",
+                "actividad",
+                "grupo",
+                "partida",
+                "org",
+                "credito_original",
+                "credito_vigente",
+                "comprometido",
+                "ordenado",
+                "saldo",
+                "pendiente",
+            ],
+        ]
+        to_numeric_cols = [
+            "credito_original",
+            "credito_vigente",
+            "comprometido",
+            "ordenado",
+            "saldo",
+            "pendiente",
+        ]
+        df[to_numeric_cols] = (
+            df[to_numeric_cols].apply(pd.to_numeric).astype(np.float64)
+        )
+
         self.clean_df = df
         return self.clean_df
 

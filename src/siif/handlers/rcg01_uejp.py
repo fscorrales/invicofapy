@@ -165,51 +165,71 @@ class Rcg01Uejp(SIIFReportManager):
         else:
             df = dataframe.copy()
 
-        df = df.replace(to_replace='', value=None)   
-        df['ejercicio'] = df.iloc[2,1][-4:]
+        df = df.replace(to_replace="", value=None)
+        df["ejercicio"] = df.iloc[2, 1][-4:]
         df = df.tail(-16)
-        df = df.drop(columns=['0', '17', '18'])
-        df = df.rename(columns={
-            '1': 'nro_entrada',
-            '2': 'nro_origen',
-            '3': 'fuente',
-            '4': 'clase_reg',
-            '5': 'clase_mod',
-            '6': 'clase_gto',
-            '7': 'fecha',
-            '8': 'importe',
-            '9': 'cuit',
-            '10': 'beneficiario',
-            '11': 'nro_expte',
-            '12': 'cta_cte',
-            '13': 'es_comprometido',
-            '14': 'es_verificado',
-            '15': 'es_aprobado',
-            '16': 'es_pagado',
-            '19': 'nro_fondo'
-        })
-        df = df.dropna(subset=['cuit'])
-        df = df.dropna(subset=['nro_entrada'])   
-        df['beneficiario'] = df['beneficiario'].str.replace("\t", "")
-        df['importe'] = pd.to_numeric(df['importe']).astype(np.float64)
-        df['es_comprometido'] = df['es_comprometido'] == 'S'
-        df['es_verificado'] = df['es_verificado'] == 'S'
-        df['es_aprobado'] = df['es_aprobado'] == 'S'
-        df['es_pagado'] = df['es_pagado'] == 'S'
-        df['fecha'] = pd.to_datetime(
-            df['fecha'], format='%Y-%m-%d'
+        df = df.drop(columns=["0", "17", "18"])
+        df = df.rename(
+            columns={
+                "1": "nro_entrada",
+                "2": "nro_origen",
+                "3": "fuente",
+                "4": "clase_reg",
+                "5": "clase_mod",
+                "6": "clase_gto",
+                "7": "fecha",
+                "8": "importe",
+                "9": "cuit",
+                "10": "beneficiario",
+                "11": "nro_expte",
+                "12": "cta_cte",
+                "13": "es_comprometido",
+                "14": "es_verificado",
+                "15": "es_aprobado",
+                "16": "es_pagado",
+                "19": "nro_fondo",
+            }
         )
-        df['mes'] = df['fecha'].dt.strftime('%m/%Y')
-        df['nro_comprobante'] = df['nro_entrada'].str.zfill(5) + '/' + df['mes'].str[-2:]
+        df = df.dropna(subset=["cuit"])
+        df = df.dropna(subset=["nro_entrada"])
+        df["beneficiario"] = df["beneficiario"].str.replace("\t", "")
+        df["importe"] = pd.to_numeric(df["importe"]).astype(np.float64)
+        df["es_comprometido"] = df["es_comprometido"] == "S"
+        df["es_verificado"] = df["es_verificado"] == "S"
+        df["es_aprobado"] = df["es_aprobado"] == "S"
+        df["es_pagado"] = df["es_pagado"] == "S"
+        df["fecha"] = pd.to_datetime(df["fecha"], format="%Y-%m-%d")
+        df["mes"] = df["fecha"].dt.strftime("%m/%Y")
+        df["nro_comprobante"] = (
+            df["nro_entrada"].str.zfill(5) + "/" + df["mes"].str[-2:]
+        )
 
-        df = df.loc[:, [
-            'ejercicio', 'mes', 'fecha', 'nro_comprobante', 'importe', 
-            'fuente', 'cta_cte', 'cuit', 'nro_expte', 'nro_fondo',
-            'nro_entrada', 'nro_origen', 'clase_reg','clase_mod',
-            'clase_gto', 'beneficiario', 'es_comprometido',
-            'es_verificado', 'es_aprobado', 'es_pagado',
-        ]]
-        
+        df = df.loc[
+            :,
+            [
+                "ejercicio",
+                "mes",
+                "fecha",
+                "nro_comprobante",
+                "importe",
+                "fuente",
+                "cta_cte",
+                "cuit",
+                "nro_expte",
+                "nro_fondo",
+                "nro_entrada",
+                "nro_origen",
+                "clase_reg",
+                "clase_mod",
+                "clase_gto",
+                "beneficiario",
+                "es_comprometido",
+                "es_verificado",
+                "es_aprobado",
+                "es_pagado",
+            ],
+        ]
+
         self.clean_df = df
         return self.clean_df
 
