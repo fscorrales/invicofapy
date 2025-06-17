@@ -9,7 +9,7 @@ __all__ = [
 from datetime import date
 from typing import List, Optional
 
-from pydantic import BaseModel, Field, NonNegativeFloat, field_validator
+from pydantic import BaseModel, Field, field_validator
 from pydantic_mongo import PydanticObjectId
 
 from ...utils import BaseFilterParams, ErrorsWithDocId
@@ -62,7 +62,7 @@ class Rcg01UejpReport(BaseModel):
 
 
 # -------------------------------------------------
-class Rcg01UejpDocument(Rcg01Uejp2Report):
+class Rcg01UejpDocument(Rcg01UejpReport):
     id: PydanticObjectId = Field(alias="_id")
 
 
@@ -74,4 +74,4 @@ class Rcg01UejpFilter(BaseFilterParams):
 # -------------------------------------------------
 class Rcg01UejpValidationOutput(BaseModel):
     errors: List[ErrorsWithDocId]
-    validated: List[Rf602Document]
+    validated: List[Rcg01UejpDocument]

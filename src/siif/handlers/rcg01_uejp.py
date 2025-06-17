@@ -131,23 +131,21 @@ class Rcg01Uejp(SIIFReportManager):
 
             # Unidad Ejecutora
             await input_unidad_ejecutora.clear()
-            await input_unidad_ejecutora.fill("0")            
+            await input_unidad_ejecutora.fill("0")
             # Ejercicio
             await input_ejercicio.clear()
             await input_ejercicio.fill(str(ejercicio))
             # Fecha Desde
             await input_fecha_desde.clear()
             fecha_desde = dt.datetime.strftime(
-                dt.date(year=int(ejercicio), month=1, day=1),
-                '%d/%m/%Y'
+                dt.date(year=int(ejercicio), month=1, day=1), "%d/%m/%Y"
             )
             await input_fecha_desde.fill(fecha_desde)
             # Fecha Hasta
             await input_fecha_hasta.clear()
-            fecha_hasta = dt.datetime(year=(int(ejercicio)+1), month=12, day=31)
+            fecha_hasta = dt.datetime(year=(int(ejercicio) + 1), month=12, day=31)
             fecha_hasta = min(fecha_hasta, dt.datetime.now())
-            fecha_hasta = dt.datetime.strftime(fecha_hasta, '%d/%m/%Y'
-            )
+            fecha_hasta = dt.datetime.strftime(fecha_hasta, "%d/%m/%Y")
             await input_fecha_hasta.fill(fecha_hasta)
 
             async with self.siif.context.expect_page() as popup_info:
@@ -208,7 +206,9 @@ class Rcg01Uejp(SIIFReportManager):
         df["es_verificado"] = df["es_verificado"] == "S"
         df["es_aprobado"] = df["es_aprobado"] == "S"
         df["es_pagado"] = df["es_pagado"] == "S"
-        df["fecha"] = pd.to_datetime(df["fecha"], format="%Y-%m-%d %H:%M:%S", errors="coerce")
+        df["fecha"] = pd.to_datetime(
+            df["fecha"], format="%Y-%m-%d %H:%M:%S", errors="coerce"
+        )
         df["mes"] = df["fecha"].dt.strftime("%m/%Y")
         df["nro_comprobante"] = (
             df["nro_entrada"].str.zfill(5) + "/" + df["mes"].str[-2:]
