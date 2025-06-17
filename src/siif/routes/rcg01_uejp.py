@@ -8,7 +8,7 @@ from ...utils import RouteReturnSchema, apply_auto_filter
 from ..schemas import Rcg01UejpDocument, Rcg01UejpFilter, Rcg01UejpParams
 from ..services import Rcg01UejpServiceDependency
 
-rcg01_uejp_router = APIRouter(prefix="/rcg01_uejp", tags=["SIIF - rcg01_uejp"])
+rcg01_uejp_router = APIRouter(prefix="/rcg01_uejp")
 
 
 @rcg01_uejp_router.post("/sync_from_siif", response_model=RouteReturnSchema)

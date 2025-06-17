@@ -8,7 +8,7 @@ from ...utils import RouteReturnSchema, apply_auto_filter
 from ..schemas import Rf602Document, Rf602Filter, Rf602Params
 from ..services import Rf602ServiceDependency
 
-rf602_router = APIRouter(prefix="/rf602", tags=["SIIF - rf602"])
+rf602_router = APIRouter(prefix="/rf602")
 
 
 @rf602_router.post("/sync_from_siif", response_model=RouteReturnSchema)

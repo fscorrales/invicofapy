@@ -5,7 +5,7 @@ from fastapi import APIRouter
 from .rcg01_uejp import rcg01_uejp_router
 from .rf602 import rf602_router
 
-siif_router = APIRouter(prefix="/siif")
+siif_router = APIRouter(prefix="/siif", tags=["SIIF"])
 
 siif_router.include_router(rf602_router)
 siif_router.include_router(rcg01_uejp_router)
