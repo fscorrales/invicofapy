@@ -176,7 +176,7 @@ class Rcg01Uejp(SIIFReportManager):
             df = dataframe.copy()
 
         df = df.replace(to_replace="", value=None)
-        df["ejercicio"] = df.iloc[2, 1][-4:]
+        df["ejercicio"] = pd.to_numeric(df.iloc[2, 1][-4:], errors="coerce")
         df = df.tail(-16)
         df = df.drop(columns=["0", "17", "18"])
         df = df.rename(
