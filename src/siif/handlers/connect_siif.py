@@ -81,7 +81,7 @@ class ConnectSIIF:
 
 
 # --------------------------------------------------
-class ReportCategory(Enum):
+class ReportCategory(str, Enum):
     Gastos = "SUB - SISTEMA DE CONTROL DE GASTOS"
     Recursos = "SUB - SISTEMA DE CONTROL de RECURSOS"
     Contabilidad = "SUB - SISTEMA DE CONTABILIDAD PATRIMONIAL"
