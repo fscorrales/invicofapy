@@ -62,7 +62,7 @@ class Rcg01UejpService:
 
                 # 🔹 Validar datos usando Pydantic
                 validate_and_errors = validate_and_extract_data_from_df(
-                    dataframe=df, model=Rcg01UejpReport, field_id="estructura"
+                    dataframe=df, model=Rcg01UejpReport, field_id="nro_comprobante"
                 )
 
                 # 🔹 Si hay registros validados, eliminar los antiguos e insertar los nuevos
@@ -70,7 +70,7 @@ class Rcg01UejpService:
                     logger.info(
                         f"Procesado ejercicio {str(params.ejercicio)}. Errores: {len(validate_and_errors.errors)}"
                     )
-                    delete_dict = {"ejercicio": str(params.ejercicio)}
+                    delete_dict = {"ejercicio": params.ejercicio}
                     # Contar los instrumentos existentes antes de eliminarlos
                     deleted_count = await self.repository.count_by_fields(delete_dict)
                     await self.repository.delete_by_fields(delete_dict)
