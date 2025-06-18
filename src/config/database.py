@@ -16,6 +16,7 @@ COLLECTIONS = [
     "users",
     "siif_rf602",
     "siif_rcg01_uejp",
+    "siif_rpa03g",
     "sgf_resumen_rend_prov",
 ]
 
