@@ -13,11 +13,13 @@ from pydantic import BaseModel, Field, NonNegativeFloat, field_validator
 from pydantic_mongo import PydanticObjectId
 
 from ...utils import BaseFilterParams, ErrorsWithDocId
+from .common import GrupoPartidaSIIF
 
 
 # --------------------------------------------------
 class Rpa03gParams(BaseModel):
     ejercicio: int = date.today().year
+    grupo_partida: GrupoPartidaSIIF = GrupoPartidaSIIF.bienes_capital
     # ejercicio: int = Field(
     #     default_factory=lambda: date.today().year,
     #     alias="ejercicio",
