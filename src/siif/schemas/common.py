@@ -1,8 +1,12 @@
+__all__ = ["EjercicioSIIF", "GrupoPartidaSIIF"]
+
 from datetime import date
+from enum import Enum
 
 from pydantic import BaseModel, Field, field_validator
 
 
+# -------------------------------------------------
 class EjercicioSIIF(BaseModel):
     """
     Representa el año fiscal del SIIF. Debe ser un año entre 2010 y el actual.
@@ -25,3 +29,15 @@ class EjercicioSIIF(BaseModel):
 
     def __int__(self):
         return self.value
+
+
+# -------------------------------------------------
+class GrupoPartidaSIIF(str, Enum):
+    """
+    Enum para representar los grupos de partidas del SIIF.
+    """
+
+    sueldos = "1"
+    bienes_consumo = "2"
+    servicios = "3"
+    bienes_capital = "4"
