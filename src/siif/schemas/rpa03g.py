@@ -67,6 +67,7 @@ class Rpa03gDocument(Rpa03gReport):
 # -------------------------------------------------
 class Rpa03gFilter(BaseFilterParams):
     ejercicio: Optional[int] = None
+    grupo_partida: GrupoPartidaSIIF = None
 
 
 # -------------------------------------------------
