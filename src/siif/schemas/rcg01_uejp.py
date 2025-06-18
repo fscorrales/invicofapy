@@ -48,9 +48,9 @@ class Rcg01UejpReport(BaseModel):
     cta_cte: str
     cuit: str
     nro_expte: str
-    nro_fondo: str
-    nro_entrada: str
-    nro_origen: str
+    nro_fondo: Optional[str] = None
+    nro_entrada: Optional[str] = None
+    nro_origen: Optional[str] = None
     clase_reg: str
     clase_mod: str
     clase_gto: str
