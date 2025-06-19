@@ -14,7 +14,7 @@ from ...utils import (
     RouteReturnSchema,
     validate_and_extract_data_from_df,
 )
-from ..handlers import Rfondo07tp03g
+from ..handlers import Rfondo07tp
 from ..repositories import Rfondo07tpRepositoryDependency
 from ..schemas import Rfondo07tpDocument, Rfondo07tpParams, Rfondo07tpReport
 
@@ -63,7 +63,7 @@ class Rfondo07tpService:
                 await self.rfondo07tp.go_to_specific_report()
                 await self.rfondo07tp.download_report(ejercicio=str(params.ejercicio), tipo_comprobante=str(params.tipo_comprobante.value))
                 await self.rfondo07tp.read_xls_file()
-                df = await self.rfondo07tp.process_dataframe()
+                df = await self.rfondo07tp.process_dataframe(tipo_comprobante=params.tipo_comprobante.value)
 
                 # 🔹 Validar datos usando Pydantic
                 validate_and_errors = validate_and_extract_data_from_df(

@@ -183,7 +183,10 @@ class Rfondo07tp(SIIFReportManager):
             # await self.logout()
 
     # --------------------------------------------------
-    async def process_dataframe(self, dataframe: pd.DataFrame = None) -> pd.DataFrame:
+    async def process_dataframe(
+        self, dataframe: pd.DataFrame = None, 
+        tipo_comprobante: TipoComprobanteSIIF = TipoComprobanteSIIF.adelanto_contratista.value
+    ) -> pd.DataFrame:
         """ "Transform read xls file"""
         if dataframe is None:
             df = self.df.copy()
@@ -192,7 +195,7 @@ class Rfondo07tp(SIIFReportManager):
 
         df = df.replace(to_replace="", value=None)
         df["ejercicio"] = pd.to_numeric(df.iloc[4,1][-4:], errors="coerce")
-        df['tipo_comprobante'] = df.iloc[11,2].split(':')[2].strip()
+        df['tipo_comprobante'] = tipo_comprobante
         df = df.tail(-19)
         df = df.dropna(subset=['10'])
         df = df.rename(columns={
@@ -257,7 +260,7 @@ async def main():
                     )
                 await rfondo07tp.read_xls_file(args.file)
                 print(rfondo07tp.df)
-                await rfondo07tp.process_dataframe()
+                await rfondo07tp.process_dataframe(tipo_comprobante=args.tipo_comprobante)
                 print(rfondo07tp.clean_df)
         except Exception as e:
             print(f"Error al iniciar sesión: {e}")

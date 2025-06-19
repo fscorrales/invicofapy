@@ -44,6 +44,7 @@ class Rfondo07tpReport(BaseModel):
     ejercicio: int
     mes: str
     fecha: date
+    tipo_comprobante: str
     nro_comprobante: str
     nro_fondo: str
     glosa: str
@@ -60,7 +61,7 @@ class Rfondo07tpDocument(Rfondo07tpReport):
 # -------------------------------------------------
 class Rfondo07tpFilter(BaseFilterParams):
     ejercicio: Optional[int] = None
-    grupo_partida: GrupoPartidaSIIF = None
+    tipo_comprobante: TipoComprobanteSIIF = None
 
 
 # -------------------------------------------------
