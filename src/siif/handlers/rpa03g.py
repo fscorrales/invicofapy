@@ -2,7 +2,7 @@
 """
 Author : Fernando Corrales <fscpython@gmail.com>
 Date   : 18-jun-2025
-Purpose: Read, process and write SIIF's rpa03g (...) report
+Purpose: Read, process and write SIIF's rpa03g (Detalle Partidas 'ordenados' por entidad, año, periodo y grupo de partida) report
 """
 
 __all__ = ["Rpa03g"]
