@@ -107,7 +107,7 @@ def get_args():
 
 
 # --------------------------------------------------
-class Rpa03g(SIIFReportManager):
+class Rfondo07tp(SIIFReportManager):
     # --------------------------------------------------
     async def go_to_specific_report(self) -> None:
         await self.select_report_module(module=ReportCategory.Gastos)
@@ -146,24 +146,24 @@ class Rpa03g(SIIFReportManager):
             await input_ejercicio.clear()
             await input_ejercicio.fill(str(ejercicio))
             # Fecha Desde
-            input_fecha_desde.clear()
+            await input_fecha_desde.clear()
             fecha_desde = dt.datetime.strftime(
                 dt.date(year=int(ejercicio), month=1, day=1),
                 '%d/%m/%Y'
             )
-            input_fecha_desde.fill(fecha_desde)
+            await input_fecha_desde.fill(fecha_desde)
             # Fecha Hasta
-            input_fecha_hasta.clear()
+            await input_fecha_hasta.clear()
             fecha_hasta = dt.datetime(year=(int(ejercicio)+1), month=12, day=31)
             fecha_hasta = min(fecha_hasta, dt.datetime.now())
             fecha_hasta = dt.datetime.strftime(fecha_hasta, '%d/%m/%Y'
             )
-            input_fecha_hasta.fill(fecha_hasta)
+            await input_fecha_hasta.fill(fecha_hasta)
             # Tipo Comprobante
-            input_tipo_comprobante.clear()
-            input_tipo_comprobante.fill(tipo_comprobante)
+            await input_tipo_comprobante.clear()
+            await input_tipo_comprobante.fill(tipo_comprobante)
 
-            btn_get_reporte.click()
+            await btn_get_reporte.click()
 
             async with self.siif.context.expect_page() as popup_info:
                 async with self.siif.reports_page.expect_download() as download_info:
@@ -270,4 +270,4 @@ if __name__ == "__main__":
     asyncio.run(main())
     # From /invicofapy
 
-    # poetry run python -m src.siif.handlers.rpa03g -d
+    # poetry run python -m src.siif.handlers.rfondo07tp -d
