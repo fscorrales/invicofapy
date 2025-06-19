@@ -45,14 +45,11 @@ class Rfondo07tpReport(BaseModel):
     mes: str
     fecha: date
     nro_comprobante: str
-    importe: float
-    grupo: str
-    partida: str
-    nro_entrada: Optional[str] = None
-    nro_origen: Optional[str] = None
-    nro_expte: str
+    nro_fondo: str
     glosa: str
-    beneficiario: str
+    ingresos: float
+    egresos: float
+    saldo: float
 
 
 # -------------------------------------------------
