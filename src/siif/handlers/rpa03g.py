@@ -247,7 +247,10 @@ async def main():
             await rpa03g.go_to_specific_report()
             for ejercicio in args.ejercicios:
                 if args.download:
-                    await rpa03g.download_report(ejercicio=str(ejercicio))
+                    await rpa03g.download_report(
+                        ejercicio=str(ejercicio), 
+                        grupo_partida=str(args.grupo_partida)
+                    )
                     await rpa03g.save_xls_file(
                         save_path=save_path,
                         file_name=str(ejercicio)
