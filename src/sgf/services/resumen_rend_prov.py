@@ -49,6 +49,11 @@ class ResumenRendProvService:
         Returns:
             RouteReturnSchema
         """
+        if username is None or password is None:
+            raise HTTPException(
+                status_code=401,
+                detail="Missing username or password",
+            )
         return_schema = RouteReturnSchema()
         try:
             loop = asyncio.get_running_loop()

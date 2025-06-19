@@ -45,6 +45,11 @@ class Rf602Service:
         Returns:
             RouteReturnSchema
         """
+        if username is None or password is None:
+            raise HTTPException(
+                status_code=401,
+                detail="Missing username or password",
+            )
         return_schema = RouteReturnSchema()
         async with async_playwright() as p:
             try:
