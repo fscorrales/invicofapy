@@ -117,7 +117,7 @@ class Rpa03g(SIIFReportManager):
     async def download_report(
         self,
         ejercicio: str = str(dt.datetime.now().year),
-        group_part: GrupoPartidaSIIF = "4",
+        grupo_partida: GrupoPartidaSIIF = "4",
     ) -> Download:
         try:
             self.download = None
@@ -153,7 +153,7 @@ class Rpa03g(SIIFReportManager):
             await input_ejercicio.fill(str(ejercicio))
             # Grupo de Partida
             await input_gpo_partida.clear()
-            await input_gpo_partida.fill(group_part)
+            await input_gpo_partida.fill(str(grupo_partida))
 
             async with self.siif.context.expect_page() as popup_info:
                 async with self.siif.reports_page.expect_download() as download_info:
@@ -198,12 +198,12 @@ class Rpa03g(SIIFReportManager):
         )
         df["importe"] = pd.to_numeric(df["importe"]).astype(np.float64)
         df["grupo"] = df["partida"].str[0] + "00"
-        df["mes"] = df["fecha"].str[5:7] + "/" + df["ejercicio"]
+        df["mes"] = df["fecha"].str[5:7] + "/" + df["ejercicio"].astype(str)
         df["nro_comprobante"] = (
             df["nro_entrada"].str.zfill(5) + "/" + df["mes"].str[-2:]
         )
 
-        df["fecha"] = pd.to_datetime(df["fecha"], format="%Y-%m-%d")
+        df["fecha"] = pd.to_datetime(df["fecha"], format="%Y-%m-%d %H:%M:%S", errors="coerce")
 
         df = df.loc[
             :,
@@ -252,7 +252,7 @@ async def main():
                         save_path=save_path,
                         file_name=str(ejercicio)
                         + "-gto_rpa03g (Gpo "
-                        + args.grupo_partida
+                        + str(args.grupo_partida)
                         + "00).xls",
                     )
                 await rpa03g.read_xls_file(args.file)

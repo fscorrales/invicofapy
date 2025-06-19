@@ -9,7 +9,7 @@ __all__ = [
 from datetime import date
 from typing import List, Optional
 
-from pydantic import BaseModel, Field, NonNegativeFloat, field_validator
+from pydantic import BaseModel, Field, field_validator
 from pydantic_mongo import PydanticObjectId
 
 from ...utils import BaseFilterParams, ErrorsWithDocId
@@ -42,21 +42,17 @@ class Rpa03gParams(BaseModel):
 # -------------------------------------------------
 class Rpa03gReport(BaseModel):
     ejercicio: int
-    estructura: str
-    fuente: str
-    programa: str
-    subprograma: str
-    proyecto: str
-    actividad: str
+    mes: str
+    fecha: date
+    nro_comprobante: str
+    importe: float
     grupo: str
     partida: str
-    org: str
-    credito_original: NonNegativeFloat
-    credito_vigente: NonNegativeFloat
-    comprometido: NonNegativeFloat
-    ordenado: NonNegativeFloat
-    saldo: float
-    pendiente: float
+    nro_entrada: Optional[str] = None
+    nro_origen: Optional[str] = None
+    nro_expte: str
+    glosa: str
+    beneficiario: str
 
 
 # -------------------------------------------------

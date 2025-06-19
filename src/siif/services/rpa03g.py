@@ -45,6 +45,11 @@ class Rpa03gService:
         Returns:
             RouteReturnSchema
         """
+        if username is None or password is None:
+            raise HTTPException(
+                status_code=401,
+                detail="Missing username or password",
+            )
         return_schema = RouteReturnSchema()
         async with async_playwright() as p:
             try:
@@ -56,7 +61,7 @@ class Rpa03gService:
                 )
                 await self.rpa03g.go_to_reports()
                 await self.rpa03g.go_to_specific_report()
-                await self.rpa03g.download_report(ejercicio=str(params.ejercicio))
+                await self.rpa03g.download_report(ejercicio=str(params.ejercicio), grupo_partida=str(params.grupo_partida.value))
                 await self.rpa03g.read_xls_file()
                 df = await self.rpa03g.process_dataframe()
 
@@ -72,7 +77,7 @@ class Rpa03gService:
                     )
                     delete_dict = {
                         "ejercicio": params.ejercicio,
-                        "grupo_partida": params.grupo_partida,
+                        "grupo": params.grupo_partida.value + "00",
                     }
                     # Contar los instrumentos existentes antes de eliminarlos
                     deleted_count = await self.repository.count_by_fields(delete_dict)
