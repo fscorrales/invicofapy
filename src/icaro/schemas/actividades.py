@@ -1,9 +1,9 @@
 __all__ = [
-    "ActividadReport",
-    "ActividadDocument",
-    "ActividadValidationOutput",
-    "ActividadParams",
-    "ActividadFilter",
+    "ActividadesReport",
+    "ActividadesDocument",
+    "ActividadesValidationOutput",
+    "ActividadesParams",
+    "ActividadesFilter",
 ]
 
 from typing import List, Optional
@@ -15,29 +15,29 @@ from ...utils import BaseFilterParams, ErrorsWithDocId
 
 
 # --------------------------------------------------
-class ActividadParams(BaseModel):
+class ActividadesParams(BaseModel):
     pass
 
 
 # -------------------------------------------------
-class ActividadReport(BaseModel):
+class ActividadesReport(BaseModel):
     nro_act: str
     desc_act: str
     nro_proy: str
 
 
 # -------------------------------------------------
-class ActividadDocument(ActividadReport):
+class ActividadesDocument(ActividadesReport):
     id: PydanticObjectId = Field(alias="_id")
 
 
 # -------------------------------------------------
-class ActividadFilter(BaseFilterParams):
+class ActividadesFilter(BaseFilterParams):
     nro_act: Optional[str] = None
     desc_act: Optional[str] = None
 
 
 # -------------------------------------------------
-class ActividadValidationOutput(BaseModel):
+class ActividadesValidationOutput(BaseModel):
     errors: List[ErrorsWithDocId]
-    validated: List[ActividadDocument]
+    validated: List[ActividadesDocument]

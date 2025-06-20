@@ -1,9 +1,9 @@
 __all__ = [
-    "ProyectoReport",
-    "ProyectoDocument",
-    "ProyectoValidationOutput",
-    "ProyectoParams",
-    "ProyectoFilter",
+    "ProyectosReport",
+    "ProyectosDocument",
+    "ProyectosValidationOutput",
+    "ProyectosParams",
+    "ProyectosFilter",
 ]
 
 from typing import List, Optional
@@ -15,29 +15,29 @@ from ...utils import BaseFilterParams, ErrorsWithDocId
 
 
 # --------------------------------------------------
-class ProyectoParams(BaseModel):
+class ProyectosParams(BaseModel):
     pass
 
 
 # -------------------------------------------------
-class ProyectoReport(BaseModel):
+class ProyectosReport(BaseModel):
     nro_proy: str
     desc_proy: str
     nro_subprog: str
 
 
 # -------------------------------------------------
-class ProyectoDocument(ProyectoReport):
+class ProyectosDocument(ProyectosReport):
     id: PydanticObjectId = Field(alias="_id")
 
 
 # -------------------------------------------------
-class ProyectoFilter(BaseFilterParams):
+class ProyectosFilter(BaseFilterParams):
     nro_proy: Optional[str] = None
     desc_proy: Optional[str] = None
 
 
 # -------------------------------------------------
-class ProyectoValidationOutput(BaseModel):
+class ProyectosValidationOutput(BaseModel):
     errors: List[ErrorsWithDocId]
-    validated: List[ProyectoDocument]
+    validated: List[ProyectosDocument]

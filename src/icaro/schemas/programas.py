@@ -1,9 +1,9 @@
 __all__ = [
-    "ProgramaReport",
-    "ProgramaDocument",
-    "ProgramaValidationOutput",
-    "ProgramaParams",
-    "ProgramaFilter",
+    "ProgramasReport",
+    "ProgramasDocument",
+    "ProgramasValidationOutput",
+    "ProgramasParams",
+    "ProgramasFilter",
 ]
 
 from typing import List, Optional
@@ -15,28 +15,28 @@ from ...utils import BaseFilterParams, ErrorsWithDocId
 
 
 # --------------------------------------------------
-class ProgramaParams(BaseModel):
+class ProgramasParams(BaseModel):
     pass
 
 
 # -------------------------------------------------
-class ProgramaReport(BaseModel):
+class ProgramasReport(BaseModel):
     nro_prog: str
     desc_prog: str
 
 
 # -------------------------------------------------
-class ProgramaDocument(ProgramaReport):
+class ProgramasDocument(ProgramasReport):
     id: PydanticObjectId = Field(alias="_id")
 
 
 # -------------------------------------------------
-class ProgramaFilter(BaseFilterParams):
+class ProgramasFilter(BaseFilterParams):
     nro_prog: Optional[str] = None
     desc_prog: Optional[str] = None
 
 
 # -------------------------------------------------
-class ProgramaValidationOutput(BaseModel):
+class ProgramasValidationOutput(BaseModel):
     errors: List[ErrorsWithDocId]
-    validated: List[ProgramaDocument]
+    validated: List[ProgramasDocument]

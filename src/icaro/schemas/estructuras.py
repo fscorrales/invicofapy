@@ -5,11 +5,11 @@ Purpose: Unified schema for Estructura (Prog + Subprog + Proy + Act) to be used 
 """
 
 __all__ = [
-    "EstructuraReport",
-    "EstructuraDocument",
-    "EstructuraValidationOutput",
-    "EstructuraParams",
-    "EstructuraFilter",
+    "EstructurasReport",
+    "EstructurasDocument",
+    "EstructurasValidationOutput",
+    "EstructurasParams",
+    "EstructurasFilter",
 ]
 
 
@@ -22,12 +22,12 @@ from ...utils import BaseFilterParams, ErrorsWithDocId
 
 
 # --------------------------------------------------
-class EstructuraParams(BaseModel):
+class EstructurasParams(BaseModel):
     pass
 
 
 # -------------------------------------------------
-class EstructuraReport(BaseModel):
+class EstructurasReport(BaseModel):
     nro_estructura: (
         str  # Example: 11, 11-00, 11-00-02, 11-00-02-79 (all in the same field)
     )
@@ -35,17 +35,17 @@ class EstructuraReport(BaseModel):
 
 
 # -------------------------------------------------
-class EstructuraDocument(EstructuraReport):
+class EstructurasDocument(EstructurasReport):
     id: PydanticObjectId = Field(alias="_id")
 
 
 # -------------------------------------------------
-class EstructuraFilter(BaseFilterParams):
+class EstructurasFilter(BaseFilterParams):
     nro_estructura: Optional[str] = None
     desc_estructura: Optional[str] = None
 
 
 # -------------------------------------------------
-class EstructuraValidationOutput(BaseModel):
+class EstructurasValidationOutput(BaseModel):
     errors: List[ErrorsWithDocId]
-    validated: List[EstructuraDocument]
+    validated: List[EstructurasDocument]

@@ -1,9 +1,9 @@
 __all__ = [
-    "SubprogramaReport",
-    "SubprogramaDocument",
-    "SubprogramaValidationOutput",
-    "SubprogramaParams",
-    "SubprogramaFilter",
+    "SubprogramasReport",
+    "SubprogramasDocument",
+    "SubprogramasValidationOutput",
+    "SubprogramasParams",
+    "SubprogramasFilter",
 ]
 
 from typing import List, Optional
@@ -15,29 +15,29 @@ from ...utils import BaseFilterParams, ErrorsWithDocId
 
 
 # --------------------------------------------------
-class SubprogramaParams(BaseModel):
+class SubprogramasParams(BaseModel):
     pass
 
 
 # -------------------------------------------------
-class SubprogramaReport(BaseModel):
+class SubprogramasReport(BaseModel):
     nro_subprog: str
     desc_subprog: str
     nro_prog: str
 
 
 # -------------------------------------------------
-class SubprogramaDocument(SubprogramaReport):
+class SubprogramasDocument(SubprogramasReport):
     id: PydanticObjectId = Field(alias="_id")
 
 
 # -------------------------------------------------
-class SubprogramaFilter(BaseFilterParams):
+class SubprogramasFilter(BaseFilterParams):
     nro_subprog: Optional[str] = None
     desc_subprog: Optional[str] = None
 
 
 # -------------------------------------------------
-class SubprogramaValidationOutput(BaseModel):
+class SubprogramasValidationOutput(BaseModel):
     errors: List[ErrorsWithDocId]
-    validated: List[SubprogramaDocument]
+    validated: List[SubprogramasDocument]

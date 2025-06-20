@@ -5,12 +5,12 @@ from typing import Annotated
 from fastapi import Depends
 
 from ...config import BaseRepository
-from ..schemas import ProyectoReport
+from ..schemas import ProyectosReport
 
 
-class ProyectosRepository(BaseRepository[ProyectoReport]):
+class ProyectosRepository(BaseRepository[ProyectosReport]):
     collection_name = "icaro_proyectos"
-    model = ProyectoReport
+    model = ProyectosReport
 
 
 ProyectosRepositoryDependency = Annotated[ProyectosRepository, Depends()]
