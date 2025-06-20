@@ -203,7 +203,9 @@ class Rpa03g(SIIFReportManager):
             df["nro_entrada"].str.zfill(5) + "/" + df["mes"].str[-2:]
         )
 
-        df["fecha"] = pd.to_datetime(df["fecha"], format="%Y-%m-%d %H:%M:%S", errors="coerce")
+        df["fecha"] = pd.to_datetime(
+            df["fecha"], format="%Y-%m-%d %H:%M:%S", errors="coerce"
+        )
 
         df = df.loc[
             :,
@@ -248,8 +250,7 @@ async def main():
             for ejercicio in args.ejercicios:
                 if args.download:
                     await rpa03g.download_report(
-                        ejercicio=str(ejercicio), 
-                        grupo_partida=str(args.grupo_partida)
+                        ejercicio=str(ejercicio), grupo_partida=str(args.grupo_partida)
                     )
                     await rpa03g.save_xls_file(
                         save_path=save_path,

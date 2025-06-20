@@ -148,16 +148,14 @@ class Rfondo07tp(SIIFReportManager):
             # Fecha Desde
             await input_fecha_desde.clear()
             fecha_desde = dt.datetime.strftime(
-                dt.date(year=int(ejercicio), month=1, day=1),
-                '%d/%m/%Y'
+                dt.date(year=int(ejercicio), month=1, day=1), "%d/%m/%Y"
             )
             await input_fecha_desde.fill(fecha_desde)
             # Fecha Hasta
             await input_fecha_hasta.clear()
-            fecha_hasta = dt.datetime(year=(int(ejercicio)+1), month=12, day=31)
+            fecha_hasta = dt.datetime(year=(int(ejercicio) + 1), month=12, day=31)
             fecha_hasta = min(fecha_hasta, dt.datetime.now())
-            fecha_hasta = dt.datetime.strftime(fecha_hasta, '%d/%m/%Y'
-            )
+            fecha_hasta = dt.datetime.strftime(fecha_hasta, "%d/%m/%Y")
             await input_fecha_hasta.fill(fecha_hasta)
             # Tipo Comprobante
             await input_tipo_comprobante.clear()
@@ -184,8 +182,9 @@ class Rfondo07tp(SIIFReportManager):
 
     # --------------------------------------------------
     async def process_dataframe(
-        self, dataframe: pd.DataFrame = None, 
-        tipo_comprobante: TipoComprobanteSIIF = TipoComprobanteSIIF.adelanto_contratista.value
+        self,
+        dataframe: pd.DataFrame = None,
+        tipo_comprobante: TipoComprobanteSIIF = TipoComprobanteSIIF.adelanto_contratista.value,
     ) -> pd.DataFrame:
         """ "Transform read xls file"""
         if dataframe is None:
@@ -194,34 +193,47 @@ class Rfondo07tp(SIIFReportManager):
             df = dataframe.copy()
 
         df = df.replace(to_replace="", value=None)
-        df["ejercicio"] = pd.to_numeric(df.iloc[4,1][-4:], errors="coerce")
-        df['tipo_comprobante'] = tipo_comprobante
+        df["ejercicio"] = pd.to_numeric(df.iloc[4, 1][-4:], errors="coerce")
+        df["tipo_comprobante"] = tipo_comprobante
         df = df.tail(-19)
-        df = df.dropna(subset=['10'])
-        df = df.rename(columns={
-            '3': 'nro_fondo',
-            '6': 'glosa',
-            '10': 'fecha',
-            '12': 'ingresos',
-            '15': 'egresos',
-            '18': 'saldo',
-        })
-        df['mes'] = df['fecha'].str[5:7] + '/' + df['ejercicio'].astype(str)
-        df['nro_comprobante'] = df['nro_fondo'].str.zfill(5) + '/' + df['mes'].str[-2:]
+        df = df.dropna(subset=["10"])
+        df = df.rename(
+            columns={
+                "3": "nro_fondo",
+                "6": "glosa",
+                "10": "fecha",
+                "12": "ingresos",
+                "15": "egresos",
+                "18": "saldo",
+            }
+        )
+        df["mes"] = df["fecha"].str[5:7] + "/" + df["ejercicio"].astype(str)
+        df["nro_comprobante"] = df["nro_fondo"].str.zfill(5) + "/" + df["mes"].str[-2:]
 
-        df['fecha'] = pd.to_datetime(
-            df['fecha'], format="%Y-%m-%d %H:%M:%S", errors="coerce"
+        df["fecha"] = pd.to_datetime(
+            df["fecha"], format="%Y-%m-%d %H:%M:%S", errors="coerce"
         )
 
-        df = df.loc[:, [
-            'ejercicio', 'mes', 'fecha', 'tipo_comprobante', 'nro_comprobante',
-            'nro_fondo', 'glosa', 'ingresos', 'egresos', 'saldo'
-        ]]
-
-        to_numeric_cols = [
-            'ingresos', 'egresos', 'saldo'
+        df = df.loc[
+            :,
+            [
+                "ejercicio",
+                "mes",
+                "fecha",
+                "tipo_comprobante",
+                "nro_comprobante",
+                "nro_fondo",
+                "glosa",
+                "ingresos",
+                "egresos",
+                "saldo",
+            ],
         ]
-        df[to_numeric_cols] = df[to_numeric_cols].apply(pd.to_numeric).astype(np.float64) 
+
+        to_numeric_cols = ["ingresos", "egresos", "saldo"]
+        df[to_numeric_cols] = (
+            df[to_numeric_cols].apply(pd.to_numeric).astype(np.float64)
+        )
 
         self.clean_df = df
         return self.clean_df
@@ -248,8 +260,8 @@ async def main():
             for ejercicio in args.ejercicios:
                 if args.download:
                     await rfondo07tp.download_report(
-                        ejercicio=str(ejercicio), 
-                        tipo_comprobante=str(args.tipo_comprobante)
+                        ejercicio=str(ejercicio),
+                        tipo_comprobante=str(args.tipo_comprobante),
                     )
                     await rfondo07tp.save_xls_file(
                         save_path=save_path,
@@ -260,7 +272,9 @@ async def main():
                     )
                 await rfondo07tp.read_xls_file(args.file)
                 print(rfondo07tp.df)
-                await rfondo07tp.process_dataframe(tipo_comprobante=args.tipo_comprobante)
+                await rfondo07tp.process_dataframe(
+                    tipo_comprobante=args.tipo_comprobante
+                )
                 print(rfondo07tp.clean_df)
         except Exception as e:
             print(f"Error al iniciar sesión: {e}")

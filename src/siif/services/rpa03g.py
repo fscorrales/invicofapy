@@ -61,7 +61,10 @@ class Rpa03gService:
                 )
                 await self.rpa03g.go_to_reports()
                 await self.rpa03g.go_to_specific_report()
-                await self.rpa03g.download_report(ejercicio=str(params.ejercicio), grupo_partida=str(params.grupo_partida.value))
+                await self.rpa03g.download_report(
+                    ejercicio=str(params.ejercicio),
+                    grupo_partida=str(params.grupo_partida.value),
+                )
                 await self.rpa03g.read_xls_file()
                 df = await self.rpa03g.process_dataframe()
 

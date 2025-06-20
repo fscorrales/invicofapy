@@ -1,4 +1,10 @@
-__all__ = ["EjercicioSIIF", "TipoComprobanteSIIF", "GrupoPartidaSIIF", "GrupoControlFinancieroSIIF", "FuenteFinanciamientoSIIF"]
+__all__ = [
+    "EjercicioSIIF",
+    "TipoComprobanteSIIF",
+    "GrupoPartidaSIIF",
+    "GrupoControlFinancieroSIIF",
+    "FuenteFinanciamientoSIIF",
+]
 
 from datetime import date
 from enum import Enum
@@ -42,6 +48,7 @@ class GrupoPartidaSIIF(str, Enum):
     servicios = "3"
     bienes_capital = "4"
 
+
 # -------------------------------------------------
 class TipoComprobanteSIIF(str, Enum):
     adelanto_contratista = "PA6"
@@ -54,11 +61,11 @@ class GrupoControlFinancieroSIIF(str, Enum):
     Enum para representar los Grupos de Control Financiero del SIIF.
     """
 
-    gastos_de_personal = "1" #CONTROL DEL GRUPO DE GASTOS 100
-    bienes_serv_inversion = "2" #CONTROL GRUPO DE GASTOS 200, 300, 400
-    transf_act_fin_deuda_publica = "3" #CONTROL GRUPO DE GASTOS: 500, 600, 700
-    gastos_figurativos = "4" #CONTROL GRUPO DE GASTOS: 900
-    gpo_gral_sin_control = "9" #GRUPO SIN CONTROL FINANCIERO : GRUPO: 800
+    gastos_de_personal = "1"  # CONTROL DEL GRUPO DE GASTOS 100
+    bienes_serv_inversion = "2"  # CONTROL GRUPO DE GASTOS 200, 300, 400
+    transf_act_fin_deuda_publica = "3"  # CONTROL GRUPO DE GASTOS: 500, 600, 700
+    gastos_figurativos = "4"  # CONTROL GRUPO DE GASTOS: 900
+    gpo_gral_sin_control = "9"  # GRUPO SIN CONTROL FINANCIERO : GRUPO: 800
 
 
 # -------------------------------------------------
