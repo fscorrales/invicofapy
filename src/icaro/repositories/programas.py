@@ -1,4 +1,4 @@
-__all__ = ["ProgramaRepositoryDependency", "ProgramaRepository"]
+__all__ = ["ProgramasRepositoryDependency", "ProgramasRepository"]
 
 from typing import Annotated
 
@@ -8,9 +8,9 @@ from ...config import BaseRepository
 from ..schemas import ProgramaReport
 
 
-class ProgramaRepository(BaseRepository[ProgramaReport]):
+class ProgramasRepository(BaseRepository[ProgramaReport]):
     collection_name = "icaro_programas"
     model = ProgramaReport
 
 
-ProgramaRepositoryDependency = Annotated[ProgramaRepository, Depends()]
+ProgramasRepositoryDependency = Annotated[ProgramasRepository, Depends()]
