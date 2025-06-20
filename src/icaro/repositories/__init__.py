@@ -1,4 +1,4 @@
-from .actividad import *
-from .programa import *
-from .proyecto import *
+from .actividades import *
+from .programas import *
+from .proyectos import *
 from .subprograma import *

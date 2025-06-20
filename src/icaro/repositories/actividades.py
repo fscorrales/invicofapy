@@ -9,7 +9,7 @@ from ..schemas import ActividadReport
 
 
 class ActividadRepository(BaseRepository[ActividadReport]):
-    collection_name = "icaro_actividad"
+    collection_name = "icaro_actividades"
     model = ActividadReport
 
 

@@ -19,10 +19,10 @@ COLLECTIONS = [
     "siif_rpa03g",
     "siif_rfondo07tp",
     "sgf_resumen_rend_prov",
-    "icaro_programa",
-    "icaro_subprograma",
-    "icaro_proyecto",
-    "icaro_actividad",
+    "icaro_programas",
+    "icaro_subprogramas",
+    "icaro_proyectos",
+    "icaro_actividades",
 ]
 
 

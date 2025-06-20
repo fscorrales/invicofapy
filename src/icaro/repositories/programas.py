@@ -9,7 +9,7 @@ from ..schemas import ProgramaReport
 
 
 class ProgramaRepository(BaseRepository[ProgramaReport]):
-    collection_name = "icaro_programa"
+    collection_name = "icaro_programas"
     model = ProgramaReport
 
 

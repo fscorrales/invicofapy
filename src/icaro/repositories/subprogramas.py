@@ -9,7 +9,7 @@ from ..schemas import SubprogramaReport
 
 
 class SubprogramaRepository(BaseRepository[SubprogramaReport]):
-    collection_name = "icaro_subprograma"
+    collection_name = "icaro_subprogramas"
     model = SubprogramaReport
 
 
