@@ -16,6 +16,8 @@ from dataclasses import dataclass
 
 import pandas as pd
 
+from ..repositories import ProgramasRepository, SubprogramasRepository
+
 
 # --------------------------------------------------
 def get_args():
@@ -38,6 +40,48 @@ def get_args():
     args = parser.parse_args()
 
     return args
+
+
+# --------------------------------------------------
+class IcaroMongoMigrator:
+    def __init__(self, sqlite_path: str, mongo_client, mongo_db_name: str):
+        self.sqlite_path = sqlite_path
+        self.db = mongo_client[mongo_db_name]
+
+        # Repositorios por colección
+        self.programas_repo = ProgramasRepository(self.db["icaro_programas"])
+        self.subprogramas_repo = SubprogramasRepository(self.db["icaro_subprogramas"])
+        # Agregás más repos aquí
+
+    def from_sql(self, table: str) -> pd.DataFrame:
+        import sqlite3
+
+        with sqlite3.connect(self.sqlite_path) as conn:
+            return pd.read_sql_query(f"SELECT * FROM {table}", conn)
+
+    async def migrate_programas(self):
+        df = self.from_sql("PROGRAMAS")
+        df.rename(
+            columns={"Programa": "nro_prog", "DescProg": "desc_prog"}, inplace=True
+        )
+        await self.programas_repo.insert_many(df.to_dict(orient="records"))
+
+    async def migrate_subprogramas(self):
+        df = self.from_sql("SUBPROGRAMAS")
+        df.rename(
+            columns={
+                "Programa": "nro_prog",
+                "Subprograma": "nro_subprog",
+                "DescSubprog": "desc_subprog",
+            },
+            inplace=True,
+        )
+        await self.subprogramas_repo.insert_many(df.to_dict(orient="records"))
+
+    async def migrate_all(self):
+        await self.migrate_programas()
+        await self.migrate_subprogramas()
+        # ... el resto de las tablas
 
 
 # --------------------------------------------------
