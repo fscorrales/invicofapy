@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field, field_validator
 from pydantic_mongo import PydanticObjectId
 
 from ...utils import BaseFilterParams, ErrorsWithDocId
+from .common import FuenteFinanciamientoSIIF
 
 
 # --------------------------------------------------
@@ -44,7 +45,7 @@ class Rcg01UejpReport(BaseModel):
     fecha: date
     nro_comprobante: str
     importe: float
-    fuente: str
+    fuente: FuenteFinanciamientoSIIF
     cta_cte: str
     cuit: str
     nro_expte: str

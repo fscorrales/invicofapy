@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field, NonNegativeFloat, field_validator
 from pydantic_mongo import PydanticObjectId
 
 from ...utils import BaseFilterParams, ErrorsWithDocId
+from .common import FuenteFinanciamientoSIIF
 
 
 # --------------------------------------------------
@@ -41,7 +42,7 @@ class Rf602Params(BaseModel):
 class Rf602Report(BaseModel):
     ejercicio: int
     estructura: str
-    fuente: str
+    fuente: FuenteFinanciamientoSIIF
     programa: str
     subprograma: str
     proyecto: str
