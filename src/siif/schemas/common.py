@@ -38,6 +38,18 @@ class EjercicioSIIF(BaseModel):
 
 
 # -------------------------------------------------
+class PartidaPrincipalSIIF(str, Enum):
+    """
+    Enum para representar las Partidas Principales del SIIF.
+    """
+
+    gastos_en_personal = "100"
+    bienes_de_consumo = "200"
+    servicios_no_personales = "300"
+    bienes_de_uso = "400"
+
+
+# -------------------------------------------------
 class GrupoPartidaSIIF(str, Enum):
     """
     Enum para representar los grupos de partidas del SIIF.
