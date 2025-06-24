@@ -12,11 +12,23 @@ import asyncio
 import datetime as dt
 import inspect
 import os
+import sqlite3
 from dataclasses import dataclass
 
 import pandas as pd
 
 from ..repositories import ProgramasRepository, SubprogramasRepository
+
+
+def validate_sqlite_file(path):
+    if not os.path.exists(path):
+        raise ValueError(f"El archivo {path} no existe")
+    if not path.endswith(".sqlite") and not path.endswith(".db"):
+        raise ValueError(f"El archivo {path} no parece ser un archivo SQLite")
+    try:
+        sqlite3.connect(path)
+    except sqlite3.Error as e:
+        raise ValueError(f"Error al conectar al archivo SQLite {path}: {e}")
 
 
 # --------------------------------------------------
@@ -32,9 +44,9 @@ def get_args():
         "-f",
         "--file",
         metavar="sqlite_file",
-        default=None,
-        type=argparse.FileType("r"),
-        help="Path to old ICARO.sqlite to be migrated",
+        default="ICARO.sqlite",
+        type=validate_sqlite_file,
+        help="Path al archivo SQLite de Icaro",
     )
 
     args = parser.parse_args()
