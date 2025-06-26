@@ -7,6 +7,7 @@ from .auth.routes import auth_router
 from .config import Database
 from .siif.routes import siif_router
 from .sgf.routes import sgf_router
+from .icaro.routes import icaro_router
 
 
 @asynccontextmanager
@@ -37,6 +38,7 @@ app.include_router(auth_router)
 # Include our API routes
 app.include_router(siif_router)
 app.include_router(sgf_router)
+app.include_router(icaro_router)
 
 
 # Set up CORS middleware

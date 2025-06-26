@@ -5,7 +5,7 @@ Date   : 20-jun-2025
 Purpose: Migrate from old Icaro.sqlite to new DB
 """
 
-__all__ = ["MigrateIcaro"]
+__all__ = ["IcaroMongoMigrator"]
 
 import argparse
 import asyncio
