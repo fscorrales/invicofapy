@@ -23,6 +23,7 @@ COLLECTIONS = [
     "icaro_subprogramas",
     "icaro_proyectos",
     "icaro_actividades",
+    "icaro_estructuras",
 ]
 
 

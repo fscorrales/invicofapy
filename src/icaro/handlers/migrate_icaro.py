@@ -14,26 +14,32 @@ import inspect
 import os
 import sqlite3
 from dataclasses import dataclass
+from motor.motor_asyncio import AsyncIOMotorClient
 
 import pandas as pd
 
-from ..repositories import ProgramasRepository, SubprogramasRepository
+from ..repositories import ProgramasRepository, SubprogramasRepository, ProyectosRepository, ActividadesRepository, EstructurasRepository
 
 
 def validate_sqlite_file(path):
     if not os.path.exists(path):
-        raise ValueError(f"El archivo {path} no existe")
+        raise argparse.ArgumentTypeError(f"El archivo {path} no existe")
     if not path.endswith(".sqlite") and not path.endswith(".db"):
-        raise ValueError(f"El archivo {path} no parece ser un archivo SQLite")
+        raise argparse.ArgumentTypeError(f"El archivo {path} no parece ser un archivo SQLite")
     try:
         sqlite3.connect(path)
     except sqlite3.Error as e:
-        raise ValueError(f"Error al conectar al archivo SQLite {path}: {e}")
+        raise argparse.ArgumentTypeError(f"Error al conectar al archivo SQLite {path}: {e}")
+    return path
 
 
 # --------------------------------------------------
 def get_args():
     """Get command-line arguments"""
+
+    path = os.path.dirname(
+        os.path.abspath(inspect.getfile(inspect.currentframe()))
+    )
 
     parser = argparse.ArgumentParser(
         description="Migrate from old Icaro.sqlite to new DB",
@@ -44,9 +50,9 @@ def get_args():
         "-f",
         "--file",
         metavar="sqlite_file",
-        default="ICARO.sqlite",
-        type=validate_sqlite_file,
-        help="Path al archivo SQLite de Icaro",
+        default= os.path.join(path, "ICARO.sqlite"),
+        type= validate_sqlite_file,
+        help= "Path al archivo SQLite de Icaro",
     )
 
     args = parser.parse_args()
@@ -56,13 +62,15 @@ def get_args():
 
 # --------------------------------------------------
 class IcaroMongoMigrator:
-    def __init__(self, sqlite_path: str, mongo_client, mongo_db_name: str):
+    def __init__(self, sqlite_path: str):
         self.sqlite_path = sqlite_path
-        self.db = mongo_client[mongo_db_name]
 
         # Repositorios por colección
-        self.programas_repo = ProgramasRepository(self.db["icaro_programas"])
-        self.subprogramas_repo = SubprogramasRepository(self.db["icaro_subprogramas"])
+        self.programas_repo = ProgramasRepository()
+        self.subprogramas_repo = SubprogramasRepository()
+        self.proyectos_repo = ProyectosRepository()
+        self.actividades_repo = ActividadesRepository()
+        self.estructuras_repo = EstructurasRepository()
         # Agregás más repos aquí
 
     def from_sql(self, table: str) -> pd.DataFrame:
@@ -76,7 +84,8 @@ class IcaroMongoMigrator:
         df.rename(
             columns={"Programa": "nro_prog", "DescProg": "desc_prog"}, inplace=True
         )
-        await self.programas_repo.insert_many(df.to_dict(orient="records"))
+        await self.programas_repo.delete_all()
+        await self.programas_repo.save_all(df.to_dict(orient="records"))
 
     async def migrate_subprogramas(self):
         df = self.from_sql("SUBPROGRAMAS")
@@ -88,11 +97,86 @@ class IcaroMongoMigrator:
             },
             inplace=True,
         )
-        await self.subprogramas_repo.insert_many(df.to_dict(orient="records"))
+        await self.subprogramas_repo.delete_all()
+        await self.subprogramas_repo.save_all(df.to_dict(orient="records"))
+
+    async def migrate_proyectos(self):
+        df = self.from_sql("PROYECTOS")
+        df.rename(
+            columns={
+                "Subprograma": "nro_subprog",
+                "Proyecto": "nro_proy",
+                "DescProy": "desc_proy",
+            },
+            inplace=True,
+        )
+        await self.proyectos_repo.delete_all()
+        await self.proyectos_repo.save_all(df.to_dict(orient="records"))
+
+    async def migrate_actividades(self):
+        df = self.from_sql("ACTIVIDADES")
+        df.rename(
+            columns={
+                "Proyecto": "nro_proy",
+                "Actividad": "nro_act",
+                "DescAct": "desc_act",
+            },
+            inplace=True,
+        )
+        await self.actividades_repo.delete_all()
+        await self.actividades_repo.save_all(df.to_dict(orient="records"))
+
+    async def migrate_estructuras(self):
+        await self.estructuras_repo.delete_all()
+        # Programas
+        df = self.from_sql("PROGRAMAS")
+        df.rename(
+            columns={"Programa": "nro_estructura", "DescProg": "desc_estructura"}, inplace=True
+        )
+        await self.estructuras_repo.save_all(df.to_dict(orient="records"))
+
+        # Subprogramas
+        df = self.from_sql("SUBPROGRAMAS")
+        df.rename(
+            columns={
+                "Subprograma": "nro_estructura",
+                "DescSubprog": "desc_estructura",
+            },
+            inplace=True,
+        )
+        df.drop(["Programa"], axis=1, inplace=True)
+        await self.estructuras_repo.save_all(df.to_dict(orient="records"))
+
+        # Proyectos
+        df = self.from_sql("PROYECTOS")
+        df.rename(
+            columns={
+                "Proyecto": "nro_estructura",
+                "DescProy": "desc_estructura",
+            },
+            inplace=True,
+        )
+        df.drop(["Subprograma"], axis=1, inplace=True)
+        await self.estructuras_repo.save_all(df.to_dict(orient="records"))
+
+        # Actividades
+        df = self.from_sql("ACTIVIDADES")
+        df.rename(
+            columns={
+                "Actividad": "nro_estructura",
+                "DescAct": "desc_estructura",
+            },
+            inplace=True,
+        )
+        df.drop(["Proyecto"], axis=1, inplace=True)
+        await self.estructuras_repo.save_all(df.to_dict(orient="records"))
 
     async def migrate_all(self):
         await self.migrate_programas()
         await self.migrate_subprogramas()
+        await self.migrate_proyectos()
+        await self.migrate_actividades()
+        await self.migrate_estructuras()
         # ... el resto de las tablas
 
 
@@ -434,17 +518,27 @@ class MigrateIcaro:
 # --------------------------------------------------
 async def main():
     """Make a jazz noise here"""
+    from ...config import settings, Database
+
+    Database.initialize()
+    try:
+        await Database.client.admin.command("ping")
+        print("Connected to MongoDB")
+    except Exception as e:
+        print("Error connecting to MongoDB:", e)
+        return
 
     args = get_args()
 
-    save_path = os.path.dirname(
-        os.path.abspath(inspect.getfile(inspect.currentframe()))
+    migrator = IcaroMongoMigrator(
+        sqlite_path=args.file,
     )
 
+    await migrator.migrate_all()
 
 # --------------------------------------------------
 if __name__ == "__main__":
     asyncio.run(main())
     # From /invicofapy
 
-    # poetry run python -m src.siif.handlers.rfondo07tp -d
+    # poetry run python -m src.icaro.handlers.migrate_icaro
