@@ -28,6 +28,7 @@ COLLECTIONS = [
     "icaro_fuentes",
     "icaro_partidas",
     "icaro_proveedores",
+    "icaro_obras",
 ]
 
 

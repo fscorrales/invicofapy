@@ -18,7 +18,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 
 import pandas as pd
 
-from ..repositories import ProgramasRepository, SubprogramasRepository, ProyectosRepository, ActividadesRepository, EstructurasRepository, CtasCtesRepository, FuentesRepository, PartidasRepository, ProveedoresRepository
+from ..repositories import ProgramasRepository, SubprogramasRepository, ProyectosRepository, ActividadesRepository, EstructurasRepository, CtasCtesRepository, FuentesRepository, PartidasRepository, ProveedoresRepository, ObrasRepository
 
 
 def validate_sqlite_file(path):
@@ -76,6 +76,7 @@ class IcaroMongoMigrator:
         self.fuentes_repo = FuentesRepository()
         self.partidas_repo = PartidasRepository()
         self.proveedores_repo = ProveedoresRepository()
+        self.obras_repo = ObrasRepository()
         # Agregás más repos aquí
     
     # --------------------------------------------------
@@ -247,6 +248,28 @@ class IcaroMongoMigrator:
         await self.proveedores_repo.save_all(df.to_dict(orient="records"))
 
     # --------------------------------------------------
+    async def migrate_obras(self):
+        df = self.from_sql("OBRAS")
+        df.rename(
+            columns={
+                "Localidad": "localidad",
+                "CUIT": "cuit",
+                "Imputacion": "nro_act",
+                "Partida": "nro_partida",
+                "Fuente": "nro_fuente",
+                "MontoDeContrato": "monto_contrato",
+                "Adicional": "monto_adicional",
+                "Cuenta": "nro_cta_cte",
+                "NormaLegal": "norma_legal",
+                "Descripcion": "desc_obra",
+                "InformacionAdicional": "info_adicional",
+            },
+            inplace=True,
+        )
+        await self.obras_repo.delete_all()
+        await self.obras_repo.save_all(df.to_dict(orient="records"))
+
+    # --------------------------------------------------
     async def migrate_all(self):
         await self.migrate_programas()
         await self.migrate_subprogramas()
@@ -257,6 +280,7 @@ class IcaroMongoMigrator:
         await self.migrate_fuentes()
         await self.migrate_partidas()
         await self.migrate_proveedores()
+        await self.migrate_obras()
         # ... el resto de las tablas
 
 
@@ -278,27 +302,6 @@ class MigrateIcaro:
         self.migrate_retenciones()
         self.migrate_certificados_obras()
         self.migrate_resumen_rend_obras()
-
-
-    # --------------------------------------------------
-    def migrate_proveedores(self) -> pd.DataFrame:
-        """ "Migrate table proveedores"""
-        self._TABLE_NAME = "PROVEEDORES"
-        self.df = self.from_sql(self.path_old_icaro)
-        self.df.rename(
-            columns={
-                "Codigo": "codigo",
-                "Descripcion": "desc_prov",
-                "Domicilio": "domicilio",
-                "Localidad": "localidad",
-                "Telefono": "telefono",
-                "CUIT": "cuit",
-                "CondicionIVA": "condicion_iva",
-            },
-            inplace=True,
-        )
-        self._TABLE_NAME = "proveedores"
-        self.to_sql(self.path_new_icaro, True)
 
     # --------------------------------------------------
     def migrate_obras(self) -> pd.DataFrame:

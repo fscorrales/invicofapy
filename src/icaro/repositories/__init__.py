@@ -7,3 +7,4 @@ from .ctas_ctes import *
 from .fuentes import *
 from .partidas import *
 from .proveedores import *
+from .obras import *
