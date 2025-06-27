@@ -27,6 +27,7 @@ COLLECTIONS = [
     "icaro_ctas_ctes",
     "icaro_fuentes",
     "icaro_partidas",
+    "icaro_proveedores",
 ]
 
 

@@ -18,7 +18,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 
 import pandas as pd
 
-from ..repositories import ProgramasRepository, SubprogramasRepository, ProyectosRepository, ActividadesRepository, EstructurasRepository, CtasCtesRepository, FuentesRepository, PartidasRepository
+from ..repositories import ProgramasRepository, SubprogramasRepository, ProyectosRepository, ActividadesRepository, EstructurasRepository, CtasCtesRepository, FuentesRepository, PartidasRepository, ProveedoresRepository
 
 
 def validate_sqlite_file(path):
@@ -75,6 +75,7 @@ class IcaroMongoMigrator:
         self.ctas_ctes_repo = CtasCtesRepository()
         self.fuentes_repo = FuentesRepository()
         self.partidas_repo = PartidasRepository()
+        self.proveedores_repo = ProveedoresRepository()
         # Agregás más repos aquí
     
     # --------------------------------------------------
