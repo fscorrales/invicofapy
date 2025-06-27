@@ -18,7 +18,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 
 import pandas as pd
 
-from ..repositories import ProgramasRepository, SubprogramasRepository, ProyectosRepository, ActividadesRepository, EstructurasRepository, CtasCtesRepository, FuentesRepository, PartidasRepository, ProveedoresRepository, ObrasRepository, CargaRepository
+from ..repositories import ProgramasRepository, SubprogramasRepository, ProyectosRepository, ActividadesRepository, EstructurasRepository, CtasCtesRepository, FuentesRepository, PartidasRepository, ProveedoresRepository, ObrasRepository, CargaRepository, RetencionesRepository
 
 
 def validate_sqlite_file(path):
@@ -78,6 +78,7 @@ class IcaroMongoMigrator:
         self.proveedores_repo = ProveedoresRepository()
         self.obras_repo = ObrasRepository()
         self.carga_repo = CargaRepository()
+        self.retenciones_repo = RetencionesRepository()
     
     # --------------------------------------------------
     def from_sql(self, table: str) -> pd.DataFrame:
@@ -293,8 +294,8 @@ class IcaroMongoMigrator:
         )
         df = df.loc[~df.nro_act.isnull()]
         df["fecha"] = pd.to_timedelta(df["fecha"], unit="D") + pd.Timestamp("1970-01-01")
-        df["nro_comprobante_tipo"] = df["nro_comprobante"] + "C"
-        df.loc[df["tipo"] == "PA6", "nro_comprobante_tipo"] = df["nro_comprobante"] + "F"
+        df["id_carga"] = df["nro_comprobante"] + "C"
+        df.loc[df["tipo"] == "PA6", "id_carga"] = df["nro_comprobante"] + "F"
         df["ejercicio"] = df["fecha"].dt.year.astype(str)
         df["mes"] = (
             df["fecha"].dt.month.astype(str).str.zfill(2)
@@ -303,6 +304,26 @@ class IcaroMongoMigrator:
         )
         await self.carga_repo.delete_all()
         await self.carga_repo.save_all(df.to_dict(orient="records"))
+
+    # --------------------------------------------------
+    async def migrate_retenciones(self):
+        df = self.from_sql("RETENCIONES")
+        df.rename(
+            columns={
+                "Codigo": "codigo",
+                "Importe": "importe",
+                "Comprobante": "nro_comprobante",
+                "Tipo": "tipo",
+            },
+            inplace=True,
+        )
+        df["id_carga"] = df["nro_comprobante"] + "C"
+        df.loc[df["tipo"] == "PA6", "id_carga"] = (
+            df["nro_comprobante"] + "F"
+        )
+        df.drop(["nro_comprobante", "tipo"], axis=1, inplace=True)
+        await self.retenciones_repo.delete_all()
+        await self.retenciones_repo.save_all(df.to_dict(orient="records"))
 
     # --------------------------------------------------
     async def migrate_all(self):
@@ -317,6 +338,7 @@ class IcaroMongoMigrator:
         await self.migrate_proveedores()
         await self.migrate_obras()
         await self.migrate_carga()
+        await self.migrate_retenciones()
 
 
 # --------------------------------------------------

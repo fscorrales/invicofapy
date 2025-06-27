@@ -9,3 +9,4 @@ from .partidas import *
 from .proveedores import *
 from .obras import *
 from .carga import *
+from .retenciones import *

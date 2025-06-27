@@ -1,13 +1,12 @@
 __all__ = [
-    "CargaReport",
-    "CargaDocument",
-    "CargaValidationOutput",
-    "CargaParams",
-    "CargaFilter",
+    "RetencionesReport",
+    "RetencionesDocument",
+    "RetencionesValidationOutput",
+    "RetencionesParams",
+    "RetencionesFilter",
 ]
 
 from typing import List, Optional
-from datetime import date
 
 from pydantic import BaseModel, Field
 from pydantic_mongo import PydanticObjectId
@@ -16,43 +15,29 @@ from ...utils import BaseFilterParams, ErrorsWithDocId
 
 
 # --------------------------------------------------
-class CargaParams(BaseModel):
+class RetencionesParams(BaseModel):
     pass
 
 
 # -------------------------------------------------
-class CargaReport(BaseModel):
-    fecha: date
-    nro_fuente: str
-    cuit: str
+class RetencionesReport(BaseModel):
+    codigo: str
     importe: float
-    fondo_reparo: float
-    nro_cta_cte: str
-    avance: float
-    nro_certificado: str
-    nro_comprobante: str
-    desc_obra: str
-    origen: str
-    tipo: str
-    nro_act: str
-    nro_partida: str
     id_carga: str
-    ejercicio: str
-    mes: str
 
 
 # -------------------------------------------------
-class CargaDocument(CargaReport):
+class RetencionesDocument(RetencionesReport):
     id: PydanticObjectId = Field(alias="_id")
 
 
 # -------------------------------------------------
-class CargaFilter(BaseFilterParams):
+class RetencionesFilter(BaseFilterParams):
     nro_subprog: Optional[str] = None
     desc_subprog: Optional[str] = None
 
 
 # -------------------------------------------------
-class CargaValidationOutput(BaseModel):
+class RetencionesValidationOutput(BaseModel):
     errors: List[ErrorsWithDocId]
-    validated: List[CargaDocument]
+    validated: List[RetencionesDocument]

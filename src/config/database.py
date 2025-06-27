@@ -30,6 +30,7 @@ COLLECTIONS = [
     "icaro_proveedores",
     "icaro_obras",
     "icaro_carga",
+    "icaro_retenciones",
 ]
 
 
