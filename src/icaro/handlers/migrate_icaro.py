@@ -18,7 +18,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 
 import pandas as pd
 
-from ..repositories import ProgramasRepository, SubprogramasRepository, ProyectosRepository, ActividadesRepository, EstructurasRepository, CtasCtesRepository, FuentesRepository
+from ..repositories import ProgramasRepository, SubprogramasRepository, ProyectosRepository, ActividadesRepository, EstructurasRepository, CtasCtesRepository, FuentesRepository, PartidasRepository
 
 
 def validate_sqlite_file(path):
@@ -74,6 +74,7 @@ class IcaroMongoMigrator:
         self.estructuras_repo = EstructurasRepository()
         self.ctas_ctes_repo = CtasCtesRepository()
         self.fuentes_repo = FuentesRepository()
+        self.partidas_repo = PartidasRepository()
         # Agregás más repos aquí
     
     # --------------------------------------------------
@@ -210,6 +211,41 @@ class IcaroMongoMigrator:
         await self.fuentes_repo.save_all(df.to_dict(orient="records"))
 
     # --------------------------------------------------
+    async def migrate_partidas(self):
+        df = self.from_sql("PARTIDAS")
+        df.rename(
+            columns={
+                "Grupo": "nro_grupo",
+                "DescGrupo": "desc_grupo",
+                "PartidaParcial": "nro_partida_parcial",
+                "DescPartidaParcial": "desc_partida_parcial",
+                "Partida": "nro_partida",
+                "DescPartida": "desc_partida",
+            },
+            inplace=True,
+        )
+        await self.partidas_repo.delete_all()
+        await self.partidas_repo.save_all(df.to_dict(orient="records"))
+
+    # --------------------------------------------------
+    async def migrate_proveedores(self):
+        df = self.from_sql("PROVEEDORES")
+        df.rename(
+            columns={
+                "Codigo": "codigo",
+                "Descripcion": "desc_proveedor",
+                "Domicilio": "domicilio",
+                "Localidad": "localidad",
+                "Telefono": "telefono",
+                "CUIT": "cuit",
+                "CondicionIVA": "condicion_iva",
+            },
+            inplace=True,
+        )
+        await self.proveedores_repo.delete_all()
+        await self.proveedores_repo.save_all(df.to_dict(orient="records"))
+
+    # --------------------------------------------------
     async def migrate_all(self):
         await self.migrate_programas()
         await self.migrate_subprogramas()
@@ -218,6 +254,8 @@ class IcaroMongoMigrator:
         await self.migrate_estructuras()
         await self.migrate_ctas_ctes()
         await self.migrate_fuentes()
+        await self.migrate_partidas()
+        await self.migrate_proveedores()
         # ... el resto de las tablas
 
 
@@ -233,13 +271,6 @@ class MigrateIcaro:
 
     # --------------------------------------------------
     def migrate_all(self):
-        self.migrate_programas()
-        self.migrate_subprogramas()
-        self.migrate_proyectos()
-        self.migrate_actividades()
-        self.migrate_ctas_ctes()
-        self.migrate_fuentes()
-        self.migrate_partidas()
         self.migrate_proveedores()
         self.migrate_obras()
         self.migrate_carga()
@@ -247,41 +278,6 @@ class MigrateIcaro:
         self.migrate_certificados_obras()
         self.migrate_resumen_rend_obras()
 
-
-    # --------------------------------------------------
-    def migrate_fuentes(self) -> pd.DataFrame:
-        """ "Migrate table fuentes"""
-        self._TABLE_NAME = "FUENTES"
-        self.df = self.from_sql(self.path_old_icaro)
-        self.df.rename(
-            columns={
-                "Fuente": "fuente",
-                "Descripcion": "desc_fte",
-                "Abreviatura": "abreviatura",
-            },
-            inplace=True,
-        )
-        self._TABLE_NAME = "fuentes"
-        self.to_sql(self.path_new_icaro, True)
-
-    # --------------------------------------------------
-    def migrate_partidas(self) -> pd.DataFrame:
-        """ "Migrate table partidas"""
-        self._TABLE_NAME = "PARTIDAS"
-        self.df = self.from_sql(self.path_old_icaro)
-        self.df.rename(
-            columns={
-                "Grupo": "grupo",
-                "DescGrupo": "desc_grupo",
-                "PartidaParcial": "partida_parcial",
-                "DescPartidaParcial": "desc_part_parcial",
-                "Partida": "partida",
-                "DescPartida": "desc_part",
-            },
-            inplace=True,
-        )
-        self._TABLE_NAME = "partidas"
-        self.to_sql(self.path_new_icaro, True)
 
     # --------------------------------------------------
     def migrate_proveedores(self) -> pd.DataFrame:
