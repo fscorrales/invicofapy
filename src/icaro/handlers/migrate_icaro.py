@@ -291,7 +291,16 @@ class IcaroMongoMigrator:
             },
             inplace=True,
         )
+        df = df.loc[~df.nro_act.isnull()]
         df["fecha"] = pd.to_timedelta(df["fecha"], unit="D") + pd.Timestamp("1970-01-01")
+        df["nro_comprobante_tipo"] = df["nro_comprobante"] + "C"
+        df.loc[df["tipo"] == "PA6", "nro_comprobante_tipo"] = df["nro_comprobante"] + "F"
+        df["ejercicio"] = df["fecha"].dt.year.astype(str)
+        df["mes"] = (
+            df["fecha"].dt.month.astype(str).str.zfill(2)
+            + "/"
+            + df["ejercicio"]
+        )
         await self.carga_repo.delete_all()
         await self.carga_repo.save_all(df.to_dict(orient="records"))
 
@@ -322,54 +331,9 @@ class MigrateIcaro:
 
     # --------------------------------------------------
     def migrate_all(self):
-        self.migrate_carga()
         self.migrate_retenciones()
         self.migrate_certificados_obras()
         self.migrate_resumen_rend_obras()
-
-
-    # --------------------------------------------------
-    def migrate_carga(self) -> pd.DataFrame:
-        """ "Migrate table carga"""
-        self._TABLE_NAME = "CARGA"
-        self.df = self.from_sql(self.path_old_icaro)
-        self.df.rename(
-            columns={
-                "Fecha": "fecha",
-                "Fuente": "fuente",
-                "CUIT": "cuit",
-                "Importe": "importe",
-                "FondoDeReparo": "fondo_reparo",
-                "Cuenta": "cta_cte",
-                "Avance": "avance",
-                "Certificado": "certificado",
-                "Comprobante": "nro_comprobante",
-                "Obra": "obra",
-                "Origen": "origen",
-                "Tipo": "tipo",
-                "Imputacion": "actividad",
-                "Partida": "partida",
-            },
-            inplace=True,
-        )
-        self.df = self.df.loc[~self.df.actividad.isnull()]
-        self.df["fecha"] = pd.TimedeltaIndex(self.df["fecha"], unit="d") + dt.datetime(
-            1970, 1, 1
-        )
-        self.df["id"] = self.df["nro_comprobante"] + "C"
-        self.df.loc[self.df["tipo"] == "PA6", "id"] = self.df["nro_comprobante"] + "F"
-        self.df["ejercicio"] = self.df["fecha"].dt.year.astype(str)
-        self.df["mes"] = (
-            self.df["fecha"].dt.month.astype(str).str.zfill(2)
-            + "/"
-            + self.df["ejercicio"]
-        )
-        self._TABLE_NAME = "carga"
-        # # Imprimir los registros duplicados
-        # duplicates = self.df[self.df.duplicated(subset='id', keep=False)]
-        # print("Registros duplicados en el campo 'id':")
-        # print(duplicates)
-        self.to_sql(self.path_new_icaro, True)
 
     # --------------------------------------------------
     def migrate_retenciones(self) -> pd.DataFrame:

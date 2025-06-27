@@ -36,6 +36,9 @@ class CargaReport(BaseModel):
     tipo: str
     nro_act: str
     nro_partida: str
+    nro_comprobante_tipo: str
+    ejercicio: str
+    mes: str
 
 
 # -------------------------------------------------
