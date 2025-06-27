@@ -18,7 +18,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 
 import pandas as pd
 
-from ..repositories import ProgramasRepository, SubprogramasRepository, ProyectosRepository, ActividadesRepository, EstructurasRepository, CtasCtesRepository
+from ..repositories import ProgramasRepository, SubprogramasRepository, ProyectosRepository, ActividadesRepository, EstructurasRepository, CtasCtesRepository, FuentesRepository
 
 
 def validate_sqlite_file(path):
@@ -62,6 +62,7 @@ def get_args():
 
 # --------------------------------------------------
 class IcaroMongoMigrator:
+    # --------------------------------------------------
     def __init__(self, sqlite_path: str):
         self.sqlite_path = sqlite_path
 
@@ -72,14 +73,17 @@ class IcaroMongoMigrator:
         self.actividades_repo = ActividadesRepository()
         self.estructuras_repo = EstructurasRepository()
         self.ctas_ctes_repo = CtasCtesRepository()
+        self.fuentes_repo = FuentesRepository()
         # Agregás más repos aquí
-
+    
+    # --------------------------------------------------
     def from_sql(self, table: str) -> pd.DataFrame:
         import sqlite3
 
         with sqlite3.connect(self.sqlite_path) as conn:
             return pd.read_sql_query(f"SELECT * FROM {table}", conn)
-
+    
+    # --------------------------------------------------
     async def migrate_programas(self):
         df = self.from_sql("PROGRAMAS")
         df.rename(
@@ -88,6 +92,7 @@ class IcaroMongoMigrator:
         await self.programas_repo.delete_all()
         await self.programas_repo.save_all(df.to_dict(orient="records"))
 
+    # --------------------------------------------------
     async def migrate_subprogramas(self):
         df = self.from_sql("SUBPROGRAMAS")
         df.rename(
@@ -101,6 +106,7 @@ class IcaroMongoMigrator:
         await self.subprogramas_repo.delete_all()
         await self.subprogramas_repo.save_all(df.to_dict(orient="records"))
 
+    # --------------------------------------------------
     async def migrate_proyectos(self):
         df = self.from_sql("PROYECTOS")
         df.rename(
@@ -114,6 +120,7 @@ class IcaroMongoMigrator:
         await self.proyectos_repo.delete_all()
         await self.proyectos_repo.save_all(df.to_dict(orient="records"))
 
+    # --------------------------------------------------
     async def migrate_actividades(self):
         df = self.from_sql("ACTIVIDADES")
         df.rename(
@@ -127,6 +134,7 @@ class IcaroMongoMigrator:
         await self.actividades_repo.delete_all()
         await self.actividades_repo.save_all(df.to_dict(orient="records"))
 
+    # --------------------------------------------------
     async def migrate_estructuras(self):
         await self.estructuras_repo.delete_all()
         # Programas
@@ -172,6 +180,7 @@ class IcaroMongoMigrator:
         df.drop(["Proyecto"], axis=1, inplace=True)
         await self.estructuras_repo.save_all(df.to_dict(orient="records"))
 
+    # --------------------------------------------------
     async def migrate_ctas_ctes(self):
         df = self.from_sql("CUENTASBANCARIAS")
         df.rename(
@@ -186,6 +195,21 @@ class IcaroMongoMigrator:
         await self.ctas_ctes_repo.delete_all()
         await self.ctas_ctes_repo.save_all(df.to_dict(orient="records"))
 
+    # --------------------------------------------------
+    async def migrate_fuentes(self):
+        df = self.from_sql("FUENTES")
+        df.rename(
+            columns={
+                "Fuente": "nro_fuente",
+                "Descripcion": "desc_fuente",
+                "Abreviatura": "abreviatura",
+            },
+            inplace=True,
+        )
+        await self.fuentes_repo.delete_all()
+        await self.fuentes_repo.save_all(df.to_dict(orient="records"))
+
+    # --------------------------------------------------
     async def migrate_all(self):
         await self.migrate_programas()
         await self.migrate_subprogramas()
@@ -193,6 +217,7 @@ class IcaroMongoMigrator:
         await self.migrate_actividades()
         await self.migrate_estructuras()
         await self.migrate_ctas_ctes()
+        await self.migrate_fuentes()
         # ... el resto de las tablas
 
 
@@ -222,24 +247,6 @@ class MigrateIcaro:
         self.migrate_certificados_obras()
         self.migrate_resumen_rend_obras()
 
-
-
-    # --------------------------------------------------
-    def migrate_ctas_ctes(self) -> pd.DataFrame:
-        """ "Migrate table ctas_ctes"""
-        self._TABLE_NAME = "CUENTASBANCARIAS"
-        self.df = self.from_sql(self.path_old_icaro)
-        self.df.rename(
-            columns={
-                "CuentaAnterior": "cta_cte_anterior",
-                "Cuenta": "cta_cte",
-                "Descripcion": "desc_cta_cte",
-                "Banco": "banco",
-            },
-            inplace=True,
-        )
-        self._TABLE_NAME = "ctas_ctes"
-        self.to_sql(self.path_new_icaro, True)
 
     # --------------------------------------------------
     def migrate_fuentes(self) -> pd.DataFrame:
