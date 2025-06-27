@@ -18,7 +18,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 
 import pandas as pd
 
-from ..repositories import ProgramasRepository, SubprogramasRepository, ProyectosRepository, ActividadesRepository, EstructurasRepository, CtasCtesRepository, FuentesRepository, PartidasRepository, ProveedoresRepository, ObrasRepository
+from ..repositories import ProgramasRepository, SubprogramasRepository, ProyectosRepository, ActividadesRepository, EstructurasRepository, CtasCtesRepository, FuentesRepository, PartidasRepository, ProveedoresRepository, ObrasRepository, CargaRepository
 
 
 def validate_sqlite_file(path):
@@ -77,7 +77,7 @@ class IcaroMongoMigrator:
         self.partidas_repo = PartidasRepository()
         self.proveedores_repo = ProveedoresRepository()
         self.obras_repo = ObrasRepository()
-        # Agregás más repos aquí
+        self.carga_repo = CargaRepository()
     
     # --------------------------------------------------
     def from_sql(self, table: str) -> pd.DataFrame:
@@ -270,6 +270,32 @@ class IcaroMongoMigrator:
         await self.obras_repo.save_all(df.to_dict(orient="records"))
 
     # --------------------------------------------------
+    async def migrate_carga(self):
+        df = self.from_sql("CARGA")
+        df.rename(
+            columns={
+                "Fecha": "fecha",
+                "Fuente": "nro_fuente",
+                "CUIT": "cuit",
+                "Importe": "importe",
+                "FondoDeReparo": "fondo_reparo",
+                "Cuenta": "nro_cta_cte",
+                "Avance": "avance",
+                "Certificado": "nro_certificado",
+                "Comprobante": "nro_comprobante",
+                "Obra": "desc_obra",
+                "Origen": "origen",
+                "Tipo": "tipo",
+                "Imputacion": "nro_act",
+                "Partida": "nro_partida",
+            },
+            inplace=True,
+        )
+        df["fecha"] = pd.to_timedelta(df["fecha"], unit="D") + pd.Timestamp("1970-01-01")
+        await self.carga_repo.delete_all()
+        await self.carga_repo.save_all(df.to_dict(orient="records"))
+
+    # --------------------------------------------------
     async def migrate_all(self):
         await self.migrate_programas()
         await self.migrate_subprogramas()
@@ -281,7 +307,7 @@ class IcaroMongoMigrator:
         await self.migrate_partidas()
         await self.migrate_proveedores()
         await self.migrate_obras()
-        # ... el resto de las tablas
+        await self.migrate_carga()
 
 
 # --------------------------------------------------
@@ -296,36 +322,11 @@ class MigrateIcaro:
 
     # --------------------------------------------------
     def migrate_all(self):
-        self.migrate_proveedores()
-        self.migrate_obras()
         self.migrate_carga()
         self.migrate_retenciones()
         self.migrate_certificados_obras()
         self.migrate_resumen_rend_obras()
 
-    # --------------------------------------------------
-    def migrate_obras(self) -> pd.DataFrame:
-        """ "Migrate table obras"""
-        self._TABLE_NAME = "OBRAS"
-        self.df = self.from_sql(self.path_old_icaro)
-        self.df.rename(
-            columns={
-                "Localidad": "localidad",
-                "CUIT": "cuit",
-                "Imputacion": "actividad",
-                "Partida": "partida",
-                "Fuente": "fuente",
-                "MontoDeContrato": "monto_contrato",
-                "Adicional": "adicional",
-                "Cuenta": "cta_cte",
-                "NormaLegal": "norma_legal",
-                "Descripcion": "obra",
-                "InformacionAdicional": "info_adicional",
-            },
-            inplace=True,
-        )
-        self._TABLE_NAME = "obras"
-        self.to_sql(self.path_new_icaro, True)
 
     # --------------------------------------------------
     def migrate_carga(self) -> pd.DataFrame:
