@@ -14,22 +14,38 @@ import inspect
 import os
 import sqlite3
 from dataclasses import dataclass
-from motor.motor_asyncio import AsyncIOMotorClient
 
 import pandas as pd
 
-from ..repositories import ProgramasRepository, SubprogramasRepository, ProyectosRepository, ActividadesRepository, EstructurasRepository, CtasCtesRepository, FuentesRepository, PartidasRepository, ProveedoresRepository, ObrasRepository, CargaRepository, RetencionesRepository
+from ..repositories import (
+    ActividadesRepository,
+    CargaRepository,
+    CtasCtesRepository,
+    EstructurasRepository,
+    FuentesRepository,
+    ObrasRepository,
+    PartidasRepository,
+    ProgramasRepository,
+    ProveedoresRepository,
+    ProyectosRepository,
+    RetencionesRepository,
+    SubprogramasRepository,
+)
 
 
 def validate_sqlite_file(path):
     if not os.path.exists(path):
         raise argparse.ArgumentTypeError(f"El archivo {path} no existe")
     if not path.endswith(".sqlite") and not path.endswith(".db"):
-        raise argparse.ArgumentTypeError(f"El archivo {path} no parece ser un archivo SQLite")
+        raise argparse.ArgumentTypeError(
+            f"El archivo {path} no parece ser un archivo SQLite"
+        )
     try:
         sqlite3.connect(path)
     except sqlite3.Error as e:
-        raise argparse.ArgumentTypeError(f"Error al conectar al archivo SQLite {path}: {e}")
+        raise argparse.ArgumentTypeError(
+            f"Error al conectar al archivo SQLite {path}: {e}"
+        )
     return path
 
 
@@ -37,9 +53,7 @@ def validate_sqlite_file(path):
 def get_args():
     """Get command-line arguments"""
 
-    path = os.path.dirname(
-        os.path.abspath(inspect.getfile(inspect.currentframe()))
-    )
+    path = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 
     parser = argparse.ArgumentParser(
         description="Migrate from old Icaro.sqlite to new DB",
@@ -50,9 +64,9 @@ def get_args():
         "-f",
         "--file",
         metavar="sqlite_file",
-        default= os.path.join(path, "ICARO.sqlite"),
-        type= validate_sqlite_file,
-        help= "Path al archivo SQLite de Icaro",
+        default=os.path.join(path, "ICARO.sqlite"),
+        type=validate_sqlite_file,
+        help="Path al archivo SQLite de Icaro",
     )
 
     args = parser.parse_args()
@@ -79,14 +93,14 @@ class IcaroMongoMigrator:
         self.obras_repo = ObrasRepository()
         self.carga_repo = CargaRepository()
         self.retenciones_repo = RetencionesRepository()
-    
+
     # --------------------------------------------------
     def from_sql(self, table: str) -> pd.DataFrame:
         import sqlite3
 
         with sqlite3.connect(self.sqlite_path) as conn:
             return pd.read_sql_query(f"SELECT * FROM {table}", conn)
-    
+
     # --------------------------------------------------
     async def migrate_programas(self):
         df = self.from_sql("PROGRAMAS")
@@ -144,7 +158,8 @@ class IcaroMongoMigrator:
         # Programas
         df = self.from_sql("PROGRAMAS")
         df.rename(
-            columns={"Programa": "nro_estructura", "DescProg": "desc_estructura"}, inplace=True
+            columns={"Programa": "nro_estructura", "DescProg": "desc_estructura"},
+            inplace=True,
         )
         await self.estructuras_repo.save_all(df.to_dict(orient="records"))
 
@@ -293,14 +308,14 @@ class IcaroMongoMigrator:
             inplace=True,
         )
         df = df.loc[~df.nro_act.isnull()]
-        df["fecha"] = pd.to_timedelta(df["fecha"], unit="D") + pd.Timestamp("1970-01-01")
+        df["fecha"] = pd.to_timedelta(df["fecha"], unit="D") + pd.Timestamp(
+            "1970-01-01"
+        )
         df["id_carga"] = df["nro_comprobante"] + "C"
         df.loc[df["tipo"] == "PA6", "id_carga"] = df["nro_comprobante"] + "F"
         df["ejercicio"] = df["fecha"].dt.year.astype(str)
         df["mes"] = (
-            df["fecha"].dt.month.astype(str).str.zfill(2)
-            + "/"
-            + df["ejercicio"]
+            df["fecha"].dt.month.astype(str).str.zfill(2) + "/" + df["ejercicio"]
         )
         await self.carga_repo.delete_all()
         await self.carga_repo.save_all(df.to_dict(orient="records"))
@@ -318,9 +333,7 @@ class IcaroMongoMigrator:
             inplace=True,
         )
         df["id_carga"] = df["nro_comprobante"] + "C"
-        df.loc[df["tipo"] == "PA6", "id_carga"] = (
-            df["nro_comprobante"] + "F"
-        )
+        df.loc[df["tipo"] == "PA6", "id_carga"] = df["nro_comprobante"] + "F"
         df.drop(["nro_comprobante", "tipo"], axis=1, inplace=True)
         await self.retenciones_repo.delete_all()
         await self.retenciones_repo.save_all(df.to_dict(orient="records"))
@@ -471,7 +484,7 @@ class MigrateIcaro:
 # --------------------------------------------------
 async def main():
     """Make a jazz noise here"""
-    from ...config import settings, Database
+    from ...config import Database
 
     Database.initialize()
     try:
@@ -488,6 +501,7 @@ async def main():
     )
 
     await migrator.migrate_all()
+
 
 # --------------------------------------------------
 if __name__ == "__main__":
