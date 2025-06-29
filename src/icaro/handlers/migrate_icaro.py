@@ -341,7 +341,7 @@ class IcaroMongoMigrator:
         await self.retenciones_repo.save_all(df.to_dict(orient="records"))
 
     # --------------------------------------------------
-    async def migrate_certificados_obras(self):
+    async def migrate_certificados(self):
         df = self.from_sql("CERTIFICADOS")
         df.rename(
             columns={
@@ -386,6 +386,7 @@ class IcaroMongoMigrator:
         await self.migrate_obras()
         await self.migrate_carga()
         await self.migrate_retenciones()
+        await self.migrate_certificados()
 
 
 # --------------------------------------------------
@@ -400,46 +401,7 @@ class MigrateIcaro:
 
     # --------------------------------------------------
     def migrate_all(self):
-        self.migrate_certificados_obras()
         self.migrate_resumen_rend_obras()
-
-    # --------------------------------------------------
-    def migrate_certificados_obras(self) -> pd.DataFrame:
-        """ "Migrate table certificados_obras"""
-        self._TABLE_NAME = "CERTIFICADOS"
-        self.df = self.from_sql(self.path_old_icaro)
-        self.df.rename(
-            columns={
-                "NroComprobanteSIIF": "nro_comprobante",
-                "TipoComprobanteSIIF": "tipo",
-                "Origen": "origen",
-                "Periodo": "ejercicio",
-                "Beneficiario": "beneficiario",
-                "Obra": "obra",
-                "NroCertificado": "nro_certificado",
-                "MontoCertificado": "monto_certificado",
-                "FondoDeReparo": "fondo_reparo",
-                "ImporteBruto": "importe_bruto",
-                "IIBB": "iibb",
-                "LP": "lp",
-                "SUSS": "suss",
-                "GCIAS": "gcias",
-                "INVICO": "invico",
-                "ImporteNeto": "importe_neto",
-            },
-            inplace=True,
-        )
-        self.df["otros"] = 0
-        self.df["cod_obra"] = self.df["obra"].str.split(" ", n=1).str[0]
-        self.df.loc[self.df["nro_comprobante"] != "", "id_carga"] = (
-            self.df["nro_comprobante"] + "C"
-        )
-        self.df.loc[self.df["tipo"] == "PA6", "id_carga"] = (
-            self.df["nro_comprobante"] + "F"
-        )
-        self.df.drop(["nro_comprobante", "tipo"], axis=1, inplace=True)
-        self._TABLE_NAME = "certificados_obras"
-        self.to_sql(self.path_new_icaro, True)
 
     # --------------------------------------------------
     def migrate_resumen_rend_obras(self) -> pd.DataFrame:
