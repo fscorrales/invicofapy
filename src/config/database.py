@@ -32,6 +32,7 @@ COLLECTIONS = [
     "icaro_carga",
     "icaro_retenciones",
     "icaro_certificados",
+    "icaro_resumen_rend_obras",
 ]
 
 

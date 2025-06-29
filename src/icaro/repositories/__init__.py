@@ -9,5 +9,6 @@ from .partidas import *
 from .programas import *
 from .proveedores import *
 from .proyectos import *
+from .resumen_rend_obras import *
 from .retenciones import *
 from .subprogramas import *

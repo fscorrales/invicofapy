@@ -9,11 +9,9 @@ __all__ = ["IcaroMongoMigrator"]
 
 import argparse
 import asyncio
-import datetime as dt
 import inspect
 import os
 import sqlite3
-from dataclasses import dataclass
 
 import pandas as pd
 
@@ -29,6 +27,7 @@ from ..repositories import (
     ProgramasRepository,
     ProveedoresRepository,
     ProyectosRepository,
+    ResumenRendObrasRepository,
     RetencionesRepository,
     SubprogramasRepository,
 )
@@ -95,6 +94,7 @@ class IcaroMongoMigrator:
         self.carga_repo = CargaRepository()
         self.retenciones_repo = RetencionesRepository()
         self.certificados_repo = CertificadosRepository()
+        self.resumen_rend_obras_repo = ResumenRendObrasRepository()
 
     # --------------------------------------------------
     def from_sql(self, table: str) -> pd.DataFrame:
@@ -373,6 +373,48 @@ class IcaroMongoMigrator:
         await self.certificados_repo.save_all(df.to_dict(orient="records"))
 
     # --------------------------------------------------
+    async def migrate_resumen_rend_obras(self):
+        df = self.from_sql("EPAM")
+        df.rename(
+            columns={
+                "NroComprobanteSIIF": "nro_comprobante",
+                "TipoComprobanteSIIF": "tipo",
+                "Origen": "origen",
+                "Obra": "desc_obra",
+                "Periodo": "ejercicio",
+                "Beneficiario": "beneficiario",
+                "LibramientoSGF": "nro_libramiento_sgf",
+                "FechaPago": "fecha",
+                "ImporteBruto": "importe_bruto",
+                "IIBB": "iibb",
+                "TL": "lp",
+                "Sellos": "sellos",
+                "SUSS": "suss",
+                "GCIAS": "gcias",
+                "ImporteNeto": "importe_neto",
+            },
+            inplace=True,
+        )
+        df["destino"] = ""
+        df["movimiento"] = ""
+        df["seguro"] = 0
+        df["salud"] = 0
+        df["mutual"] = 0
+        df["cod_obra"] = df["obra"].str.split("-", n=1).str[0]
+        df["fecha"] = pd.to_timedelta(df["fecha"], unit="D") + pd.Timestamp(
+            "1970-01-01"
+        )
+        df["ejercicio"] = df["fecha"].dt.year.astype(str)
+        df["mes"] = (
+            df["fecha"].dt.month.astype(str).str.zfill(2) + "/" + df["ejercicio"]
+        )
+        df.loc[df["nro_comprobante"] != "", "id_carga"] = df["nro_comprobante"] + "C"
+        df.loc[df["tipo"] == "PA6", "id_carga"] = df["nro_comprobante"] + "F"
+        df.drop(["nro_comprobante", "tipo"], axis=1, inplace=True)
+        await self.resumen_rend_obras_repo.delete_all()
+        await self.resumen_rend_obras_repo.save_all(df.to_dict(orient="records"))
+
+    # --------------------------------------------------
     async def migrate_all(self):
         await self.migrate_programas()
         await self.migrate_subprogramas()
@@ -387,71 +429,7 @@ class IcaroMongoMigrator:
         await self.migrate_carga()
         await self.migrate_retenciones()
         await self.migrate_certificados()
-
-
-# --------------------------------------------------
-@dataclass
-class MigrateIcaro:
-    """Migrate from old Icaro.sqlite to new DB"""
-
-    path_old_icaro: str = "ICARO.sqlite"
-    path_new_icaro: str = "icaro_new.sqlite"
-    # _SQL_MODEL = IcaroModel
-    _INDEX_COL = None
-
-    # --------------------------------------------------
-    def migrate_all(self):
-        self.migrate_resumen_rend_obras()
-
-    # --------------------------------------------------
-    def migrate_resumen_rend_obras(self) -> pd.DataFrame:
-        """ "Migrate table resumen_rend_obras"""
-        self._TABLE_NAME = "EPAM"
-        self.df = self.from_sql(self.path_old_icaro)
-        self.df.rename(
-            columns={
-                "NroComprobanteSIIF": "nro_comprobante",
-                "TipoComprobanteSIIF": "tipo",
-                "Origen": "origen",
-                "Obra": "obra",
-                "Periodo": "ejercicio",
-                "Beneficiario": "beneficiario",
-                "LibramientoSGF": "libramiento_sgf",
-                "FechaPago": "fecha",
-                "ImporteBruto": "importe_bruto",
-                "IIBB": "iibb",
-                "TL": "lp",
-                "Sellos": "sellos",
-                "SUSS": "suss",
-                "GCIAS": "gcias",
-                "ImporteNeto": "importe_neto",
-            },
-            inplace=True,
-        )
-        self.df["destino"] = ""
-        self.df["movimiento"] = ""
-        self.df["seguro"] = 0
-        self.df["salud"] = 0
-        self.df["mutual"] = 0
-        self.df["cod_obra"] = self.df["obra"].str.split("-", n=1).str[0]
-        self.df["fecha"] = pd.TimedeltaIndex(self.df["fecha"], unit="d") + dt.datetime(
-            1970, 1, 1
-        )
-        self.df["ejercicio"] = self.df["fecha"].dt.year.astype(str)
-        self.df["mes"] = (
-            self.df["fecha"].dt.month.astype(str).str.zfill(2)
-            + "/"
-            + self.df["ejercicio"]
-        )
-        self.df.loc[self.df["nro_comprobante"] != "", "id_carga"] = (
-            self.df["nro_comprobante"] + "C"
-        )
-        self.df.loc[self.df["tipo"] == "PA6", "id_carga"] = (
-            self.df["nro_comprobante"] + "F"
-        )
-        self.df.drop(["nro_comprobante", "tipo"], axis=1, inplace=True)
-        self._TABLE_NAME = "resumen_rend_obras"
-        self.to_sql(self.path_new_icaro, True)
+        await self.migrate_resumen_rend_obras()
 
 
 # --------------------------------------------------
