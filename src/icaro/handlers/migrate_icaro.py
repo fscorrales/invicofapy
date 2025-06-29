@@ -20,6 +20,7 @@ import pandas as pd
 from ..repositories import (
     ActividadesRepository,
     CargaRepository,
+    CertificadosRepository,
     CtasCtesRepository,
     EstructurasRepository,
     FuentesRepository,
@@ -93,6 +94,7 @@ class IcaroMongoMigrator:
         self.obras_repo = ObrasRepository()
         self.carga_repo = CargaRepository()
         self.retenciones_repo = RetencionesRepository()
+        self.certificados_repo = CertificadosRepository()
 
     # --------------------------------------------------
     def from_sql(self, table: str) -> pd.DataFrame:
@@ -339,6 +341,38 @@ class IcaroMongoMigrator:
         await self.retenciones_repo.save_all(df.to_dict(orient="records"))
 
     # --------------------------------------------------
+    async def migrate_certificados_obras(self):
+        df = self.from_sql("CERTIFICADOS")
+        df.rename(
+            columns={
+                "NroComprobanteSIIF": "nro_comprobante",
+                "TipoComprobanteSIIF": "tipo",
+                "Origen": "origen",
+                "Periodo": "ejercicio",
+                "Beneficiario": "beneficiario",
+                "Obra": "desc_obra",
+                "NroCertificado": "nro_certificado",
+                "MontoCertificado": "monto_certificado",
+                "FondoDeReparo": "fondo_reparo",
+                "ImporteBruto": "importe_bruto",
+                "IIBB": "iibb",
+                "LP": "lp",
+                "SUSS": "suss",
+                "GCIAS": "gcias",
+                "INVICO": "invico",
+                "ImporteNeto": "importe_neto",
+            },
+            inplace=True,
+        )
+        df["otras_retenciones"] = 0
+        df["cod_obra"] = df["obra"].str.split(" ", n=1).str[0]
+        df.loc[df["nro_comprobante"] != "", "id_carga"] = df["nro_comprobante"] + "C"
+        df.loc[df["tipo"] == "PA6", "id_carga"] = df["nro_comprobante"] + "F"
+        df.drop(["nro_comprobante", "tipo"], axis=1, inplace=True)
+        await self.certificados_repo.delete_all()
+        await self.certificados_repo.save_all(df.to_dict(orient="records"))
+
+    # --------------------------------------------------
     async def migrate_all(self):
         await self.migrate_programas()
         await self.migrate_subprogramas()
@@ -366,31 +400,8 @@ class MigrateIcaro:
 
     # --------------------------------------------------
     def migrate_all(self):
-        self.migrate_retenciones()
         self.migrate_certificados_obras()
         self.migrate_resumen_rend_obras()
-
-    # --------------------------------------------------
-    def migrate_retenciones(self) -> pd.DataFrame:
-        """ "Migrate table retenciones"""
-        self._TABLE_NAME = "RETENCIONES"
-        self.df = self.from_sql(self.path_old_icaro)
-        self.df.rename(
-            columns={
-                "Codigo": "codigo",
-                "Importe": "importe",
-                "Comprobante": "nro_comprobante",
-                "Tipo": "tipo",
-            },
-            inplace=True,
-        )
-        self.df["id_carga"] = self.df["nro_comprobante"] + "C"
-        self.df.loc[self.df["tipo"] == "PA6", "id_carga"] = (
-            self.df["nro_comprobante"] + "F"
-        )
-        self.df.drop(["nro_comprobante", "tipo"], axis=1, inplace=True)
-        self._TABLE_NAME = "retenciones"
-        self.to_sql(self.path_new_icaro, True)
 
     # --------------------------------------------------
     def migrate_certificados_obras(self) -> pd.DataFrame:
