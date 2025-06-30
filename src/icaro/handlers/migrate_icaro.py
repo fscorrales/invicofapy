@@ -365,7 +365,7 @@ class IcaroMongoMigrator:
             inplace=True,
         )
         df["otras_retenciones"] = 0
-        df["cod_obra"] = df["obra"].str.split(" ", n=1).str[0]
+        df["cod_obra"] = df["desc_obra"].str.split(" ", n=1).str[0]
         df.loc[df["nro_comprobante"] != "", "id_carga"] = df["nro_comprobante"] + "C"
         df.loc[df["tipo"] == "PA6", "id_carga"] = df["nro_comprobante"] + "F"
         df.drop(["nro_comprobante", "tipo"], axis=1, inplace=True)
@@ -400,7 +400,7 @@ class IcaroMongoMigrator:
         df["seguro"] = 0
         df["salud"] = 0
         df["mutual"] = 0
-        df["cod_obra"] = df["obra"].str.split("-", n=1).str[0]
+        df["cod_obra"] = df["desc_obra"].str.split("-", n=1).str[0]
         df["fecha"] = pd.to_timedelta(df["fecha"], unit="D") + pd.Timestamp(
             "1970-01-01"
         )
