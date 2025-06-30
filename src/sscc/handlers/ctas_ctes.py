@@ -11,13 +11,11 @@ import argparse
 import asyncio
 import inspect
 import os
-import sqlite3
 
 import pandas as pd
 
-from ..repositories import (
-    CtasCtesRepository,
-)
+from ...utils.handling_files import read_xls
+from ..repositories import CtasCtesRepository
 
 
 def validate_excel_file(path):
@@ -70,16 +68,13 @@ class CtasCtesMongoMigrator:
 
     # --------------------------------------------------
     def from_excel(self) -> pd.DataFrame:
-        df = pd.read_excel(self.excel_path)
+        df = read_xls(self.excel_path, header=0)
         df = df.replace("NA", None)
         return df
 
     # --------------------------------------------------
     async def migrate_ctas_ctes(self):
         df = self.from_excel()
-        # df.rename(
-        #     columns={"Programa": "nro_prog", "DescProg": "desc_prog"}, inplace=True
-        # )
         await self.ctas_ctes_repo.delete_all()
         await self.ctas_ctes_repo.save_all(df.to_dict(orient="records"))
 
