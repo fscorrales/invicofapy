@@ -28,7 +28,7 @@ class EstructurasParams(BaseModel):
 
 # -------------------------------------------------
 class EstructurasReport(BaseModel):
-    nro_estructura: (
+    estructura: (
         str  # Example: 11, 11-00, 11-00-02, 11-00-02-79 (all in the same field)
     )
     desc_estructura: str  # Example: "Programa de Salud", "Subprograma de Salud", "Proyecto de Salud", "Actividad de Salud"

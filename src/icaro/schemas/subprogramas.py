@@ -21,9 +21,9 @@ class SubprogramasParams(BaseModel):
 
 # -------------------------------------------------
 class SubprogramasReport(BaseModel):
-    nro_subprog: str
-    desc_subprog: str
-    nro_prog: str
+    subprograma: str
+    desc_subprograma: str
+    programa: str
 
 
 # -------------------------------------------------

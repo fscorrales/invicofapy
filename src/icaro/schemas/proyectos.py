@@ -21,9 +21,9 @@ class ProyectosParams(BaseModel):
 
 # -------------------------------------------------
 class ProyectosReport(BaseModel):
-    nro_proy: str
-    desc_proy: str
-    nro_subprog: str
+    proyecto: str
+    desc_proyecto: str
+    subprograma: str
 
 
 # -------------------------------------------------

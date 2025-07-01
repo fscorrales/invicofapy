@@ -23,12 +23,12 @@ class ObrasParams(BaseModel):
 class ObrasReport(BaseModel):
     localidad: str
     cuit: str
-    nro_act: str
-    nro_partida: str
-    nro_fuente: str
+    actividad: str
+    partida: str
+    fuente: str
     monto_contrato: float
     monto_adicional: float
-    nro_cta_cte: str
+    cta_cte: str
     norma_legal: str
     desc_obra: str
     info_adicional: str

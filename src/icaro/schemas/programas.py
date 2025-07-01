@@ -21,8 +21,8 @@ class ProgramasParams(BaseModel):
 
 # -------------------------------------------------
 class ProgramasReport(BaseModel):
-    nro_prog: str
-    desc_prog: str
+    programa: str
+    desc_programa: str
 
 
 # -------------------------------------------------

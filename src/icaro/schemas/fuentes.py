@@ -21,7 +21,7 @@ class FuentesParams(BaseModel):
 
 # -------------------------------------------------
 class FuentesReport(BaseModel):
-    nro_fuente: str
+    fuente: str
     desc_fuente: str
     abreviatura: str
 

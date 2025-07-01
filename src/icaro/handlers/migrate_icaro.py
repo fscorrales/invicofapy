@@ -107,7 +107,7 @@ class IcaroMongoMigrator:
     async def migrate_programas(self):
         df = self.from_sql("PROGRAMAS")
         df.rename(
-            columns={"Programa": "nro_prog", "DescProg": "desc_prog"}, inplace=True
+            columns={"Programa": "programa", "DescProg": "desc_programa"}, inplace=True
         )
         await self.programas_repo.delete_all()
         await self.programas_repo.save_all(df.to_dict(orient="records"))
@@ -117,9 +117,9 @@ class IcaroMongoMigrator:
         df = self.from_sql("SUBPROGRAMAS")
         df.rename(
             columns={
-                "Programa": "nro_prog",
-                "Subprograma": "nro_subprog",
-                "DescSubprog": "desc_subprog",
+                "Programa": "programa",
+                "Subprograma": "subprograma",
+                "DescSubprog": "desc_subprograma",
             },
             inplace=True,
         )
@@ -131,9 +131,9 @@ class IcaroMongoMigrator:
         df = self.from_sql("PROYECTOS")
         df.rename(
             columns={
-                "Subprograma": "nro_subprog",
-                "Proyecto": "nro_proy",
-                "DescProy": "desc_proy",
+                "Subprograma": "subprograma",
+                "Proyecto": "proyecto",
+                "DescProy": "desc_proyecto",
             },
             inplace=True,
         )
@@ -145,9 +145,9 @@ class IcaroMongoMigrator:
         df = self.from_sql("ACTIVIDADES")
         df.rename(
             columns={
-                "Proyecto": "nro_proy",
-                "Actividad": "nro_act",
-                "DescAct": "desc_act",
+                "Proyecto": "proyecto",
+                "Actividad": "actividad",
+                "DescAct": "desc_actividad",
             },
             inplace=True,
         )
@@ -160,7 +160,7 @@ class IcaroMongoMigrator:
         # Programas
         df = self.from_sql("PROGRAMAS")
         df.rename(
-            columns={"Programa": "nro_estructura", "DescProg": "desc_estructura"},
+            columns={"Programa": "estructura", "DescProg": "desc_estructura"},
             inplace=True,
         )
         await self.estructuras_repo.save_all(df.to_dict(orient="records"))
@@ -169,7 +169,7 @@ class IcaroMongoMigrator:
         df = self.from_sql("SUBPROGRAMAS")
         df.rename(
             columns={
-                "Subprograma": "nro_estructura",
+                "Subprograma": "estructura",
                 "DescSubprog": "desc_estructura",
             },
             inplace=True,
@@ -181,7 +181,7 @@ class IcaroMongoMigrator:
         df = self.from_sql("PROYECTOS")
         df.rename(
             columns={
-                "Proyecto": "nro_estructura",
+                "Proyecto": "estructura",
                 "DescProy": "desc_estructura",
             },
             inplace=True,
@@ -193,7 +193,7 @@ class IcaroMongoMigrator:
         df = self.from_sql("ACTIVIDADES")
         df.rename(
             columns={
-                "Actividad": "nro_estructura",
+                "Actividad": "estructura",
                 "DescAct": "desc_estructura",
             },
             inplace=True,
@@ -221,7 +221,7 @@ class IcaroMongoMigrator:
         df = self.from_sql("FUENTES")
         df.rename(
             columns={
-                "Fuente": "nro_fuente",
+                "Fuente": "fuente",
                 "Descripcion": "desc_fuente",
                 "Abreviatura": "abreviatura",
             },
@@ -235,11 +235,11 @@ class IcaroMongoMigrator:
         df = self.from_sql("PARTIDAS")
         df.rename(
             columns={
-                "Grupo": "nro_grupo",
+                "Grupo": "grupo",
                 "DescGrupo": "desc_grupo",
-                "PartidaParcial": "nro_partida_parcial",
+                "PartidaParcial": "partida_parcial",
                 "DescPartidaParcial": "desc_partida_parcial",
-                "Partida": "nro_partida",
+                "Partida": "partida",
                 "DescPartida": "desc_partida",
             },
             inplace=True,
@@ -272,12 +272,12 @@ class IcaroMongoMigrator:
             columns={
                 "Localidad": "localidad",
                 "CUIT": "cuit",
-                "Imputacion": "nro_act",
-                "Partida": "nro_partida",
-                "Fuente": "nro_fuente",
+                "Imputacion": "actividad",
+                "Partida": "partida",
+                "Fuente": "fuente",
                 "MontoDeContrato": "monto_contrato",
                 "Adicional": "monto_adicional",
-                "Cuenta": "nro_cta_cte",
+                "Cuenta": "cta_cte",
                 "NormaLegal": "norma_legal",
                 "Descripcion": "desc_obra",
                 "InformacionAdicional": "info_adicional",
@@ -293,23 +293,23 @@ class IcaroMongoMigrator:
         df.rename(
             columns={
                 "Fecha": "fecha",
-                "Fuente": "nro_fuente",
+                "Fuente": "fuente",
                 "CUIT": "cuit",
                 "Importe": "importe",
                 "FondoDeReparo": "fondo_reparo",
-                "Cuenta": "nro_cta_cte",
+                "Cuenta": "cta_cte",
                 "Avance": "avance",
                 "Certificado": "nro_certificado",
                 "Comprobante": "nro_comprobante",
                 "Obra": "desc_obra",
                 "Origen": "origen",
                 "Tipo": "tipo",
-                "Imputacion": "nro_act",
-                "Partida": "nro_partida",
+                "Imputacion": "actividad",
+                "Partida": "partida",
             },
             inplace=True,
         )
-        df = df.loc[~df.nro_act.isnull()]
+        df = df.loc[~df.actividad.isnull()]
         df["fecha"] = pd.to_timedelta(df["fecha"], unit="D") + pd.Timestamp(
             "1970-01-01"
         )

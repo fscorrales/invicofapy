@@ -21,9 +21,9 @@ class ActividadesParams(BaseModel):
 
 # -------------------------------------------------
 class ActividadesReport(BaseModel):
-    nro_act: str
-    desc_act: str
-    nro_proy: str
+    actividad: str
+    desc_actividad: str
+    proyecto: str
 
 
 # -------------------------------------------------

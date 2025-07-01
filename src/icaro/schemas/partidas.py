@@ -21,11 +21,11 @@ class PartidasParams(BaseModel):
 
 # -------------------------------------------------
 class PartidasReport(BaseModel):
-    nro_grupo: str
+    grupo: str
     desc_grupo: str
-    nro_partida_parcial: str
+    partida_parcial: str
     desc_partida_parcial: str
-    nro_partida: str
+    partida: str
     desc_partida: str
 
 

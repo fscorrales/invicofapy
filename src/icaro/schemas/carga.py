@@ -23,19 +23,19 @@ class CargaParams(BaseModel):
 # -------------------------------------------------
 class CargaReport(BaseModel):
     fecha: date
-    nro_fuente: str
+    fuente: str
     cuit: str
     importe: float
     fondo_reparo: float
-    nro_cta_cte: str
+    cta_cte: str
     avance: float
     nro_certificado: str
     nro_comprobante: str
     desc_obra: str
     origen: str
     tipo: str
-    nro_act: str
-    nro_partida: str
+    actividad: str
+    partida: str
     id_carga: str
     ejercicio: str
     mes: str
