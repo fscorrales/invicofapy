@@ -19,6 +19,21 @@ COLLECTIONS = [
     "siif_rpa03g",
     "siif_rfondo07tp",
     "sgf_resumen_rend_prov",
+    "icaro_programas",
+    "icaro_subprogramas",
+    "icaro_proyectos",
+    "icaro_actividades",
+    "icaro_estructuras",
+    "icaro_ctas_ctes",
+    "icaro_fuentes",
+    "icaro_partidas",
+    "icaro_proveedores",
+    "icaro_obras",
+    "icaro_carga",
+    "icaro_retenciones",
+    "icaro_certificados",
+    "icaro_resumen_rend_obras",
+    "sscc_ctas_ctes",
 ]
 
 

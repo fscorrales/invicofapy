@@ -17,6 +17,10 @@ __pycache__/
 # Coma flotante extensions
 *.csv
 
+# SQLite
+*.sqlite
+*.db
+
 # Distribution / packaging
 .Python
 build/
