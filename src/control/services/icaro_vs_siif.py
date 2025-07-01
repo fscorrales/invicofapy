@@ -12,23 +12,24 @@ Data required:
     - SSCC ctas_ctes (manual data)
 """
 
-
 import datetime as dt
-import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import Annotated, List, Union
 
 import numpy as np
 import pandas as pd
 from fastapi import Depends, HTTPException
-from ...siif.repositories import Rf602RepositoryDependency
-from ...siif.handlers import Rf602
+
 from ...icaro.repositories import CargaRepositoryDependency
+from ...siif.handlers import Rf602
+from ...siif.repositories import Rf602RepositoryDependency, Rf610RepositoryDependency
 
 
 # --------------------------------------------------
 @dataclass
-class IcaroVsSIIFService():
+class IcaroVsSIIFService:
     siif_rf602_repo: Rf602RepositoryDependency
+    siif_rf610_repo: Rf610RepositoryDependency
     icaro_carga_repo: CargaRepositoryDependency
     siif_rf602_handler: Rf602 = field(init=False)  # No se pasa como argumento
     # update_db:bool = False
@@ -46,9 +47,9 @@ class IcaroVsSIIFService():
         #     update_path_input = self.get_update_path_input()
         # else:
         #     update_path_input = self.input_path
-        
+
         # update_siif = update_db.UpdateSIIF(
-        #     update_path_input + '/Reportes SIIF', 
+        #     update_path_input + '/Reportes SIIF',
         #     self.db_path + '/siif.sqlite')
         # update_siif.update_ppto_gtos_fte_rf602()
         # update_siif.update_comprobantes_gtos_gpo_part_gto_rpa03g()
@@ -56,13 +57,13 @@ class IcaroVsSIIFService():
         # update_siif.update_resumen_fdos_rfondo07tp()
 
         # update_sscc = update_db.UpdateSSCC(
-        #     update_path_input + '/Sistema de Seguimiento de Cuentas Corrientes', 
+        #     update_path_input + '/Sistema de Seguimiento de Cuentas Corrientes',
         #     self.db_path + '/sscc.sqlite')
         # update_sscc.update_ctas_ctes()
 
         # update_icaro = update_db.UpdateIcaro(
         #     os.path.dirname(os.path.dirname(self.db_path))
-        #     + '/R Output/SQLite Files/ICARO.sqlite', 
+        #     + '/R Output/SQLite Files/ICARO.sqlite',
         #     self.db_path + '/icaro.sqlite')
         # update_icaro.migrate_icaro()
 
@@ -79,7 +80,7 @@ class IcaroVsSIIFService():
     # def import_siif_rf602(self):
     #     df = super().import_siif_rf602(self.ejercicio)
     #     df = df.loc[
-    #         (df['partida'].isin(['421', '422'])) | 
+    #         (df['partida'].isin(['421', '422'])) |
     #         (df['estructura'] == '01-00-00-03-354')
     #     ]
     #     return df
@@ -95,40 +96,135 @@ class IcaroVsSIIFService():
     #     ]
     #     return df
 
-    # --------------------------------------------------
-    async def control_ejecucion_anual(self):
-        group_by = ['ejercicio','estructura', 'fuente']
-        icaro = self.icaro_carga_repo.find_by_filter(
+    async def get_icaro_carga(self):
+        """
+        Get the icaro_carga data from the repository.
+        """
+        df = await self.icaro_carga_repo.find_by_filter(
             filters={
                 "tipo__ne": "PA6",
             }
         )
-        icaro['estructura'] = icaro.actividad + '-' + icaro.partida
-        icaro = icaro.groupby(group_by)['importe'].sum()
-        icaro = icaro.reset_index(drop=False)
-        icaro = icaro.rename(columns={'importe':'ejecucion_icaro'})
-        siif = self.siif_rf602_repo().find_by_filter(
-            filters={
-                    "$or": [
-                        {"nro_partida": {"$in": ["421", "422"]}},
-                        {
-                            "$and": [
-                                {"partida": "354"},
-                                {"CUIT": {"$nin": ["30500049460", "30632351514", "20231243527"]}}
-                            ]
-                        }
-                    ]
-                }
-        )
-        siif = siif.loc[:, group_by + ['ordenado']]
-        siif = siif.rename(columns={'ordenado':'ejecucion_siif'})
-        df = pd.merge(siif, icaro, how='outer', on = group_by, copy=False)
-        df = df.fillna(0)
-        df['diferencia'] = df['ejecucion_siif'] - df['ejecucion_icaro']
+        df["estructura"] = df.actividad + "-" + df.partida
+        return df
 
-        #NECESITO EL RF610 antes de seguir
-        df = df.merge(self.siif_desc_pres, how='left', on='estructura', copy=False)
-        df = df.loc[(df['diferencia'] < -0.1) | (df['diferencia'] > 0.1)]
+    # --------------------------------------------------
+    async def get_siif_rf602(self):
+        """
+        Get the rf602 data from the repository.
+        """
+        df = await self.siif_rf602_repo.find_by_filter(
+            filters={
+                "$or": [
+                    {"nro_partida": {"$in": ["421", "422"]}},
+                    {
+                        "$and": [
+                            {"partida": "354"},
+                            {
+                                "CUIT": {
+                                    "$nin": [
+                                        "30500049460",
+                                        "30632351514",
+                                        "20231243527",
+                                    ]
+                                }
+                            },
+                        ]
+                    },
+                ]
+            }
+        )
+        return df
+
+    async def get_siif_desc_pres(
+        self, ejercicio_to: Union[str, List] = str(dt.datetime.now().year)
+    ):
+        """
+        Get the rf610 data from the repository.
+        """
+
+        if ejercicio_to is None:
+            df = await self.siif_rf610_repo.get_all()
+        elif isinstance(ejercicio_to, list):
+            df = await self.siif_rf610_repo.find_by_filter(
+                filters={
+                    "ejercicio__in": ejercicio_to,
+                }
+            )
+        else:
+            df = await self.siif_rf610_repo.find_by_filter(
+                filters={
+                    "ejercicio__lte": int(ejercicio_to),
+                }
+            )
+
+        df.sort_values(
+            by=["ejercicio", "estructura"], inplace=True, ascending=[False, True]
+        )
+        # Programas únicos
+        df_prog = df.loc[:, ["programa", "desc_programa"]]
+        df_prog.drop_duplicates(subset=["programa"], inplace=True, keep="first")
+        # Subprogramas únicos
+        df_subprog = df.loc[:, ["programa", "subprograma", "desc_subprograma"]]
+        df_subprog.drop_duplicates(
+            subset=["programa", "subprograma"], inplace=True, keep="first"
+        )
+        # Proyectos únicos
+        df_proy = df.loc[:, ["programa", "subprograma", "proyecto", "desc_proyecto"]]
+        df_proy.drop_duplicates(
+            subset=["programa", "subprograma", "proyecto"], inplace=True, keep="first"
+        )
+        # Actividades únicos
+        df_act = df.loc[
+            :,
+            [
+                "estructura",
+                "programa",
+                "subprograma",
+                "proyecto",
+                "actividad",
+                "desc_act",
+            ],
+        ]
+        df_act.drop_duplicates(subset=["estructura"], inplace=True, keep="first")
+        # Merge all
+        df = df_act.merge(df_prog, how="left", on="programa", copy=False)
+        df = df.merge(
+            df_subprog, how="left", on=["programa", "subprograma"], copy=False
+        )
+        df = df.merge(
+            df_proy, how="left", on=["programa", "subprograma", "proyecto"], copy=False
+        )
+        df["desc_programa"] = df.programa + " - " + df.desc_programa
+        df["desc_subprograma"] = df.subprograma + " - " + df.desc_subprograma
+        df["desc_proyecto"] = df.proyecto + " - " + df.desc_proyecto
+        df["desc_actividad"] = df.actividad + " - " + df.desc_actividad
+        df.drop(
+            labels=["programa", "subprograma", "proyecto", "actividad"],
+            axis=1,
+            inplace=True,
+        )
+        return df
+
+    # --------------------------------------------------
+    async def control_ejecucion_anual(self):
+        group_by = ["ejercicio", "estructura", "fuente"]
+        icaro = await self.get_icaro_carga()
+        icaro = icaro.groupby(group_by)["importe"].sum()
+        icaro = icaro.reset_index(drop=False)
+        icaro = icaro.rename(columns={"importe": "ejecucion_icaro"})
+        siif = await self.get_siif_rf602()
+        siif = siif.loc[:, group_by + ["ordenado"]]
+        siif = siif.rename(columns={"ordenado": "ejecucion_siif"})
+        df = pd.merge(siif, icaro, how="outer", on=group_by, copy=False)
+        df = df.fillna(0)
+        df["diferencia"] = df["ejecucion_siif"] - df["ejecucion_icaro"]
+
+        # NECESITO EL RF610 antes de seguir
+        df = df.merge(
+            self.get_siif_desc_pres(), how="left", on="estructura", copy=False
+        )
+        df = df.loc[(df["diferencia"] < -0.1) | (df["diferencia"] > 0.1)]
         df = df.reset_index(drop=True)
         return df
 
@@ -166,8 +262,8 @@ class IcaroVsSIIFService():
     #             'partida':'icaro_partida'
     #     })
     #     df = pd.merge(
-    #         siif, icaro, how='outer', 
-    #         left_on = ['ejercicio', 'siif_nro'], 
+    #         siif, icaro, how='outer',
+    #         left_on = ['ejercicio', 'siif_nro'],
     #         right_on = ['ejercicio', 'icaro_nro']
     #     )
     #     df['err_nro'] = df.siif_nro != df.icaro_nro
@@ -182,7 +278,7 @@ class IcaroVsSIIFService():
     #     df['err_cta_cte'] = df.siif_cta_cte != df.icaro_cta_cte
     #     df['err_cuit'] = df.siif_cuit != df.icaro_cuit
     #     df = df.loc[(
-    #         df.err_nro + df.err_tipo + df.err_mes + df.err_partida + 
+    #         df.err_nro + df.err_tipo + df.err_mes + df.err_partida +
     #         df.err_fuente + df.err_importe + df.err_cta_cte + df.err_cuit
     #     ) > 0]
     #     df = df.loc[:, ['ejercicio',
@@ -196,8 +292,8 @@ class IcaroVsSIIFService():
     #         'siif_partida', 'icaro_partida', 'err_partida']
     #     ]
     #     # comprobantes.sort_values(
-    #     #     by=['err_nro', 'err_fuente', 'err_importe', 
-    #     #     'err_cta_cte', 'err_cuit', 'err_partida', 
+    #     #     by=['err_nro', 'err_fuente', 'err_importe',
+    #     #     'err_cta_cte', 'err_cuit', 'err_partida',
     #     #     'err_mes'], ascending=False,
     #     #     inplace=True)
 
@@ -211,12 +307,12 @@ class IcaroVsSIIFService():
     #     ]
     #     siif_fdos['nro_fondo'] = siif_fdos['nro_fondo'].str.zfill(5) + '/' + siif_fdos.ejercicio.str[-2:]
     #     siif_fdos = siif_fdos.rename(columns={
-    #         'nro_fondo':'siif_nro_fondo', 
-    #         'mes':'siif_mes_pa6', 
-    #         'ingresos':'siif_importe_pa6', 
+    #         'nro_fondo':'siif_nro_fondo',
+    #         'mes':'siif_mes_pa6',
+    #         'ingresos':'siif_importe_pa6',
     #         'saldo':'siif_saldo_pa6'
     #     })
-        
+
     #     select = [
     #         'ejercicio','nro_comprobante', 'fuente', 'importe',
     #         'mes', 'cta_cte', 'cuit'
@@ -228,54 +324,54 @@ class IcaroVsSIIFService():
     #     siif_gtos['nro_fondo'] = siif_gtos['nro_fondo'].str.zfill(5) + '/' + siif_gtos.ejercicio.str[-2:]
     #     siif_gtos = siif_gtos.rename(columns={
     #             'nro_fondo':'siif_nro_fondo',
-    #             'cta_cte':'siif_cta_cte', 
+    #             'cta_cte':'siif_cta_cte',
     #             'cuit':'siif_cuit',
-    #             'clase_reg':'siif_tipo', 
-    #             'fuente':'siif_fuente', 
-    #             'nro_comprobante':'siif_nro_reg', 
-    #             'importe':'siif_importe_reg', 
+    #             'clase_reg':'siif_tipo',
+    #             'fuente':'siif_fuente',
+    #             'nro_comprobante':'siif_nro_reg',
+    #             'importe':'siif_importe_reg',
     #             'mes':'siif_mes_reg',
     #     })
-        
+
     #     icaro = self.icaro_carga.copy()
     #     icaro = icaro.loc[:, select + ['tipo']]
     #     icaro = icaro.rename(columns={
     #             'mes':'icaro_mes',
-    #             'nro_comprobante':'icaro_nro', 
-    #             'tipo':'icaro_tipo', 
+    #             'nro_comprobante':'icaro_nro',
+    #             'tipo':'icaro_tipo',
     #             'importe':'icaro_importe',
     #             'cuit':'icaro_cuit',
     #             'cta_cte':'icaro_cta_cte',
     #             'fuente':'icaro_fuente'
     #     })
-        
+
     #     icaro_pa6 = icaro.loc[icaro['icaro_tipo'] == 'PA6']
     #     icaro_pa6 = icaro_pa6.loc[:, ['icaro_mes', 'icaro_nro', 'icaro_importe']]
     #     icaro_pa6 = icaro_pa6.rename(columns={
     #             'icaro_mes':'icaro_mes_pa6',
-    #             'icaro_nro':'icaro_nro_fondo', 
+    #             'icaro_nro':'icaro_nro_fondo',
     #             'icaro_importe':'icaro_importe_pa6',
     #     })
 
     #     icaro_reg = icaro.loc[icaro['icaro_tipo'] != 'PA6']
     #     icaro_reg = icaro_reg.rename(columns={
     #             'icaro_mes':'icaro_mes_reg',
-    #             'icaro_nro':'icaro_nro_reg', 
+    #             'icaro_nro':'icaro_nro_reg',
     #             'icaro_importe':'icaro_importe_reg',
     #     })
 
     #     df = pd.merge(
-    #         siif_fdos, siif_gtos, how='left', 
+    #         siif_fdos, siif_gtos, how='left',
     #         on=['ejercicio','siif_nro_fondo'], copy=False
     #     )
     #     df = pd.merge(
-    #         df, icaro_pa6, how='outer', 
-    #         left_on = 'siif_nro_fondo', 
+    #         df, icaro_pa6, how='outer',
+    #         left_on = 'siif_nro_fondo',
     #         right_on = 'icaro_nro_fondo'
     #     )
     #     df = pd.merge(
-    #         df, icaro_reg, how='left', 
-    #         left_on = ['ejercicio', 'siif_nro_reg'], 
+    #         df, icaro_reg, how='left',
+    #         left_on = ['ejercicio', 'siif_nro_reg'],
     #         right_on = ['ejercicio', 'icaro_nro_reg']
     #     )
     #     df = df.fillna(0)
@@ -291,7 +387,7 @@ class IcaroVsSIIFService():
     #     df['siif_importe_reg'] = df['siif_importe_reg'].fillna(0)
     #     df['icaro_importe_reg'] = df['icaro_importe_reg'].fillna(0)
     #     df['err_importe_reg'] = (df.siif_importe_reg - df.icaro_importe_reg).abs()
-    #     df['err_importe_reg'] = (df['err_importe_reg'] > 0.1)        
+    #     df['err_importe_reg'] = (df['err_importe_reg'] > 0.1)
     #     #df['err_importe_reg'] = ~np.isclose((df.siif_importe_reg - df.icaro_importe_reg), 0)
     #     df['err_tipo'] = df.siif_tipo != df.icaro_tipo
     #     df['err_fuente'] = df.siif_fuente != df.icaro_fuente
@@ -310,18 +406,19 @@ class IcaroVsSIIFService():
     #         'siif_cuit', 'icaro_cuit', 'err_cuit'
     #     ]]
     #     df = df.loc[(
-    #         df.err_nro_fondo + df.err_mes_pa6 + df.err_importe_pa6 + 
-    #         df.err_nro_reg + df.err_mes_reg + df.err_importe_reg + 
+    #         df.err_nro_fondo + df.err_mes_pa6 + df.err_importe_pa6 +
+    #         df.err_nro_reg + df.err_mes_reg + df.err_importe_reg +
     #         df.err_fuente + df.err_tipo + df.err_cta_cte +
     #         df.err_cuit
     #     ) > 0]
     #     df = df.sort_values(
-    #         by=['err_nro_fondo','err_importe_pa6', 
-    #         'err_nro_reg', 'err_importe_reg', 
-    #         'err_fuente', 'err_cta_cte', 'err_cuit', 
-    #         'err_tipo', 'err_mes_pa6', 'err_mes_reg'], 
+    #         by=['err_nro_fondo','err_importe_pa6',
+    #         'err_nro_reg', 'err_importe_reg',
+    #         'err_fuente', 'err_cta_cte', 'err_cuit',
+    #         'err_tipo', 'err_mes_pa6', 'err_mes_reg'],
     #         ascending=False
     #     )
     #     return df
+
 
 IcaroVsSIIFServiceDependency = Annotated[IcaroVsSIIFService, Depends()]
