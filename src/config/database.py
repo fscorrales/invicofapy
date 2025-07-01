@@ -33,6 +33,7 @@ COLLECTIONS = [
     "icaro_retenciones",
     "icaro_certificados",
     "icaro_resumen_rend_obras",
+    "sscc_ctas_ctes",
 ]
 
 
