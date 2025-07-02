@@ -1,22 +1,21 @@
 __all__ = [
-    "ControlEjecucionAnualReport",
-    "ControlEjecucionAnualDocument",
-    "ControlEjecucionAnualValidationOutput",
-    "ControlEjecucionAnualParams",
-    "ControlEjecucionAnualFilter",
+    "ControlAnualReport",
+    "ControlAnualDocument",
+    "ControlAnualParams",
+    "ControlAnualFilter",
 ]
 
 from datetime import date
-from typing import List, Optional
+from typing import Optional
 
-from pydantic import BaseModel, Field, NonNegativeFloat, field_validator
+from pydantic import BaseModel, Field, field_validator
 from pydantic_mongo import PydanticObjectId
 
-from ...utils import BaseFilterParams, ErrorsWithDocId
+from ...utils import BaseFilterParams
 
 
 # --------------------------------------------------
-class ControlEjecucionAnualParams(BaseModel):
+class ControlAnualParams(BaseModel):
     ejercicio: int = date.today().year
     # ejercicio: int = Field(
     #     default_factory=lambda: date.today().year,
@@ -38,31 +37,25 @@ class ControlEjecucionAnualParams(BaseModel):
 
 
 # -------------------------------------------------
-class ControlEjecucionAnualReport(BaseModel):
-    ejercicio: int	
-    estructura: str	
-    fuente: int	
-    ejecucion_siif: float	
-    ejecucion_icaro: float	
-    diferencia: float	
-    desc_actividad: str	
+class ControlAnualReport(BaseModel):
+    ejercicio: int
+    estructura: str
+    fuente: int
+    ejecucion_siif: float
+    ejecucion_icaro: float
+    diferencia: float
+    desc_actividad: str
     desc_programa: str
-    desc_subprograma:str	
-    desc_proyecto:str
+    desc_subprograma: str
+    desc_proyecto: str
 
 
 # -------------------------------------------------
-class ControlEjecucionAnualDocument(ControlEjecucionAnualReport):
+class ControlAnualDocument(ControlAnualReport):
     id: PydanticObjectId = Field(alias="_id")
 
 
 # -------------------------------------------------
-class ControlEjecucionAnualFilter(BaseFilterParams):
+class ControlAnualFilter(BaseFilterParams):
     ejercicio: Optional[int] = None
     fuente: Optional[int] = None
-
-
-# -------------------------------------------------
-class ControlEjecucionAnualValidationOutput(BaseModel):
-    errors: List[ErrorsWithDocId]
-    validated: List[ControlEjecucionAnualDocument]

@@ -28,12 +28,14 @@ from ...icaro.repositories import CargaRepositoryDependency
 from ...siif.handlers import Rf602
 from ...siif.repositories import Rf602RepositoryDependency, Rf610RepositoryDependency
 from ...utils import BaseFilterParams
-from ..schemas.icaro_vs_siif import ControlEjecucionAnualDocument
+from ..repositories.icaro_vs_siif import ControlAnualRepositoryDependency
+from ..schemas.icaro_vs_siif import ControlAnualDocument
 
 
 # --------------------------------------------------
 @dataclass
 class IcaroVsSIIFService:
+    control_anual_repo: ControlAnualRepositoryDependency
     siif_rf602_repo: Rf602RepositoryDependency
     siif_rf610_repo: Rf610RepositoryDependency
     icaro_carga_repo: CargaRepositoryDependency
@@ -259,7 +261,7 @@ class IcaroVsSIIFService:
     # --------------------------------------------------
     async def control_ejecucion_anual(
         self, params: BaseFilterParams
-    ) -> List[ControlEjecucionAnualDocument]:
+    ) -> List[ControlAnualDocument]:
         try:
             group_by = ["ejercicio", "estructura", "fuente"]
             icaro = await self.get_icaro_carga(params=params)
@@ -288,6 +290,21 @@ class IcaroVsSIIFService:
             raise HTTPException(
                 status_code=500,
                 detail="Error in control_ejecucion_anual",
+            )
+
+    # -------------------------------------------------
+    async def get_control_ejecucion_anual_from_db(
+        self, params: BaseFilterParams
+    ) -> List[ControlAnualDocument]:
+        try:
+            return await self.instruments.find_with_filter_params(params=params)
+        except Exception as e:
+            logger.error(
+                f"Error retrieving Icaro's Control Ejecución Anual from database: {e}"
+            )
+            raise HTTPException(
+                status_code=500,
+                detail="Error retrieving Icaro's Control Ejecución Anual from the database",
             )
 
     # # --------------------------------------------------
