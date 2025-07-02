@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+
 """
 Author: Fernando Corrales <fscpython@gmail.com>
 Purpose: Icaro vs SIIF budget execution
@@ -12,6 +13,8 @@ Data required:
     - SSCC ctas_ctes (manual data)
 """
 
+__all__ = ["IcaroVsSIIFService", "IcaroVsSIIFServiceDependency"]
+
 import datetime as dt
 from dataclasses import dataclass, field
 from typing import Annotated, List, Union
@@ -20,9 +23,11 @@ import numpy as np
 import pandas as pd
 from fastapi import Depends, HTTPException
 
+from ...utils import BaseFilterParams
 from ...icaro.repositories import CargaRepositoryDependency
 from ...siif.handlers import Rf602
 from ...siif.repositories import Rf602RepositoryDependency, Rf610RepositoryDependency
+from ..schemas.icaro_vs_siif import ControlEjecucionAnualDocument
 
 
 # --------------------------------------------------
@@ -96,15 +101,16 @@ class IcaroVsSIIFService:
     #     ]
     #     return df
 
-    async def get_icaro_carga(self):
+    async def get_icaro_carga(self, params: BaseFilterParams):
         """
         Get the icaro_carga data from the repository.
         """
-        df = await self.icaro_carga_repo.find_by_filter(
-            filters={
-                "tipo__ne": "PA6",
-            }
-        )
+        df = await self.icaro_carga_repo.find_with_filter_params(params=params)
+        # df = await self.icaro_carga_repo.find_by_filter(
+        #     filters={
+        #         "tipo__ne": "PA6",
+        #     }
+        # )
         df["estructura"] = df.actividad + "-" + df.partida
         return df
 
@@ -137,7 +143,7 @@ class IcaroVsSIIFService:
         return df
 
     async def get_siif_desc_pres(
-        self, ejercicio_to: Union[str, List] = str(dt.datetime.now().year)
+        self, ejercicio_to: Union[int, List] = int(dt.datetime.now().year)
     ):
         """
         Get the rf610 data from the repository.
@@ -207,7 +213,7 @@ class IcaroVsSIIFService:
         return df
 
     # --------------------------------------------------
-    async def control_ejecucion_anual(self):
+    async def control_ejecucion_anual(self, params: BaseFilterParams) -> List[ControlEjecucionAnualDocument]:
         group_by = ["ejercicio", "estructura", "fuente"]
         icaro = await self.get_icaro_carga()
         icaro = icaro.groupby(group_by)["importe"].sum()
@@ -219,13 +225,13 @@ class IcaroVsSIIFService:
         df = pd.merge(siif, icaro, how="outer", on=group_by, copy=False)
         df = df.fillna(0)
         df["diferencia"] = df["ejecucion_siif"] - df["ejecucion_icaro"]
-
-        # NECESITO EL RF610 antes de seguir
         df = df.merge(
-            self.get_siif_desc_pres(), how="left", on="estructura", copy=False
+            self.get_siif_desc_pres(ejercicio_to=params.ejercicio), how="left", on="estructura", copy=False
         )
         df = df.loc[(df["diferencia"] < -0.1) | (df["diferencia"] > 0.1)]
         df = df.reset_index(drop=True)
+        df["fuente"] =  pd.to_numeric(df["fuente"], errors="coerce")
+        df["ejercicio"] = pd.to_numeric(df["ejercicio"], errors="coerce")
         return df
 
     # # --------------------------------------------------
