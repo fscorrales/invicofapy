@@ -19,7 +19,6 @@ import datetime as dt
 from dataclasses import dataclass, field
 from typing import Annotated, List, Union
 
-import numpy as np
 import pandas as pd
 from fastapi import Depends, HTTPException
 
@@ -297,14 +296,14 @@ class IcaroVsSIIFService:
         self, params: BaseFilterParams
     ) -> List[ControlAnualDocument]:
         try:
-            return await self.instruments.find_with_filter_params(params=params)
+            return await self.control_anual_repo.find_with_filter_params(params=params)
         except Exception as e:
             logger.error(
-                f"Error retrieving Icaro's Control Ejecución Anual from database: {e}"
+                f"Error retrieving Icaro's Control de Ejecución Anual from database: {e}"
             )
             raise HTTPException(
                 status_code=500,
-                detail="Error retrieving Icaro's Control Ejecución Anual from the database",
+                detail="Error retrieving Icaro's Control de Ejecución Anual from the database",
             )
 
     # # --------------------------------------------------
