@@ -260,28 +260,35 @@ class IcaroVsSIIFService:
     async def control_ejecucion_anual(
         self, params: BaseFilterParams
     ) -> List[ControlEjecucionAnualDocument]:
-        group_by = ["ejercicio", "estructura", "fuente"]
-        icaro = await self.get_icaro_carga(params=params)
-        icaro = icaro.groupby(group_by)["importe"].sum()
-        icaro = icaro.reset_index(drop=False)
-        icaro = icaro.rename(columns={"importe": "ejecucion_icaro"})
-        siif = await self.get_siif_rf602()
-        siif = siif.loc[:, group_by + ["ordenado"]]
-        siif = siif.rename(columns={"ordenado": "ejecucion_siif"})
-        df = pd.merge(siif, icaro, how="outer", on=group_by, copy=False)
-        df = df.fillna(0)
-        df["diferencia"] = df["ejecucion_siif"] - df["ejecucion_icaro"]
-        df = df.merge(
-            self.get_siif_desc_pres(ejercicio_to=params.ejercicio),
-            how="left",
-            on="estructura",
-            copy=False,
-        )
-        df = df.loc[(df["diferencia"] < -0.1) | (df["diferencia"] > 0.1)]
-        df = df.reset_index(drop=True)
-        df["fuente"] = pd.to_numeric(df["fuente"], errors="coerce")
-        df["ejercicio"] = pd.to_numeric(df["ejercicio"], errors="coerce")
-        return df
+        try:
+            group_by = ["ejercicio", "estructura", "fuente"]
+            icaro = await self.get_icaro_carga(params=params)
+            icaro = icaro.groupby(group_by)["importe"].sum()
+            icaro = icaro.reset_index(drop=False)
+            icaro = icaro.rename(columns={"importe": "ejecucion_icaro"})
+            siif = await self.get_siif_rf602(params=params)
+            siif = siif.loc[:, group_by + ["ordenado"]]
+            siif = siif.rename(columns={"ordenado": "ejecucion_siif"})
+            df = pd.merge(siif, icaro, how="outer", on=group_by, copy=False)
+            df = df.fillna(0)
+            df["diferencia"] = df["ejecucion_siif"] - df["ejecucion_icaro"]
+            df = df.merge(
+                self.get_siif_desc_pres(ejercicio_to=params.ejercicio),
+                how="left",
+                on="estructura",
+                copy=False,
+            )
+            df = df.loc[(df["diferencia"] < -0.1) | (df["diferencia"] > 0.1)]
+            df = df.reset_index(drop=True)
+            df["fuente"] = pd.to_numeric(df["fuente"], errors="coerce")
+            df["ejercicio"] = pd.to_numeric(df["ejercicio"], errors="coerce")
+            return df
+        except Exception as e:
+            logger.error(f"Error in control_ejecucion_anual: {e}")
+            raise HTTPException(
+                status_code=500,
+                detail="Error in control_ejecucion_anual",
+            )
 
     # # --------------------------------------------------
     # def control_comprobantes(self):
