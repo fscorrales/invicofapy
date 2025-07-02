@@ -23,10 +23,11 @@ import numpy as np
 import pandas as pd
 from fastapi import Depends, HTTPException
 
-from ...utils import BaseFilterParams
+from ...config import logger
 from ...icaro.repositories import CargaRepositoryDependency
 from ...siif.handlers import Rf602
 from ...siif.repositories import Rf602RepositoryDependency, Rf610RepositoryDependency
+from ...utils import BaseFilterParams
 from ..schemas.icaro_vs_siif import ControlEjecucionAnualDocument
 
 
@@ -101,69 +102,112 @@ class IcaroVsSIIFService:
     #     ]
     #     return df
 
-    async def get_icaro_carga(self, params: BaseFilterParams):
+    async def get_icaro_carga(self, params: BaseFilterParams) -> pd.DataFrame:
         """
         Get the icaro_carga data from the repository.
         """
-        df = await self.icaro_carga_repo.find_with_filter_params(params=params)
-        # df = await self.icaro_carga_repo.find_by_filter(
-        #     filters={
-        #         "tipo__ne": "PA6",
-        #     }
-        # )
-        df["estructura"] = df.actividad + "-" + df.partida
-        return df
+        try:
+            params.set_extra_filter({"tipo": {"$ne": "PA6"}})
+            docs = await self.icaro_carga_repo.find_with_filter_params(params=params)
+            # df = await self.icaro_carga_repo.find_by_filter(
+            #     filters={
+            #         "tipo__ne": "PA6",
+            #     }
+            # )
+            df = pd.DataFrame(docs)
+            df["estructura"] = df.actividad + "-" + df.partida
+            return df
+        except Exception as e:
+            logger.error(f"Error retrieving Icaro's Carga Data from database: {e}")
+            raise HTTPException(
+                status_code=500,
+                detail="Error retrieving Icaro's Carga Data from the database",
+            )
 
     # --------------------------------------------------
-    async def get_siif_rf602(self):
+    async def get_siif_rf602(self, params: BaseFilterParams) -> pd.DataFrame:
         """
         Get the rf602 data from the repository.
         """
-        df = await self.siif_rf602_repo.find_by_filter(
-            filters={
-                "$or": [
-                    {"nro_partida": {"$in": ["421", "422"]}},
-                    {
-                        "$and": [
-                            {"partida": "354"},
-                            {
-                                "CUIT": {
-                                    "$nin": [
-                                        "30500049460",
-                                        "30632351514",
-                                        "20231243527",
-                                    ]
-                                }
-                            },
-                        ]
-                    },
-                ]
-            }
-        )
-        return df
+        try:
+            params.set_extra_filter(
+                {
+                    "$or": [
+                        {"nro_partida": {"$in": ["421", "422"]}},
+                        {
+                            "$and": [
+                                {"partida": "354"},
+                                {
+                                    "CUIT": {
+                                        "$nin": [
+                                            "30500049460",
+                                            "30632351514",
+                                            "20231243527",
+                                        ]
+                                    }
+                                },
+                            ]
+                        },
+                    ]
+                }
+            )
+            docs = await self.siif_rf602_repo.find_with_filter_params(params=params)
+            df = pd.DataFrame(docs)
+            return df
+        except Exception as e:
+            logger.error(f"Error retrieving SIIF's rf602 from database: {e}")
+            raise HTTPException(
+                status_code=500,
+                detail="Error retrieving SIIF's rf602 from the database",
+            )
+
+        # docs = await self.siif_rf602_repo.find_by_filter(
+        #     filters={
+        #         "$or": [
+        #             {"nro_partida": {"$in": ["421", "422"]}},
+        #             {
+        #                 "$and": [
+        #                     {"partida": "354"},
+        #                     {
+        #                         "CUIT": {
+        #                             "$nin": [
+        #                                 "30500049460",
+        #                                 "30632351514",
+        #                                 "20231243527",
+        #                             ]
+        #                         }
+        #                     },
+        #                 ]
+        #             },
+        #         ]
+        #     }
+        # )
+        # df = pd.DataFrame(docs)
+        # return df
 
     async def get_siif_desc_pres(
         self, ejercicio_to: Union[int, List] = int(dt.datetime.now().year)
-    ):
+    ) -> pd.DataFrame:
         """
         Get the rf610 data from the repository.
         """
 
         if ejercicio_to is None:
-            df = await self.siif_rf610_repo.get_all()
+            docs = await self.siif_rf610_repo.get_all()
         elif isinstance(ejercicio_to, list):
-            df = await self.siif_rf610_repo.find_by_filter(
+            docs = await self.siif_rf610_repo.find_by_filter(
                 filters={
                     "ejercicio__in": ejercicio_to,
                 }
             )
         else:
-            df = await self.siif_rf610_repo.find_by_filter(
+            docs = await self.siif_rf610_repo.find_by_filter(
                 filters={
                     "ejercicio__lte": int(ejercicio_to),
                 }
             )
 
+        df = pd.DataFrame(docs)
         df.sort_values(
             by=["ejercicio", "estructura"], inplace=True, ascending=[False, True]
         )
@@ -213,9 +257,11 @@ class IcaroVsSIIFService:
         return df
 
     # --------------------------------------------------
-    async def control_ejecucion_anual(self, params: BaseFilterParams) -> List[ControlEjecucionAnualDocument]:
+    async def control_ejecucion_anual(
+        self, params: BaseFilterParams
+    ) -> List[ControlEjecucionAnualDocument]:
         group_by = ["ejercicio", "estructura", "fuente"]
-        icaro = await self.get_icaro_carga()
+        icaro = await self.get_icaro_carga(params=params)
         icaro = icaro.groupby(group_by)["importe"].sum()
         icaro = icaro.reset_index(drop=False)
         icaro = icaro.rename(columns={"importe": "ejecucion_icaro"})
@@ -226,11 +272,14 @@ class IcaroVsSIIFService:
         df = df.fillna(0)
         df["diferencia"] = df["ejecucion_siif"] - df["ejecucion_icaro"]
         df = df.merge(
-            self.get_siif_desc_pres(ejercicio_to=params.ejercicio), how="left", on="estructura", copy=False
+            self.get_siif_desc_pres(ejercicio_to=params.ejercicio),
+            how="left",
+            on="estructura",
+            copy=False,
         )
         df = df.loc[(df["diferencia"] < -0.1) | (df["diferencia"] > 0.1)]
         df = df.reset_index(drop=True)
-        df["fuente"] =  pd.to_numeric(df["fuente"], errors="coerce")
+        df["fuente"] = pd.to_numeric(df["fuente"], errors="coerce")
         df["ejercicio"] = pd.to_numeric(df["ejercicio"], errors="coerce")
         return df
 
