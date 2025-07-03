@@ -198,15 +198,11 @@ class Rf610(SIIFReportManager):
         df["partida"] = df["partida"].ffill()
         df["desc_partida"] = df["desc_partida"].ffill()
         df = df.dropna(subset=["credito_original"])
-        print("Separamos los programas")
         df[["programa", "desc_programa"]] = df["programa"].str.split(n=1, expand=True)
-        print("Separamos los subprogramas")
         df[["subprograma", "desc_subprograma"]] = df["subprograma"].str.split(
             n=1, expand=True
         )
-        print("Separamos los proyectos")
         df[["proyecto", "desc_proyecto"]] = df["proyecto"].str.split(n=1, expand=True)
-        print("Separamos las actividades")
         df[["actividad", "desc_actividad"]] = df["actividad"].str.split(
             n=1, expand=True
         )
