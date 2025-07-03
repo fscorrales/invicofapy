@@ -17,12 +17,13 @@ import numpy as np
 import pandas as pd
 from playwright.async_api import Download, async_playwright
 
+from ...utils.validate import validate_excel_file
 from .connect_siif import (
     ReportCategory,
     SIIFReportManager,
     login,
 )
-from ...utils.validate import validate_excel_file
+
 
 # --------------------------------------------------
 def get_args():
@@ -63,7 +64,11 @@ def get_args():
     )
 
     parser.add_argument(
-        "-d", "--download", help="Download report from SIIF", action="store_true", default=False
+        "-d",
+        "--download",
+        help="Download report from SIIF",
+        action="store_true",
+        default=False,
     )
 
     parser.add_argument(
@@ -148,7 +153,7 @@ class Rf610(SIIFReportManager):
         else:
             df = dataframe.copy()
 
-        df = self.df.replace(to_replace='', value=None)
+        df = self.df.replace(to_replace="", value=None)
         df["ejercicio"] = pd.to_numeric(df.iloc[9, 33][-4:], errors="coerce")
         df = df.rename(
             columns={
@@ -158,12 +163,12 @@ class Rf610(SIIFReportManager):
                 "11": "actividad",
                 "13": "grupo",
                 "16": "partida",
-                "18": "desc_partida",
-                "45": "credito_original",
-                "46": "credito_vigente",
-                "47": "comprometido",
-                "48": "ordenado",
-                "49": "saldo",
+                "19": "desc_partida",
+                "37": "credito_original",
+                "43": "credito_vigente",
+                "48": "comprometido",
+                "54": "ordenado",
+                "59": "saldo",
             }
         )
         df = df.tail(-30)
@@ -192,21 +197,20 @@ class Rf610(SIIFReportManager):
         df["grupo"] = df["grupo"].ffill()
         df["partida"] = df["partida"].ffill()
         df["desc_partida"] = df["desc_partida"].ffill()
-        print(df.head(20))
         df = df.dropna(subset=["credito_original"])
-        print(f"Separamos los programas")
+        print("Separamos los programas")
         df[["programa", "desc_programa"]] = df["programa"].str.split(n=1, expand=True)
-        print(f"Separamos los subprogramas")
+        print("Separamos los subprogramas")
         df[["subprograma", "desc_subprograma"]] = df["subprograma"].str.split(
             n=1, expand=True
         )
-        print(f"Separamos los proyectos")
+        print("Separamos los proyectos")
         df[["proyecto", "desc_proyecto"]] = df["proyecto"].str.split(n=1, expand=True)
-        print(f"Separamos las actividades")
+        print("Separamos las actividades")
         df[["actividad", "desc_actividad"]] = df["actividad"].str.split(
             n=1, expand=True
         )
-        print(f"Separamos los grupos")
+        print("Separamos los grupos")
         df[["grupo", "desc_grupo"]] = df["grupo"].str.split(n=1, expand=True)
         df["programa"] = df["programa"].str.zfill(2)
         df["subprograma"] = df["subprograma"].str.zfill(2)
@@ -215,7 +219,7 @@ class Rf610(SIIFReportManager):
         df["desc_programa"] = df["desc_programa"].str.strip()
         df["desc_subprograma"] = df["desc_subprograma"].str.strip()
         df["desc_proyecto"] = df["desc_proyecto"].str.strip()
-        df["desc_actividad"] = df["desc_activida"].str.strip()
+        df["desc_actividad"] = df["desc_actividad"].str.strip()
         df["desc_grupo"] = df["desc_grupo"].str.strip()
         df["desc_partida"] = df["desc_partida"].str.strip()
         df["estructura"] = (
@@ -273,7 +277,7 @@ async def main():
     )
 
     if args.file is not None:
-        args.file = os.path.join(save_path, args.file)
+        args.file = validate_excel_file(os.path.join(save_path, args.file))
 
     async with async_playwright() as p:
         try:
@@ -311,3 +315,4 @@ if __name__ == "__main__":
     # From /invicofapy
 
     # poetry run python -m src.siif.handlers.rf610 -d
+    # poetry run python -m src.siif.handlers.rf610 -f 2025-rf610.xls
