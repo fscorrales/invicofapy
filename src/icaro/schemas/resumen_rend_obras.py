@@ -23,7 +23,7 @@ class ResumenRendObrasParams(BaseModel):
 # -------------------------------------------------
 class ResumenRendObrasReport(BaseModel):
     id_carga: str
-    ejercicio: str
+    ejercicio: int
     mes: str
     fecha: date
     origen: str

@@ -317,7 +317,9 @@ class IcaroMongoMigrator:
         df.loc[df["tipo"] == "PA6", "id_carga"] = df["nro_comprobante"] + "F"
         df["ejercicio"] = df["fecha"].dt.year
         df["mes"] = (
-            df["fecha"].dt.month.astype(str).str.zfill(2) + "/" + df["ejercicio"].astype(str)
+            df["fecha"].dt.month.astype(str).str.zfill(2)
+            + "/"
+            + df["ejercicio"].astype(str)
         )
         await self.carga_repo.delete_all()
         await self.carga_repo.save_all(df.to_dict(orient="records"))
@@ -364,6 +366,7 @@ class IcaroMongoMigrator:
             },
             inplace=True,
         )
+        df["ejercicio"] = pd.to_numeric(df["ejercicio"], errors="coerce")
         df["otras_retenciones"] = 0
         df["cod_obra"] = df["desc_obra"].str.split(" ", n=1).str[0]
         df.loc[df["nro_comprobante"] != "", "id_carga"] = df["nro_comprobante"] + "C"
@@ -404,9 +407,11 @@ class IcaroMongoMigrator:
         df["fecha"] = pd.to_timedelta(df["fecha"], unit="D") + pd.Timestamp(
             "1970-01-01"
         )
-        df["ejercicio"] = df["fecha"].dt.year.astype(str)
+        df["ejercicio"] = df["fecha"].dt.year
         df["mes"] = (
-            df["fecha"].dt.month.astype(str).str.zfill(2) + "/" + df["ejercicio"]
+            df["fecha"].dt.month.astype(str).str.zfill(2)
+            + "/"
+            + df["ejercicio"].astype(str)
         )
         df.loc[df["nro_comprobante"] != "", "id_carga"] = df["nro_comprobante"] + "C"
         df.loc[df["tipo"] == "PA6", "id_carga"] = df["nro_comprobante"] + "F"

@@ -23,7 +23,7 @@ class CertificadosParams(BaseModel):
 class CertificadosReport(BaseModel):
     id_carga: str
     origen: str
-    ejercicio: str
+    ejercicio: int
     beneficiario: str
     desc_obra: str
     nro_certificado: str
