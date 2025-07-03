@@ -15,25 +15,23 @@ from ..services import IcaroVsSIIFServiceDependency
 icaro_vs_siif_router = APIRouter(prefix="/icaro_vs_siif")
 
 
-@icaro_vs_siif_router.post("/sync_from_siif", response_model=RouteReturnSchema)
-async def sync_rf602_from_siif(
+@icaro_vs_siif_router.post("/compute", response_model=RouteReturnSchema)
+async def compute_control_anual(
     service: IcaroVsSIIFServiceDependency,
     params: Annotated[ControlAnualParams, Depends()],
-    username: str = None,
-    password: str = None,
 ):
-    return await service.control_ejecucion_anual(
-        username=username, password=password, params=params
+    return await service.compute_control_anual(
+        params=params
     )
 
 
 @icaro_vs_siif_router.get("/get_from_db", response_model=List[ControlAnualDocument])
-async def get_control_ejecucion_anual_from_db(
+async def get_control_anual_from_db(
     service: IcaroVsSIIFServiceDependency,
     params: Annotated[ControlAnualFilter, Depends()],
 ):
     apply_auto_filter(params=params)
-    return await service.get_control_ejecucion_anual_from_db()
+    return await service.get_control_anual_from_db()
 
 
 # @rf602_router.post("/download_and_update/")

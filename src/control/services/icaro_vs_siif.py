@@ -26,9 +26,9 @@ from ...config import logger
 from ...icaro.repositories import CargaRepositoryDependency
 from ...siif.handlers import Rf602
 from ...siif.repositories import Rf602RepositoryDependency, Rf610RepositoryDependency
-from ...utils import BaseFilterParams
+from ...utils import BaseFilterParams, validate_and_extract_data_from_df, RouteReturnSchema
 from ..repositories.icaro_vs_siif import ControlAnualRepositoryDependency
-from ..schemas.icaro_vs_siif import ControlAnualDocument
+from ..schemas.icaro_vs_siif import ControlAnualDocument, ControlAnualReport, ControlAnualParams
 
 
 # --------------------------------------------------
@@ -103,18 +103,18 @@ class IcaroVsSIIFService:
     #     ]
     #     return df
 
-    async def get_icaro_carga(self, params: BaseFilterParams) -> pd.DataFrame:
+    async def get_icaro_carga(self) -> pd.DataFrame:
         """
         Get the icaro_carga data from the repository.
         """
         try:
-            params.set_extra_filter({"tipo": {"$ne": "PA6"}})
-            docs = await self.icaro_carga_repo.find_with_filter_params(params=params)
-            # df = await self.icaro_carga_repo.find_by_filter(
-            #     filters={
-            #         "tipo__ne": "PA6",
-            #     }
-            # )
+            # params.set_extra_filter({"tipo": {"$ne": "PA6"}})
+            # docs = await self.icaro_carga_repo.find_with_filter_params(params=params)
+            docs = await self.icaro_carga_repo.find_by_filter(
+                filters={
+                    "tipo__ne": "PA6",
+                }
+            )
             df = pd.DataFrame(docs)
             df["estructura"] = df.actividad + "-" + df.partida
             return df
@@ -126,15 +126,37 @@ class IcaroVsSIIFService:
             )
 
     # --------------------------------------------------
-    async def get_siif_rf602(self, params: BaseFilterParams) -> pd.DataFrame:
+    async def get_siif_rf602(self) -> pd.DataFrame:
         """
         Get the rf602 data from the repository.
         """
         try:
-            params.set_extra_filter(
-                {
+            # params.set_extra_filter(
+            #     {
+            #         "$or": [
+            #             {"nro_partida": {"$in": ["421", "422"]}},
+            #             {
+            #                 "$and": [
+            #                     {"partida": "354"},
+            #                     {
+            #                         "CUIT": {
+            #                             "$nin": [
+            #                                 "30500049460",
+            #                                 "30632351514",
+            #                                 "20231243527",
+            #                             ]
+            #                         }
+            #                     },
+            #                 ]
+            #             },
+            #         ]
+            #     }
+            # )
+            # docs = await self.siif_rf602_repo.find_with_filter_params(params=params)
+            docs = await self.siif_rf602_repo.find_by_filter(
+                filters={
                     "$or": [
-                        {"nro_partida": {"$in": ["421", "422"]}},
+                        {"partida": {"$in": ["421", "422"]}},
                         {
                             "$and": [
                                 {"partida": "354"},
@@ -152,7 +174,6 @@ class IcaroVsSIIFService:
                     ]
                 }
             )
-            docs = await self.siif_rf602_repo.find_with_filter_params(params=params)
             df = pd.DataFrame(docs)
             return df
         except Exception as e:
@@ -162,27 +183,7 @@ class IcaroVsSIIFService:
                 detail="Error retrieving SIIF's rf602 from the database",
             )
 
-        # docs = await self.siif_rf602_repo.find_by_filter(
-        #     filters={
-        #         "$or": [
-        #             {"nro_partida": {"$in": ["421", "422"]}},
-        #             {
-        #                 "$and": [
-        #                     {"partida": "354"},
-        #                     {
-        #                         "CUIT": {
-        #                             "$nin": [
-        #                                 "30500049460",
-        #                                 "30632351514",
-        #                                 "20231243527",
-        #                             ]
-        #                         }
-        #                     },
-        #                 ]
-        #             },
-        #         ]
-        #     }
-        # )
+
         # df = pd.DataFrame(docs)
         # return df
 
@@ -258,23 +259,31 @@ class IcaroVsSIIFService:
         return df
 
     # --------------------------------------------------
-    async def control_ejecucion_anual(
-        self, params: BaseFilterParams
+    async def compute_control_anual(
+        self, params: ControlAnualParams
     ) -> List[ControlAnualDocument]:
+        return_schema = RouteReturnSchema()
         try:
             group_by = ["ejercicio", "estructura", "fuente"]
-            icaro = await self.get_icaro_carga(params=params)
+            icaro = await self.get_icaro_carga()
             icaro = icaro.groupby(group_by)["importe"].sum()
             icaro = icaro.reset_index(drop=False)
             icaro = icaro.rename(columns={"importe": "ejecucion_icaro"})
-            siif = await self.get_siif_rf602(params=params)
+            # logger.info(icaro.shape)
+            # logger.info(icaro.dtypes)
+            # logger.info(icaro.head())
+            siif = await self.get_siif_rf602()
             siif = siif.loc[:, group_by + ["ordenado"]]
             siif = siif.rename(columns={"ordenado": "ejecucion_siif"})
+            # logger.info(siif.shape)
+            # logger.info(siif.dtypes)
+            # logger.info(siif.head())
             df = pd.merge(siif, icaro, how="outer", on=group_by, copy=False)
             df = df.fillna(0)
             df["diferencia"] = df["ejecucion_siif"] - df["ejecucion_icaro"]
+            logger.info(df.head())
             df = df.merge(
-                self.get_siif_desc_pres(ejercicio_to=params.ejercicio),
+                await self.get_siif_desc_pres(ejercicio_to=params.ejercicio),
                 how="left",
                 on="estructura",
                 copy=False,
@@ -283,16 +292,43 @@ class IcaroVsSIIFService:
             df = df.reset_index(drop=True)
             df["fuente"] = pd.to_numeric(df["fuente"], errors="coerce")
             df["ejercicio"] = pd.to_numeric(df["ejercicio"], errors="coerce")
-            return df
-        except Exception as e:
-            logger.error(f"Error in control_ejecucion_anual: {e}")
-            raise HTTPException(
-                status_code=500,
-                detail="Error in control_ejecucion_anual",
+            logger.info(df.head())
+            # 🔹 Validar datos usando Pydantic
+            validate_and_errors = validate_and_extract_data_from_df(
+                dataframe=df, model=ConrolAnualReport, field_id="estructura"
             )
 
+            # 🔹 Si hay registros validados, eliminar los antiguos e insertar los nuevos
+            if validate_and_errors.validated:
+                logger.info(
+                    f"Procesado Control de Ejecución Anual ICARO vs SIIF. Errores: {len(validate_and_errors.errors)}"
+                )
+                deleted_count = await self.control_anual_repo.delete_all()
+                data_to_store = jsonable_encoder(validate_and_errors.validated)
+                inserted_records = await self.control_anual_repo.save_all(data_to_store)
+                logger.info(
+                    f"Inserted {len(inserted_records.inserted_ids)} records into MongoDB."
+                )
+                return_schema.deleted = deleted_count
+                return_schema.added = len(data_to_store)
+                return_schema.errors = validate_and_errors.errors
+
+        except ValidationError as e:
+            logger.error(f"Validation Error: {e}")
+            raise HTTPException(
+                status_code=400, detail="Invalid response format from Control Anual ICARO vs SIIF"
+            )
+        except Exception as e:
+            logger.error(f"Error in compute_control_anual: {e}")
+            raise HTTPException(
+                status_code=500,
+                detail="Error in compute_control_anual",
+            )
+        finally:
+            return return_schema
+
     # -------------------------------------------------
-    async def get_control_ejecucion_anual_from_db(
+    async def get_control_anual_from_db(
         self, params: BaseFilterParams
     ) -> List[ControlAnualDocument]:
         try:

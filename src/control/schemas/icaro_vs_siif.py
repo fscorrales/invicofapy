@@ -17,12 +17,6 @@ from ...utils import BaseFilterParams
 # --------------------------------------------------
 class ControlAnualParams(BaseModel):
     ejercicio: int = date.today().year
-    # ejercicio: int = Field(
-    #     default_factory=lambda: date.today().year,
-    #     alias="ejercicio",
-    #     description="Año del ejercicio fiscal (entre 2010 y el año actual)",
-    #     example=2025,
-    # )
 
     @field_validator("ejercicio")
     @classmethod

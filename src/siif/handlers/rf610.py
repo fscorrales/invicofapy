@@ -22,7 +22,7 @@ from .connect_siif import (
     SIIFReportManager,
     login,
 )
-
+from ...utils.validate import validate_excel_file
 
 # --------------------------------------------------
 def get_args():
@@ -63,7 +63,7 @@ def get_args():
     )
 
     parser.add_argument(
-        "-d", "--download", help="Download report from SIIF", action="store_true"
+        "-d", "--download", help="Download report from SIIF", action="store_true", default=False
     )
 
     parser.add_argument(
@@ -75,7 +75,7 @@ def get_args():
         "--file",
         metavar="xls_file",
         default=None,
-        type=argparse.FileType("r"),
+        type=str,
         help="SIIF' rf610.xls report. Must be in the same folder",
     )
 
@@ -148,21 +148,22 @@ class Rf610(SIIFReportManager):
         else:
             df = dataframe.copy()
 
+        df = self.df.replace(to_replace='', value=None)
         df["ejercicio"] = pd.to_numeric(df.iloc[9, 33][-4:], errors="coerce")
         df = df.rename(
             columns={
                 "5": "programa",
-                "9": "subprograma",
-                "14": "proyecto",
-                "17": "actividad",
-                "20": "grupo",
-                "21": "partida",
-                "24": "desc_part",
-                "38": "credito_original",
-                "44": "credito_vigente",
-                "49": "comprometido",
-                "55": "ordenado",
-                "60": "saldo",
+                "7": "subprograma",
+                "8": "proyecto",
+                "11": "actividad",
+                "13": "grupo",
+                "16": "partida",
+                "18": "desc_partida",
+                "45": "credito_original",
+                "46": "credito_vigente",
+                "47": "comprometido",
+                "48": "ordenado",
+                "49": "saldo",
             }
         )
         df = df.tail(-30)
@@ -184,22 +185,28 @@ class Rf610(SIIFReportManager):
                 "saldo",
             ],
         ]
-        df["programa"] = df["programa"].fillna(method="ffill")
-        df["subprograma"] = df["subprograma"].fillna(method="ffill")
-        df["proyecto"] = df["proyecto"].fillna(method="ffill")
-        df["actividad"] = df["actividad"].fillna(method="ffill")
-        df["grupo"] = df["grupo"].fillna(method="ffill")
-        df["partida"] = df["partida"].fillna(method="ffill")
-        df["desc_partida"] = df["desc_partida"].fillna(method="ffill")
+        df["programa"] = df["programa"].ffill()
+        df["subprograma"] = df["subprograma"].ffill()
+        df["proyecto"] = df["proyecto"].ffill()
+        df["actividad"] = df["actividad"].ffill()
+        df["grupo"] = df["grupo"].ffill()
+        df["partida"] = df["partida"].ffill()
+        df["desc_partida"] = df["desc_partida"].ffill()
+        print(df.head(20))
         df = df.dropna(subset=["credito_original"])
+        print(f"Separamos los programas")
         df[["programa", "desc_programa"]] = df["programa"].str.split(n=1, expand=True)
-        df[["subprograma", "desc_subprogramra"]] = df["subprograma"].str.split(
+        print(f"Separamos los subprogramas")
+        df[["subprograma", "desc_subprograma"]] = df["subprograma"].str.split(
             n=1, expand=True
         )
+        print(f"Separamos los proyectos")
         df[["proyecto", "desc_proyecto"]] = df["proyecto"].str.split(n=1, expand=True)
+        print(f"Separamos las actividades")
         df[["actividad", "desc_actividad"]] = df["actividad"].str.split(
             n=1, expand=True
         )
+        print(f"Separamos los grupos")
         df[["grupo", "desc_grupo"]] = df["grupo"].str.split(n=1, expand=True)
         df["programa"] = df["programa"].str.zfill(2)
         df["subprograma"] = df["subprograma"].str.zfill(2)
@@ -265,29 +272,37 @@ async def main():
         os.path.abspath(inspect.getfile(inspect.currentframe()))
     )
 
+    if args.file is not None:
+        args.file = os.path.join(save_path, args.file)
+
     async with async_playwright() as p:
-        connect_siif = await login(
-            args.username, args.password, playwright=p, headless=False
-        )
         try:
-            rf610 = Rf610(siif=connect_siif)
-            await rf610.go_to_reports()
-            await rf610.go_to_specific_report()
-            for ejercicio in args.ejercicios:
-                if args.download:
+            if args.download:
+                connect_siif = await login(
+                    args.username, args.password, playwright=p, headless=False
+                )
+                rf610 = Rf610(siif=connect_siif)
+                await rf610.go_to_reports()
+                await rf610.go_to_specific_report()
+                for ejercicio in args.ejercicios:
                     await rf610.download_report(ejercicio=str(ejercicio))
                     await rf610.save_xls_file(
                         save_path=save_path,
                         file_name=str(ejercicio) + "-rf610.xls",
                     )
+                    await rf610.read_xls_file(args.file)
+                    print(rf610.df)
+                    await rf610.process_dataframe()
+                    print(rf610.clean_df)
+                await rf610.logout()
+            else:
+                rf610 = Rf610()
                 await rf610.read_xls_file(args.file)
                 print(rf610.df)
                 await rf610.process_dataframe()
                 print(rf610.clean_df)
         except Exception as e:
             print(f"Error al iniciar sesión: {e}")
-        finally:
-            await rf610.logout()
 
 
 # --------------------------------------------------

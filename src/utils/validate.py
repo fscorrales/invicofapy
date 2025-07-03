@@ -4,11 +4,15 @@ __all__ = [
     "PyObjectId",
     "validate_not_empty",
     "RouteReturnSchema",
+    "validate_excel_file",
 ]
 
 from typing import Any, List
 
+import argparse
+import os
 import pandas as pd
+
 from bson import ObjectId
 from pydantic import BaseModel, GetCoreSchemaHandler, ValidationError
 from pydantic_core import core_schema
@@ -108,3 +112,17 @@ class PyObjectId(ObjectId):
         if ObjectId.is_valid(v):
             return ObjectId(v)
         raise ValueError("Invalid ObjectId")
+
+
+def validate_excel_file(path):
+    if not os.path.exists(path):
+        raise argparse.ArgumentTypeError(f"El archivo {path} no existe")
+    if not path.endswith(".xlsx") and not path.endswith(".xls"):
+        raise argparse.ArgumentTypeError(
+            f"El archivo {path} no parece ser un archivo Excel"
+        )
+    try:
+        pd.read_excel(path, nrows=1)  # Solo intenta leer la primera fila
+    except Exception as e:
+        raise argparse.ArgumentTypeError(f"Error al abrir el archivo Excel {path}: {e}")
+    return path

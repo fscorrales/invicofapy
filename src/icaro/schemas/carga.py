@@ -37,7 +37,7 @@ class CargaReport(BaseModel):
     actividad: str
     partida: str
     id_carga: str
-    ejercicio: str
+    ejercicio: int
     mes: str
 
 

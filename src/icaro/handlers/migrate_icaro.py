@@ -315,9 +315,9 @@ class IcaroMongoMigrator:
         )
         df["id_carga"] = df["nro_comprobante"] + "C"
         df.loc[df["tipo"] == "PA6", "id_carga"] = df["nro_comprobante"] + "F"
-        df["ejercicio"] = df["fecha"].dt.year.astype(str)
+        df["ejercicio"] = df["fecha"].dt.year
         df["mes"] = (
-            df["fecha"].dt.month.astype(str).str.zfill(2) + "/" + df["ejercicio"]
+            df["fecha"].dt.month.astype(str).str.zfill(2) + "/" + df["ejercicio"].astype(str)
         )
         await self.carga_repo.delete_all()
         await self.carga_repo.save_all(df.to_dict(orient="records"))
