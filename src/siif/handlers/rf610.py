@@ -190,6 +190,7 @@ class Rf610(SIIFReportManager):
                 "saldo",
             ],
         ]
+        df["ejercicio"] = pd.to_numeric(df["ejercicio"], errors="coerce")
         df["programa"] = df["programa"].ffill()
         df["subprograma"] = df["subprograma"].ffill()
         df["proyecto"] = df["proyecto"].ffill()
