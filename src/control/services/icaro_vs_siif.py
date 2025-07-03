@@ -21,14 +21,24 @@ from typing import Annotated, List, Union
 
 import pandas as pd
 from fastapi import Depends, HTTPException
+from fastapi.encoders import jsonable_encoder
+from pydantic import ValidationError
 
 from ...config import logger
 from ...icaro.repositories import CargaRepositoryDependency
 from ...siif.handlers import Rf602
 from ...siif.repositories import Rf602RepositoryDependency, Rf610RepositoryDependency
-from ...utils import BaseFilterParams, validate_and_extract_data_from_df, RouteReturnSchema
+from ...utils import (
+    BaseFilterParams,
+    RouteReturnSchema,
+    validate_and_extract_data_from_df,
+)
 from ..repositories.icaro_vs_siif import ControlAnualRepositoryDependency
-from ..schemas.icaro_vs_siif import ControlAnualDocument, ControlAnualReport, ControlAnualParams
+from ..schemas.icaro_vs_siif import (
+    ControlAnualDocument,
+    ControlAnualParams,
+    ControlAnualReport,
+)
 
 
 # --------------------------------------------------
@@ -183,7 +193,6 @@ class IcaroVsSIIFService:
                 detail="Error retrieving SIIF's rf602 from the database",
             )
 
-
         # df = pd.DataFrame(docs)
         # return df
 
@@ -295,7 +304,7 @@ class IcaroVsSIIFService:
             logger.info(df.head())
             # 🔹 Validar datos usando Pydantic
             validate_and_errors = validate_and_extract_data_from_df(
-                dataframe=df, model=ConrolAnualReport, field_id="estructura"
+                dataframe=df, model=ControlAnualReport, field_id="estructura"
             )
 
             # 🔹 Si hay registros validados, eliminar los antiguos e insertar los nuevos
@@ -316,7 +325,8 @@ class IcaroVsSIIFService:
         except ValidationError as e:
             logger.error(f"Validation Error: {e}")
             raise HTTPException(
-                status_code=400, detail="Invalid response format from Control Anual ICARO vs SIIF"
+                status_code=400,
+                detail="Invalid response format from Control Anual ICARO vs SIIF",
             )
         except Exception as e:
             logger.error(f"Error in compute_control_anual: {e}")
