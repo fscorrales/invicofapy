@@ -139,6 +139,16 @@ async def go_to_reports(connect: ConnectSIIF) -> None:
 
 
 # --------------------------------------------------
+async def go_back_to_reports_list(connect: ConnectSIIF) -> None:
+    try:
+        btn_volver = connect.reports_page.locator("xpath=//div[@id='pt1:btnVolver']")
+        await btn_volver.click()
+        await connect.reports_page.wait_for_load_state("networkidle")
+    except Exception as e:
+        print(f"Ocurrio un error: {e}")
+        await logout(connect)
+
+# --------------------------------------------------
 async def read_xls_file(file_path: Path) -> pd.DataFrame:
     """Read xls file"""
     try:
@@ -205,9 +215,8 @@ class SIIFReportManager(ABC):
         pass
 
     # --------------------------------------------------
-    def go_back_to_reports_list(self) -> None:
-        btn_volver = self.siif.reports_page.locator("xpath=//div[@id='pt1:btnVolver']")
-        btn_volver.click()
+    async def go_back_to_reports_list(self) -> None:
+        await go_back_to_reports_list(connect=self.siif)
 
     # --------------------------------------------------
     @abstractmethod

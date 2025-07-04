@@ -134,6 +134,8 @@ class Rf602(SIIFReportManager):
             if popup_page:
                 await popup_page.close()
 
+            await self.go_back_to_reports_list()
+
             return self.download
 
         except Exception as e:

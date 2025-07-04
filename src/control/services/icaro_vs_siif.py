@@ -27,9 +27,9 @@ from pydantic import ValidationError
 
 from ...config import logger
 from ...icaro.repositories import CargaRepositoryDependency
-from ...siif.handlers import Rf602
+from ...siif.handlers import Rf602, Rf610, login, logout
 from ...siif.repositories import Rf602RepositoryDependency, Rf610RepositoryDependency
-from ...siif.schemas import Rf602Report
+from ...siif.schemas import Rf602Report, Rf610Report
 from ...utils import (
     BaseFilterParams,
     RouteReturnSchema,
@@ -51,9 +51,7 @@ class IcaroVsSIIFService:
     siif_rf610_repo: Rf610RepositoryDependency
     icaro_carga_repo: CargaRepositoryDependency
     siif_rf602_handler: Rf602 = field(init=False)  # No se pasa como argumento
-
-    def __post_init__(self):
-        self.siif_rf602_handler = Rf602()
+    siif_rf610_handler: Rf610 = field(init=False)  # No se pasa como argumento
 
     # -------------------------------------------------
     async def sync_icaro_vs_siif_from_source(
@@ -79,12 +77,15 @@ class IcaroVsSIIFService:
         return_schema = RouteReturnSchema()
         async with async_playwright() as p:
             try:
-                await self.siif_rf602_handler.login(
+                connect_siif = await login(
                     username=username,
                     password=password,
                     playwright=p,
                     headless=False,
                 )
+
+                # 🔹 RF602
+                self.siif_rf602_handler = Rf602(siif=connect_siif)
                 await self.siif_rf602_handler.go_to_reports()
                 await self.siif_rf602_handler.go_to_specific_report()
                 await self.siif_rf602_handler.download_report(ejercicio=str(params.ejercicio))
@@ -99,7 +100,7 @@ class IcaroVsSIIFService:
                 # 🔹 Si hay registros validados, eliminar los antiguos e insertar los nuevos
                 if validate_and_errors.validated:
                     logger.info(
-                        f"Procesado ejercicio {params.ejercicio}. Errores: {len(validate_and_errors.errors)}"
+                        f"Procesado ejercicio {params.ejercicio} del rf602. Errores: {len(validate_and_errors.errors)}"
                     )
                     delete_dict = {"ejercicio": params.ejercicio}
                     # Contar los instrumentos existentes antes de eliminarlos
@@ -111,9 +112,40 @@ class IcaroVsSIIFService:
                     logger.info(
                         f"Inserted {len(inserted_records.inserted_ids)} records into MongoDB."
                     )
-                    return_schema.deleted = deleted_count
-                    return_schema.added = len(data_to_store)
-                    return_schema.errors = validate_and_errors.errors
+                    return_schema.deleted += deleted_count
+                    return_schema.added += len(data_to_store)
+                    return_schema.errors += validate_and_errors.errors
+
+                # 🔹 RF610
+                self.siif_rf610_handler = Rf610(siif=connect_siif)
+                await self.siif_rf610_handler.go_to_specific_report()
+                await self.siif_rf610_handler.download_report(ejercicio=str(params.ejercicio))
+                await self.siif_rf610_handler.read_xls_file()
+                df = await self.siif_rf610_handler.process_dataframe()
+
+                # 🔹 Validar datos usando Pydantic
+                validate_and_errors = validate_and_extract_data_from_df(
+                    dataframe=df, model=Rf610Report, field_id="estructura"
+                )
+
+                # 🔹 Si hay registros validados, eliminar los antiguos e insertar los nuevos
+                if validate_and_errors.validated:
+                    logger.info(
+                        f"Procesado ejercicio {params.ejercicio} del rf610. Errores: {len(validate_and_errors.errors)}"
+                    )
+                    delete_dict = {"ejercicio": params.ejercicio}
+                    # Contar los instrumentos existentes antes de eliminarlos
+                    deleted_count = await self.siif_rf610_handler.count_by_fields(delete_dict)
+                    await self.siif_rf610_handler.delete_by_fields(delete_dict)
+                    # await self.collection.delete_many({"ejercicio": ejercicio})
+                    data_to_store = jsonable_encoder(validate_and_errors.validated)
+                    inserted_records = await self.siif_rf610_handler.save_all(data_to_store)
+                    logger.info(
+                        f"Inserted {len(inserted_records.inserted_ids)} records into MongoDB."
+                    )
+                    return_schema.deleted += deleted_count
+                    return_schema.added += len(data_to_store)
+                    return_schema.errors += validate_and_errors.errors
 
             except ValidationError as e:
                 logger.error(f"Validation Error: {e}")
@@ -127,8 +159,7 @@ class IcaroVsSIIFService:
                     detail="Invalid credentials or unable to authenticate",
                 )
             finally:
-                if hasattr(self.siif_rf602_handler, "logout"):
-                    await self.siif_rf602_handler.logout()
+                await logout(connect=connect_siif)
                 return return_schema
 
     # --------------------------------------------------
