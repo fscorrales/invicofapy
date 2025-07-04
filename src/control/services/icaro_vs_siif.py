@@ -113,17 +113,18 @@ class IcaroVsSIIFService:
     #     ]
     #     return df
 
-    async def get_icaro_carga(self) -> pd.DataFrame:
+    async def get_icaro_carga(self, ejercicio:int = None) -> pd.DataFrame:
         """
         Get the icaro_carga data from the repository.
         """
         try:
-            # params.set_extra_filter({"tipo": {"$ne": "PA6"}})
-            # docs = await self.icaro_carga_repo.find_with_filter_params(params=params)
-            docs = await self.icaro_carga_repo.find_by_filter(
-                filters={
+            filters = {
                     "tipo__ne": "PA6",
                 }
+            if ejercicio is not None:
+                filters["ejercicio"] = ejercicio
+            docs = await self.icaro_carga_repo.find_by_filter(
+                filters=filters
             )
             df = pd.DataFrame(docs)
             df["estructura"] = df.actividad + "-" + df.partida
@@ -135,16 +136,9 @@ class IcaroVsSIIFService:
                 detail="Error retrieving Icaro's Carga Data from the database",
             )
 
-    # --------------------------------------------------
-    async def get_siif_rf602(self) -> pd.DataFrame:
-        """
-        Get the rf602 data from the repository.
-        """
-        try:
-            # params.set_extra_filter(
-            #     {
+            # filters = {
             #         "$or": [
-            #             {"nro_partida": {"$in": ["421", "422"]}},
+            #             {"partida": {"$in": ["421", "422"]}},
             #             {
             #                 "$and": [
             #                     {"partida": "354"},
@@ -161,28 +155,23 @@ class IcaroVsSIIFService:
             #             },
             #         ]
             #     }
-            # )
-            # docs = await self.siif_rf602_repo.find_with_filter_params(params=params)
-            docs = await self.siif_rf602_repo.find_by_filter(
-                filters={
+
+    # --------------------------------------------------
+    async def get_siif_rf602(self, ejercicio:int = None) -> pd.DataFrame:
+        """
+        Get the rf602 data from the repository.
+        """
+        try:
+            filters = {
                     "$or": [
                         {"partida": {"$in": ["421", "422"]}},
-                        {
-                            "$and": [
-                                {"partida": "354"},
-                                {
-                                    "CUIT": {
-                                        "$nin": [
-                                            "30500049460",
-                                            "30632351514",
-                                            "20231243527",
-                                        ]
-                                    }
-                                },
+                        {"estructura": "01-00-00-03-354"},
                             ]
-                        },
-                    ]
                 }
+            if ejercicio is not None:
+                filters["ejercicio"] = ejercicio
+            docs = await self.siif_rf602_repo.find_by_filter(
+                filters=filters
             )
             df = pd.DataFrame(docs)
             return df
@@ -274,14 +263,14 @@ class IcaroVsSIIFService:
         return_schema = RouteReturnSchema()
         try:
             group_by = ["ejercicio", "estructura", "fuente"]
-            icaro = await self.get_icaro_carga()
+            icaro = await self.get_icaro_carga(ejercicio=params.ejercicio)
             icaro = icaro.groupby(group_by)["importe"].sum()
             icaro = icaro.reset_index(drop=False)
             icaro = icaro.rename(columns={"importe": "ejecucion_icaro"})
             # logger.info(icaro.shape)
             # logger.info(icaro.dtypes)
             # logger.info(icaro.head())
-            siif = await self.get_siif_rf602()
+            siif = await self.get_siif_rf602(ejercicio=params.ejercicio)
             siif = siif.loc[:, group_by + ["ordenado"]]
             siif = siif.rename(columns={"ordenado": "ejecucion_siif"})
             # logger.info(siif.shape)

@@ -31,7 +31,7 @@ async def get_control_anual_from_db(
     params: Annotated[ControlAnualFilter, Depends()],
 ):
     apply_auto_filter(params=params)
-    return await service.get_control_anual_from_db()
+    return await service.get_control_anual_from_db(params=params)
 
 
 # @rf602_router.post("/download_and_update/")
