@@ -244,7 +244,7 @@ class IcaroVsSIIFService:
                 "subprograma",
                 "proyecto",
                 "actividad",
-                "desc_act",
+                "desc_actividad",
             ],
         ]
         df_act.drop_duplicates(subset=["estructura"], inplace=True, keep="first")
