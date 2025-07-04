@@ -39,9 +39,6 @@ class Rf610Service:
         """Downloads a report from SIIF, processes it, validates the data,
         and stores it in MongoDB if valid.
 
-        Args:
-            ejercicio (int, optional): The fiscal year for the report. Defaults to the current year.
-
         Returns:
             RouteReturnSchema
         """
@@ -51,6 +48,7 @@ class Rf610Service:
                 detail="Missing username or password",
             )
         return_schema = RouteReturnSchema()
+        ejercicios = list(range(params.ejercicio_from, params.ejercicio_to + 1))
         async with async_playwright() as p:
             try:
                 await self.rf610.login(
@@ -61,33 +59,37 @@ class Rf610Service:
                 )
                 await self.rf610.go_to_reports()
                 await self.rf610.go_to_specific_report()
-                await self.rf610.download_report(ejercicio=str(params.ejercicio))
-                await self.rf610.read_xls_file()
-                df = await self.rf610.process_dataframe()
+                for ejercicio in ejercicios:
+                    await self.rf610.download_report(ejercicio=str(ejercicio))
+                    await self.rf610.read_xls_file()
+                    df = await self.rf610.process_dataframe()
 
-                # 🔹 Validar datos usando Pydantic
-                validate_and_errors = validate_and_extract_data_from_df(
-                    dataframe=df, model=Rf610Report, field_id="estructura"
-                )
+                    # 🔹 Validar datos usando Pydantic
+                    validate_and_errors = validate_and_extract_data_from_df(
+                        dataframe=df, model=Rf610Report, field_id="estructura"
+                    )
 
-                # 🔹 Si hay registros validados, eliminar los antiguos e insertar los nuevos
-                if validate_and_errors.validated:
-                    logger.info(
-                        f"Procesado ejercicio {str(params.ejercicio)}. Errores: {len(validate_and_errors.errors)}"
-                    )
-                    delete_dict = {"ejercicio": str(params.ejercicio)}
-                    # Contar los instrumentos existentes antes de eliminarlos
-                    deleted_count = await self.repository.count_by_fields(delete_dict)
-                    await self.repository.delete_by_fields(delete_dict)
-                    # await self.collection.delete_many({"ejercicio": ejercicio})
-                    data_to_store = jsonable_encoder(validate_and_errors.validated)
-                    inserted_records = await self.repository.save_all(data_to_store)
-                    logger.info(
-                        f"Inserted {len(inserted_records.inserted_ids)} records into MongoDB."
-                    )
-                    return_schema.deleted = deleted_count
-                    return_schema.added = len(data_to_store)
-                    return_schema.errors = validate_and_errors.errors
+                    # 🔹 Si hay registros validados, eliminar los antiguos e insertar los nuevos
+                    if validate_and_errors.validated:
+                        logger.info(
+                            f"Procesado ejercicio {ejercicio}. Errores: {len(validate_and_errors.errors)}"
+                        )
+                        delete_dict = {"ejercicio": ejercicio}
+                        # Contar los instrumentos existentes antes de eliminarlos
+                        deleted_count = await self.repository.count_by_fields(delete_dict)
+                        await self.repository.delete_by_fields(delete_dict)
+                        logger.info(
+                            f"Eliminated {deleted_count} records from MongoDB."
+                        )
+                        # await self.collection.delete_many({"ejercicio": ejercicio})
+                        data_to_store = jsonable_encoder(validate_and_errors.validated)
+                        inserted_records = await self.repository.save_all(data_to_store)
+                        logger.info(
+                            f"Inserted {len(inserted_records.inserted_ids)} records into MongoDB."
+                        )
+                        return_schema.deleted += deleted_count
+                        return_schema.added += len(data_to_store)
+                        return_schema.errors += validate_and_errors.errors
 
             except ValidationError as e:
                 logger.error(f"Validation Error: {e}")
