@@ -14,8 +14,23 @@ from ..services import IcaroVsSIIFServiceDependency
 
 icaro_vs_siif_router = APIRouter(prefix="/icaro_vs_siif")
 
+@icaro_vs_siif_router.post("/sync_from_source", response_model=RouteReturnSchema)
+async def sync_icaro_vs_siif_from_source(
+    auth: OptionalAuthorizationDependency,
+    service: IcaroVsSIIFServiceDependency,
+    params: Annotated[ControlAnualParams, Depends()],
+    username: str = None,
+    password: str = None,
+):
+    if auth.is_admin:
+        username = settings.SIIF_USERNAME
+        password = settings.SIIF_PASSWORD
 
-@icaro_vs_siif_router.post("/compute", response_model=RouteReturnSchema)
+    return await service.sync_icaro_vs_siif_from_source(
+        username=username, password=password, params=params
+    )
+
+@icaro_vs_siif_router.post("/control_anual/compute", response_model=RouteReturnSchema)
 async def compute_control_anual(
     service: IcaroVsSIIFServiceDependency,
     params: Annotated[ControlAnualParams, Depends()],
@@ -25,7 +40,7 @@ async def compute_control_anual(
     )
 
 
-@icaro_vs_siif_router.get("/get_from_db", response_model=List[ControlAnualDocument])
+@icaro_vs_siif_router.get("/control_anual/get_from_db", response_model=List[ControlAnualDocument])
 async def get_control_anual_from_db(
     service: IcaroVsSIIFServiceDependency,
     params: Annotated[ControlAnualFilter, Depends()],

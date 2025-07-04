@@ -18,6 +18,7 @@ __all__ = ["IcaroVsSIIFService", "IcaroVsSIIFServiceDependency"]
 import datetime as dt
 from dataclasses import dataclass, field
 from typing import Annotated, List, Union
+from playwright.async_api import async_playwright
 
 import pandas as pd
 from fastapi import Depends, HTTPException
@@ -28,6 +29,7 @@ from ...config import logger
 from ...icaro.repositories import CargaRepositoryDependency
 from ...siif.handlers import Rf602
 from ...siif.repositories import Rf602RepositoryDependency, Rf610RepositoryDependency
+from ...siif.schemas import Rf602Report
 from ...utils import (
     BaseFilterParams,
     RouteReturnSchema,
@@ -49,13 +51,85 @@ class IcaroVsSIIFService:
     siif_rf610_repo: Rf610RepositoryDependency
     icaro_carga_repo: CargaRepositoryDependency
     siif_rf602_handler: Rf602 = field(init=False)  # No se pasa como argumento
-    # update_db:bool = False
 
-    # --------------------------------------------------
-    # def __post_init__(self):
-    #     if self.db_path == None:
-    #         self.get_db_path()
-    #     self.import_dfs()
+    def __post_init__(self):
+        self.siif_rf602_handler = Rf602()
+
+    # -------------------------------------------------
+    async def sync_icaro_vs_siif_from_source(
+        self,
+        username: str,
+        password: str,
+        params: ControlAnualParams = None,
+    ) -> RouteReturnSchema:
+        """Downloads a report from SIIF, processes it, validates the data,
+        and stores it in MongoDB if valid.
+
+        Args:
+            ejercicio (int, optional): The fiscal year for the report. Defaults to the current year.
+
+        Returns:
+            RouteReturnSchema
+        """
+        if username is None or password is None:
+            raise HTTPException(
+                status_code=401,
+                detail="Missing username or password",
+            )
+        return_schema = RouteReturnSchema()
+        async with async_playwright() as p:
+            try:
+                await self.siif_rf602_handler.login(
+                    username=username,
+                    password=password,
+                    playwright=p,
+                    headless=False,
+                )
+                await self.siif_rf602_handler.go_to_reports()
+                await self.siif_rf602_handler.go_to_specific_report()
+                await self.siif_rf602_handler.download_report(ejercicio=str(params.ejercicio))
+                await self.siif_rf602_handler.read_xls_file()
+                df = await self.siif_rf602_handler.process_dataframe()
+
+                # 🔹 Validar datos usando Pydantic
+                validate_and_errors = validate_and_extract_data_from_df(
+                    dataframe=df, model=Rf602Report, field_id="estructura"
+                )
+
+                # 🔹 Si hay registros validados, eliminar los antiguos e insertar los nuevos
+                if validate_and_errors.validated:
+                    logger.info(
+                        f"Procesado ejercicio {params.ejercicio}. Errores: {len(validate_and_errors.errors)}"
+                    )
+                    delete_dict = {"ejercicio": params.ejercicio}
+                    # Contar los instrumentos existentes antes de eliminarlos
+                    deleted_count = await self.siif_rf602_repo.count_by_fields(delete_dict)
+                    await self.siif_rf602_repo.delete_by_fields(delete_dict)
+                    # await self.collection.delete_many({"ejercicio": ejercicio})
+                    data_to_store = jsonable_encoder(validate_and_errors.validated)
+                    inserted_records = await self.siif_rf602_repo.save_all(data_to_store)
+                    logger.info(
+                        f"Inserted {len(inserted_records.inserted_ids)} records into MongoDB."
+                    )
+                    return_schema.deleted = deleted_count
+                    return_schema.added = len(data_to_store)
+                    return_schema.errors = validate_and_errors.errors
+
+            except ValidationError as e:
+                logger.error(f"Validation Error: {e}")
+                raise HTTPException(
+                    status_code=400, detail="Invalid response format from SIIF"
+                )
+            except Exception as e:
+                logger.error(f"Error during report processing: {e}")
+                raise HTTPException(
+                    status_code=401,
+                    detail="Invalid credentials or unable to authenticate",
+                )
+            finally:
+                if hasattr(self.siif_rf602_handler, "logout"):
+                    await self.siif_rf602_handler.logout()
+                return return_schema
 
     # --------------------------------------------------
     def update_sql_db(self):
