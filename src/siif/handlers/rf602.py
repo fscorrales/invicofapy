@@ -98,6 +98,21 @@ def get_args():
 # --------------------------------------------------
 class Rf602(SIIFReportManager):
     # --------------------------------------------------
+    async def download_and_process_report(
+        self, ejercicio: str = str(dt.datetime.now().year)
+    ) -> pd.DataFrame:
+        """Download and process the rf602 report for a specific year."""
+        try:
+            await self.go_to_specific_report()
+            self.download = await self.download_report(ejercicio=ejercicio)
+            if self.download is None:
+                raise ValueError("No se pudo descargar el reporte rf602.")
+            await self.read_xls_file()
+            return await self.process_dataframe()
+        except Exception as e:
+            print(f"Error al descargar y procesar el reporte: {e}")
+
+    # --------------------------------------------------
     async def go_to_specific_report(self) -> None:
         await self.select_report_module(module=ReportCategory.Gastos)
         await self.select_specific_report_by_id(report_id="38")
