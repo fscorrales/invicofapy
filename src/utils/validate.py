@@ -39,6 +39,7 @@ class ValidationResultSchema(BaseModel):
 
 # -------------------------------------------------
 class RouteReturnSchema(BaseModel):
+    title: Optional[str] = None
     deleted: int = 0
     added: int = 0
     errors: List[ErrorsWithDocId] = []
@@ -91,6 +92,7 @@ async def sync_validated_to_repository(
     repository,
     validation: ValidationResultSchema,
     delete_filter: dict,
+    title: Optional[str] = None,
     logger: Optional[object] = None,
     label: str = "document",
 ) -> RouteReturnSchema:
@@ -128,6 +130,7 @@ async def sync_validated_to_repository(
                 f"{label} → Eliminados: {deleted_count} | Insertados: {len(inserted.inserted_ids)}"
             )
 
+        schema.title = title
         schema.deleted += deleted_count
         schema.added += len(docs)
         schema.errors += validation.errors
