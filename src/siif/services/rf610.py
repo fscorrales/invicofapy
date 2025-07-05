@@ -58,8 +58,8 @@ class Rf610Service:
                     headless=False,
                 )
                 await self.rf610.go_to_reports()
-                await self.rf610.go_to_specific_report()
                 for ejercicio in ejercicios:
+                    await self.rf610.go_to_specific_report()
                     await self.rf610.download_report(ejercicio=str(ejercicio))
                     await self.rf610.read_xls_file()
                     df = await self.rf610.process_dataframe()
@@ -76,11 +76,11 @@ class Rf610Service:
                         )
                         delete_dict = {"ejercicio": ejercicio}
                         # Contar los instrumentos existentes antes de eliminarlos
-                        deleted_count = await self.repository.count_by_fields(delete_dict)
-                        await self.repository.delete_by_fields(delete_dict)
-                        logger.info(
-                            f"Eliminated {deleted_count} records from MongoDB."
+                        deleted_count = await self.repository.count_by_fields(
+                            delete_dict
                         )
+                        await self.repository.delete_by_fields(delete_dict)
+                        logger.info(f"Eliminated {deleted_count} records from MongoDB.")
                         # await self.collection.delete_many({"ejercicio": ejercicio})
                         data_to_store = jsonable_encoder(validate_and_errors.validated)
                         inserted_records = await self.repository.save_all(data_to_store)
