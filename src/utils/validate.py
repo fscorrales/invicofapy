@@ -7,13 +7,13 @@ __all__ = [
     "validate_excel_file",
 ]
 
-from typing import Any, List
-
 import argparse
 import os
-import pandas as pd
+from typing import Any, List, Optional
 
+import pandas as pd
 from bson import ObjectId
+from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel, GetCoreSchemaHandler, ValidationError
 from pydantic_core import core_schema
 
@@ -84,6 +84,55 @@ def validate_and_extract_data_from_df(
             ]
             errors_list.append(ErrorsWithDocId(doc_id=doc_id, details=error_details))
     return ValidationResultSchema(errors=errors_list, validated=validated_list)
+
+
+# --------------------------------------------------
+async def sync_validated_to_repository(
+    repository,
+    validation: ValidationResultSchema,
+    delete_filter: dict,
+    logger: Optional[object] = None,
+    label: str = "document",
+) -> RouteReturnSchema:
+    """
+    Sincroniza datos validados con MongoDB: borra registros antiguos e inserta los nuevos.
+
+    Args:
+        repository: Repositorio que implementa delete_by_fields, count_by_fields y save_all.
+        validation (ValidationResultSchema): Resultado de la validación con errores y validados.
+        delete_filter (dict): Filtro para eliminar registros previos.
+        logger (Optional[object]): Logger para trazar acciones opcionalmente.
+        label (str): Etiqueta para identificar el conjunto de datos en los logs.
+
+    Returns:
+        RouteReturnSchema: Resumen con cantidades insertadas, eliminadas y errores.
+    """
+
+    schema = RouteReturnSchema()
+
+    if validation.validated:
+        if logger:
+            logger.info(
+                f"Procesando {label}. Registros válidos: {len(validation.validated)}. "
+                f"Errores: {len(validation.errors)}"
+            )
+
+        deleted_count = await repository.count_by_fields(delete_filter)
+        await repository.delete_by_fields(delete_filter)
+
+        docs = jsonable_encoder(validation.validated)
+        inserted = await repository.save_all(docs)
+
+        if logger:
+            logger.info(
+                f"{label} → Eliminados: {deleted_count} | Insertados: {len(inserted.inserted_ids)}"
+            )
+
+        schema.deleted += deleted_count
+        schema.added += len(docs)
+        schema.errors += validation.errors
+
+    return schema
 
 
 # -------------------------------------------------
