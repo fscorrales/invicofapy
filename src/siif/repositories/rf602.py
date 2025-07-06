@@ -1,4 +1,4 @@
-__all__ = ["Rf602RepositoryDependency"]
+__all__ = ["Rf602RepositoryDependency", "Rf602Repository"]
 
 from typing import Annotated
 
