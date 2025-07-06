@@ -16,16 +16,18 @@ Data required:
 __all__ = ["IcaroVsSIIFService", "IcaroVsSIIFServiceDependency"]
 
 import datetime as dt
+import os
 from dataclasses import dataclass, field
 from typing import Annotated, List, Union
-from playwright.async_api import async_playwright
 
 import pandas as pd
 from fastapi import Depends, HTTPException
 from fastapi.encoders import jsonable_encoder
+from playwright.async_api import async_playwright
 from pydantic import ValidationError
 
 from ...config import logger
+from ...icaro.handlers import IcaroMongoMigrator
 from ...icaro.repositories import CargaRepositoryDependency
 from ...siif.handlers import Rf602, Rf610, login, logout
 from ...siif.repositories import Rf602RepositoryDependency, Rf610RepositoryDependency
@@ -33,6 +35,8 @@ from ...siif.schemas import Rf602Report, Rf610Report
 from ...utils import (
     BaseFilterParams,
     RouteReturnSchema,
+    get_r_icaro_path,
+    sync_validated_to_repository,
     validate_and_extract_data_from_df,
 )
 from ..repositories.icaro_vs_siif import ControlAnualRepositoryDependency
@@ -59,7 +63,7 @@ class IcaroVsSIIFService:
         username: str,
         password: str,
         params: ControlAnualParams = None,
-    ) -> RouteReturnSchema:
+    ) -> List[RouteReturnSchema]:
         """Downloads a report from SIIF, processes it, validates the data,
         and stores it in MongoDB if valid.
 
@@ -74,9 +78,9 @@ class IcaroVsSIIFService:
                 status_code=401,
                 detail="Missing username or password",
             )
-        return_schema = RouteReturnSchema()
-        async with async_playwright() as p:
-            try:
+        return_schema = []
+        try:
+            async with async_playwright() as p:
                 connect_siif = await login(
                     username=username,
                     password=password,
@@ -87,80 +91,61 @@ class IcaroVsSIIFService:
                 # 🔹 RF602
                 self.siif_rf602_handler = Rf602(siif=connect_siif)
                 await self.siif_rf602_handler.go_to_reports()
-                await self.siif_rf602_handler.go_to_specific_report()
-                await self.siif_rf602_handler.download_report(ejercicio=str(params.ejercicio))
-                await self.siif_rf602_handler.read_xls_file()
-                df = await self.siif_rf602_handler.process_dataframe()
+                df = await self.siif_rf602_handler.download_and_process_report(
+                    ejercicio=str(params.ejercicio)
+                )
 
-                # 🔹 Validar datos usando Pydantic
+                # Validar datos usando Pydantic
                 validate_and_errors = validate_and_extract_data_from_df(
                     dataframe=df, model=Rf602Report, field_id="estructura"
                 )
-
-                # 🔹 Si hay registros validados, eliminar los antiguos e insertar los nuevos
-                if validate_and_errors.validated:
-                    logger.info(
-                        f"Procesado ejercicio {params.ejercicio} del rf602. Errores: {len(validate_and_errors.errors)}"
-                    )
-                    delete_dict = {"ejercicio": params.ejercicio}
-                    # Contar los instrumentos existentes antes de eliminarlos
-                    deleted_count = await self.siif_rf602_repo.count_by_fields(delete_dict)
-                    await self.siif_rf602_repo.delete_by_fields(delete_dict)
-                    # await self.collection.delete_many({"ejercicio": ejercicio})
-                    data_to_store = jsonable_encoder(validate_and_errors.validated)
-                    inserted_records = await self.siif_rf602_repo.save_all(data_to_store)
-                    logger.info(
-                        f"Inserted {len(inserted_records.inserted_ids)} records into MongoDB."
-                    )
-                    return_schema.deleted += deleted_count
-                    return_schema.added += len(data_to_store)
-                    return_schema.errors += validate_and_errors.errors
+                partial_schema = await sync_validated_to_repository(
+                    repository=self.siif_rf602_repo,
+                    validation=validate_and_errors,
+                    delete_filter={"ejercicio": params.ejercicio},
+                    title="SIIF RF602 Report",
+                    logger=logger,
+                    label=f"Ejercicio {params.ejercicio} del rf602",
+                )
+                return_schema.append(partial_schema)
 
                 # 🔹 RF610
                 self.siif_rf610_handler = Rf610(siif=connect_siif)
-                await self.siif_rf610_handler.go_to_specific_report()
-                await self.siif_rf610_handler.download_report(ejercicio=str(params.ejercicio))
-                await self.siif_rf610_handler.read_xls_file()
-                df = await self.siif_rf610_handler.process_dataframe()
+                df = await self.siif_rf610_handler.download_and_process_report(
+                    ejercicio=str(params.ejercicio)
+                )
 
-                # 🔹 Validar datos usando Pydantic
+                # Validar datos usando Pydantic
                 validate_and_errors = validate_and_extract_data_from_df(
                     dataframe=df, model=Rf610Report, field_id="estructura"
                 )
-
-                # 🔹 Si hay registros validados, eliminar los antiguos e insertar los nuevos
-                if validate_and_errors.validated:
-                    logger.info(
-                        f"Procesado ejercicio {params.ejercicio} del rf610. Errores: {len(validate_and_errors.errors)}"
-                    )
-                    delete_dict = {"ejercicio": params.ejercicio}
-                    # Contar los instrumentos existentes antes de eliminarlos
-                    deleted_count = await self.siif_rf610_handler.count_by_fields(delete_dict)
-                    await self.siif_rf610_handler.delete_by_fields(delete_dict)
-                    # await self.collection.delete_many({"ejercicio": ejercicio})
-                    data_to_store = jsonable_encoder(validate_and_errors.validated)
-                    inserted_records = await self.siif_rf610_handler.save_all(data_to_store)
-                    logger.info(
-                        f"Inserted {len(inserted_records.inserted_ids)} records into MongoDB."
-                    )
-                    return_schema.deleted += deleted_count
-                    return_schema.added += len(data_to_store)
-                    return_schema.errors += validate_and_errors.errors
-
-            except ValidationError as e:
-                logger.error(f"Validation Error: {e}")
-                raise HTTPException(
-                    status_code=400, detail="Invalid response format from SIIF"
+                partial_schema = await sync_validated_to_repository(
+                    repository=self.siif_rf610_repo,
+                    validation=validate_and_errors,
+                    delete_filter={"ejercicio": params.ejercicio},
+                    title="SIIF RF610 Report",
+                    logger=logger,
+                    label=f"Ejercicio {params.ejercicio} del rf610",
                 )
-            except Exception as e:
-                logger.error(f"Error during report processing: {e}")
-                raise HTTPException(
-                    status_code=401,
-                    detail="Invalid credentials or unable to authenticate",
-                )
-            finally:
-                await logout(connect=connect_siif)
-                return return_schema
+                return_schema.append(partial_schema)
+
+            # 🔹 Icaro Carga
+            path = os.path.join(get_r_icaro_path(), "ICARO.sqlite")
+            migrator = IcaroMongoMigrator(sqlite_path=path)
+            return_schema.append(await migrator.migrate_carga())
+
+        except ValidationError as e:
+            logger.error(f"Validation Error: {e}")
+            raise HTTPException(status_code=400, detail="Invalid response format")
+        except Exception as e:
+            logger.error(f"Error during report processing: {e}")
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid credentials or unable to authenticate",
+            )
+        finally:
+            await logout(connect=connect_siif)
+            return return_schema
 
     # --------------------------------------------------
     def update_sql_db(self):
@@ -218,19 +203,17 @@ class IcaroVsSIIFService:
     #     ]
     #     return df
 
-    async def get_icaro_carga(self, ejercicio:int = None) -> pd.DataFrame:
+    async def get_icaro_carga(self, ejercicio: int = None) -> pd.DataFrame:
         """
         Get the icaro_carga data from the repository.
         """
         try:
             filters = {
-                    "tipo__ne": "PA6",
-                }
+                "tipo__ne": "PA6",
+            }
             if ejercicio is not None:
                 filters["ejercicio"] = ejercicio
-            docs = await self.icaro_carga_repo.find_by_filter(
-                filters=filters
-            )
+            docs = await self.icaro_carga_repo.find_by_filter(filters=filters)
             df = pd.DataFrame(docs)
             df["estructura"] = df.actividad + "-" + df.partida
             return df
@@ -262,22 +245,20 @@ class IcaroVsSIIFService:
             #     }
 
     # --------------------------------------------------
-    async def get_siif_rf602(self, ejercicio:int = None) -> pd.DataFrame:
+    async def get_siif_rf602(self, ejercicio: int = None) -> pd.DataFrame:
         """
         Get the rf602 data from the repository.
         """
         try:
             filters = {
-                    "$or": [
-                        {"partida": {"$in": ["421", "422"]}},
-                        {"estructura": "01-00-00-03-354"},
-                            ]
-                }
+                "$or": [
+                    {"partida": {"$in": ["421", "422"]}},
+                    {"estructura": "01-00-00-03-354"},
+                ]
+            }
             if ejercicio is not None:
                 filters["ejercicio"] = ejercicio
-            docs = await self.siif_rf602_repo.find_by_filter(
-                filters=filters
-            )
+            docs = await self.siif_rf602_repo.find_by_filter(filters=filters)
             df = pd.DataFrame(docs)
             return df
         except Exception as e:
