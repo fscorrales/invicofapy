@@ -92,7 +92,7 @@ def validate_and_extract_data_from_df(
 async def sync_validated_to_repository(
     repository,
     validation: ValidationResultSchema,
-    delete_filter: dict,
+    delete_filter: Optional[dict] = None,
     title: Optional[str] = None,
     logger: Optional[object] = None,
     label: str = "document",
@@ -103,7 +103,8 @@ async def sync_validated_to_repository(
     Args:
         repository: Repositorio que implementa delete_by_fields, count_by_fields y save_all.
         validation (ValidationResultSchema): Resultado de la validación con errores y validados.
-        delete_filter (dict): Filtro para eliminar registros previos.
+        delete_filter (Optional[dict]): Filtro para eliminar registros previos.
+        title (Optional[str]): Título para el resumen de la operación.
         logger (Optional[object]): Logger para trazar acciones opcionalmente.
         label (str): Etiqueta para identificar el conjunto de datos en los logs.
 
@@ -120,8 +121,11 @@ async def sync_validated_to_repository(
                 f"Errores: {len(validation.errors)}"
             )
 
-        deleted_count = await repository.count_by_fields(delete_filter)
-        await repository.delete_by_fields(delete_filter)
+        if not delete_filter:
+            deleted_count = await repository.delete_all()
+        else:
+            deleted_count = await repository.count_by_fields(delete_filter)
+            await repository.delete_by_fields(delete_filter)
 
         docs = jsonable_encoder(validation.validated)
         inserted = await repository.save_all(docs)
