@@ -8,17 +8,18 @@ from ...utils import RouteReturnSchema, apply_auto_filter
 from ..schemas.icaro_vs_siif import (
     ControlAnualDocument,
     ControlAnualFilter,
-    ControlAnualParams,
+    ControlCompletoParams,
 )
 from ..services import IcaroVsSIIFServiceDependency
 
 icaro_vs_siif_router = APIRouter(prefix="/icaro_vs_siif")
 
+
 @icaro_vs_siif_router.post("/sync_from_source", response_model=RouteReturnSchema)
 async def sync_icaro_vs_siif_from_source(
     auth: OptionalAuthorizationDependency,
     service: IcaroVsSIIFServiceDependency,
-    params: Annotated[ControlAnualParams, Depends()],
+    params: Annotated[ControlCompletoParams, Depends()],
     username: str = None,
     password: str = None,
 ):
@@ -30,17 +31,18 @@ async def sync_icaro_vs_siif_from_source(
         username=username, password=password, params=params
     )
 
+
 @icaro_vs_siif_router.post("/control_anual/compute", response_model=RouteReturnSchema)
 async def compute_control_anual(
     service: IcaroVsSIIFServiceDependency,
-    params: Annotated[ControlAnualParams, Depends()],
+    params: Annotated[ControlCompletoParams, Depends()],
 ):
-    return await service.compute_control_anual(
-        params=params
-    )
+    return await service.compute_control_anual(params=params)
 
 
-@icaro_vs_siif_router.get("/control_anual/get_from_db", response_model=List[ControlAnualDocument])
+@icaro_vs_siif_router.get(
+    "/control_anual/get_from_db", response_model=List[ControlAnualDocument]
+)
 async def get_control_anual_from_db(
     service: IcaroVsSIIFServiceDependency,
     params: Annotated[ControlAnualFilter, Depends()],
