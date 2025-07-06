@@ -4,6 +4,7 @@ __all__ = [
     "PyObjectId",
     "validate_not_empty",
     "RouteReturnSchema",
+    "sync_validated_to_repository",
     "validate_excel_file",
 ]
 
