@@ -15,6 +15,12 @@ import sqlite3
 
 import pandas as pd
 
+from ...config import logger
+from ...utils import (
+    RouteReturnSchema,
+    sync_validated_to_repository,
+    validate_and_extract_data_from_df,
+)
 from ..repositories import (
     ActividadesRepository,
     CargaRepository,
@@ -31,6 +37,7 @@ from ..repositories import (
     RetencionesRepository,
     SubprogramasRepository,
 )
+from ..schemas import CargaReport
 
 
 def validate_sqlite_file(path):
@@ -288,7 +295,7 @@ class IcaroMongoMigrator:
         await self.obras_repo.save_all(df.to_dict(orient="records"))
 
     # --------------------------------------------------
-    async def migrate_carga(self):
+    async def migrate_carga(self) -> RouteReturnSchema:
         df = self.from_sql("CARGA")
         df.rename(
             columns={
@@ -321,8 +328,20 @@ class IcaroMongoMigrator:
             + "/"
             + df["ejercicio"].astype(str)
         )
-        await self.carga_repo.delete_all()
-        await self.carga_repo.save_all(df.to_dict(orient="records"))
+        # Validar datos usando Pydantic
+        validate_and_errors = validate_and_extract_data_from_df(
+            dataframe=df, model=CargaReport, field_id="id_carga"
+        )
+        # await self.carga_repo.delete_all()
+        # await self.carga_repo.save_all(df.to_dict(orient="records"))
+        return await sync_validated_to_repository(
+            repository=self.carga_repo,
+            validation=validate_and_errors,
+            delete_filter=None,
+            title="ICARO Carga Migration",
+            logger=logger,
+            label="Tabla CARGA de ICARO",
+        )
 
     # --------------------------------------------------
     async def migrate_retenciones(self):
