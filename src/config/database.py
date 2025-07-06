@@ -36,6 +36,7 @@ COLLECTIONS = [
     "icaro_resumen_rend_obras",
     "sscc_ctas_ctes",
     "icaro_vs_siif_control_anual",
+    "icaro_vs_siif_control_comprobantes",
 ]
 
 
