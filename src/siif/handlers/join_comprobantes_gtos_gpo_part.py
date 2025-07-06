@@ -107,7 +107,7 @@ async def main():
     args = get_args()
 
     siif_join_comprobantes_gtos = JoinComprobantesGtosGpoPart()
-    siif_join_comprobantes_gtos.from_mongo()
+    await siif_join_comprobantes_gtos.from_mongo()
     print(siif_join_comprobantes_gtos.df)
 
 
