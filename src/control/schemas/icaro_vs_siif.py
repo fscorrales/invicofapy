@@ -1,8 +1,11 @@
 __all__ = [
+    "ControlCompletoParams",
     "ControlAnualReport",
     "ControlAnualDocument",
-    "ControlAnualParams",
     "ControlAnualFilter",
+    "ControlComprobantesReport",
+    "ControlComprobantesDocument",
+    "ControlComprobantesFilter",
 ]
 
 from datetime import date
@@ -15,7 +18,7 @@ from ...utils import BaseFilterParams
 
 
 # --------------------------------------------------
-class ControlAnualParams(BaseModel):
+class ControlCompletoParams(BaseModel):
     ejercicio: int = date.today().year
 
     @field_validator("ejercicio")
@@ -51,5 +54,45 @@ class ControlAnualDocument(ControlAnualReport):
 
 # -------------------------------------------------
 class ControlAnualFilter(BaseFilterParams):
+    ejercicio: Optional[int] = None
+    fuente: Optional[int] = None
+
+
+# -------------------------------------------------
+class ControlComprobantesReport(BaseModel):
+    ejercicio: int
+    siif_nro: str
+    icaro_nro: str
+    err_nro: bool
+    siif_tipo: str
+    icaro_tipo: str
+    err_tipo: bool
+    siif_fuente: str
+    icaro_fuente: str
+    err_fuente: bool
+    siif_importe: float
+    icaro_importe: float
+    err_importe: bool
+    siif_mes: str
+    icaro_mes: str
+    err_mes: bool
+    siif_cta_cte: str
+    icaro_cta_cte: str
+    err_cta_cte: bool
+    siif_cuit: str
+    icaro_cuit: str
+    err_cuit: bool
+    siif_partida: str
+    icaro_partida: str
+    err_partida: bool
+
+
+# -------------------------------------------------
+class ControlComprobantesDocument(ControlAnualReport):
+    id: PydanticObjectId = Field(alias="_id")
+
+
+# -------------------------------------------------
+class ControlComprobantesFilter(BaseFilterParams):
     ejercicio: Optional[int] = None
     fuente: Optional[int] = None
