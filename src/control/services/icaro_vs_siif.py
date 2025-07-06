@@ -29,7 +29,7 @@ from pydantic import ValidationError
 from ...config import logger
 from ...icaro.handlers import IcaroMongoMigrator
 from ...icaro.repositories import CargaRepositoryDependency
-from ...siif.handlers import Rf602, Rf610, login, logout
+from ...siif.handlers import JoinComprobantesGtosGpoPart, Rf602, Rf610, login, logout
 from ...siif.repositories import Rf602RepositoryDependency, Rf610RepositoryDependency
 from ...siif.schemas import Rf602Report, Rf610Report
 from ...utils import (
@@ -39,11 +39,16 @@ from ...utils import (
     sync_validated_to_repository,
     validate_and_extract_data_from_df,
 )
-from ..repositories.icaro_vs_siif import ControlAnualRepositoryDependency
+from ..repositories.icaro_vs_siif import (
+    ControlAnualRepositoryDependency,
+    ControlComprobantesRepositoryDependency,
+)
 from ..schemas.icaro_vs_siif import (
     ControlAnualDocument,
-    ControlAnualParams,
     ControlAnualReport,
+    ControlCompletoParams,
+    ControlComprobantesDocument,
+    ControlComprobantesReport,
 )
 
 
@@ -51,18 +56,19 @@ from ..schemas.icaro_vs_siif import (
 @dataclass
 class IcaroVsSIIFService:
     control_anual_repo: ControlAnualRepositoryDependency
+    control_comprobantes_repo: ControlComprobantesRepositoryDependency
     siif_rf602_repo: Rf602RepositoryDependency
-    siif_rf610_repo: Rf610RepositoryDependency
-    icaro_carga_repo: CargaRepositoryDependency
     siif_rf602_handler: Rf602 = field(init=False)  # No se pasa como argumento
+    siif_rf610_repo: Rf610RepositoryDependency
     siif_rf610_handler: Rf610 = field(init=False)  # No se pasa como argumento
+    icaro_carga_repo: CargaRepositoryDependency
 
     # -------------------------------------------------
     async def sync_icaro_vs_siif_from_source(
         self,
         username: str,
         password: str,
-        params: ControlAnualParams = None,
+        params: ControlCompletoParams = None,
     ) -> List[RouteReturnSchema]:
         """Downloads a report from SIIF, processes it, validates the data,
         and stores it in MongoDB if valid.
@@ -183,26 +189,6 @@ class IcaroVsSIIFService:
     #     self.import_siif_rf602()
     #     self.import_siif_comprobantes()
 
-    # # --------------------------------------------------
-    # def import_siif_rf602(self):
-    #     df = super().import_siif_rf602(self.ejercicio)
-    #     df = df.loc[
-    #         (df['partida'].isin(['421', '422'])) |
-    #         (df['estructura'] == '01-00-00-03-354')
-    #     ]
-    #     return df
-
-    # # --------------------------------------------------
-    # def import_siif_comprobantes(self):
-    #     df = super().import_siif_comprobantes(self.ejercicio)
-    #     df = df.loc[
-    #         (df['partida'].isin(['421', '422'])) |
-    #         ((df['partida'] == '354') & (~df['cuit'].isin([
-    #             '30500049460', '30632351514', '20231243527'
-    #         ])))
-    #     ]
-    #     return df
-
     # --------------------------------------------------
     async def get_icaro_carga(self, ejercicio: int = None) -> pd.DataFrame:
         """
@@ -227,7 +213,7 @@ class IcaroVsSIIFService:
 
     # --------------------------------------------------
     async def import_siif_comprobantes(self):
-        df = super().import_siif_comprobantes(self.ejercicio)
+        df = await JoinComprobantesGtosGpoPart().from_mongo()
         df = df.loc[
             (df["partida"].isin(["421", "422"]))
             | (
@@ -236,25 +222,6 @@ class IcaroVsSIIFService:
             )
         ]
         return df
-        # filters = {
-        #         "$or": [
-        #             {"partida": {"$in": ["421", "422"]}},
-        #             {
-        #                 "$and": [
-        #                     {"partida": "354"},
-        #                     {
-        #                         "CUIT": {
-        #                             "$nin": [
-        #                                 "30500049460",
-        #                                 "30632351514",
-        #                                 "20231243527",
-        #                             ]
-        #                         }
-        #                     },
-        #                 ]
-        #             },
-        #         ]
-        #     }
 
     # --------------------------------------------------
     async def get_siif_rf602(self, ejercicio: int = None) -> pd.DataFrame:
@@ -356,7 +323,7 @@ class IcaroVsSIIFService:
 
     # --------------------------------------------------
     async def compute_control_anual(
-        self, params: ControlAnualParams
+        self, params: ControlCompletoParams
     ) -> RouteReturnSchema:
         # return_schema = RouteReturnSchema()
         try:
@@ -451,108 +418,157 @@ class IcaroVsSIIFService:
 
     # --------------------------------------------------
     async def compute_control_comprobantes(
-        self, params: ControlAnualParams
+        self, params: ControlCompletoParams
     ) -> RouteReturnSchema:
         # return_schema = RouteReturnSchema()
         try:
-            df = await self.get_icaro_carga(ejercicio=params.ejercicio)
+            select = [
+                "ejercicio",
+                "nro_comprobante",
+                "fuente",
+                "importe",
+                "mes",
+                "cta_cte",
+                "cuit",
+                "partida",
+            ]
+            siif = await self.import_siif_comprobantes().copy()
+            siif.loc[
+                (siif.clase_reg == "REG") & (siif.nro_fondo.isnull()), "clase_reg"
+            ] = "CYO"
+            siif = siif.loc[:, select + ["clase_reg"]]
+            siif = siif.rename(
+                columns={
+                    "nro_comprobante": "siif_nro",
+                    "clase_reg": "siif_tipo",
+                    "fuente": "siif_fuente",
+                    "importe": "siif_importe",
+                    "mes": "siif_mes",
+                    "cta_cte": "siif_cta_cte",
+                    "cuit": "siif_cuit",
+                    "partida": "siif_partida",
+                }
+            )
+            icaro = await self.get_icaro_carga(ejercicio=params.ejercicio)
+            icaro = icaro.loc[:, select + ["tipo"]]
+            icaro = icaro.loc[icaro["tipo"] != "PA6"]
+            icaro = icaro.rename(
+                columns={
+                    "nro_comprobante": "icaro_nro",
+                    "tipo": "icaro_tipo",
+                    "fuente": "icaro_fuente",
+                    "importe": "icaro_importe",
+                    "mes": "icaro_mes",
+                    "cta_cte": "icaro_cta_cte",
+                    "cuit": "icaro_cuit",
+                    "partida": "icaro_partida",
+                }
+            )
+            df = pd.merge(
+                siif,
+                icaro,
+                how="outer",
+                left_on=["ejercicio", "siif_nro"],
+                right_on=["ejercicio", "icaro_nro"],
+            )
+            df["err_nro"] = df.siif_nro != df.icaro_nro
+            df["err_tipo"] = df.siif_tipo != df.icaro_tipo
+            df["err_mes"] = df.siif_mes != df.icaro_mes
+            df["err_partida"] = df.siif_partida != df.icaro_partida
+            df["err_fuente"] = df.siif_fuente != df.icaro_fuente
+            df["siif_importe"] = df["siif_importe"].fillna(0)
+            df["icaro_importe"] = df["icaro_importe"].fillna(0)
+            df["err_importe"] = (df.siif_importe - df.icaro_importe).abs()
+            df["err_importe"] = df["err_importe"] > 0.1
+            df["err_cta_cte"] = df.siif_cta_cte != df.icaro_cta_cte
+            df["err_cuit"] = df.siif_cuit != df.icaro_cuit
+            df = df.loc[
+                (
+                    df.err_nro
+                    + df.err_tipo
+                    + df.err_mes
+                    + df.err_partida
+                    + df.err_fuente
+                    + df.err_importe
+                    + df.err_cta_cte
+                    + df.err_cuit
+                )
+                > 0
+            ]
+            df = df.loc[
+                :,
+                [
+                    "ejercicio",
+                    "siif_nro",
+                    "icaro_nro",
+                    "err_nro",
+                    "siif_tipo",
+                    "icaro_tipo",
+                    "err_tipo",
+                    "siif_fuente",
+                    "icaro_fuente",
+                    "err_fuente",
+                    "siif_importe",
+                    "icaro_importe",
+                    "err_importe",
+                    "siif_mes",
+                    "icaro_mes",
+                    "err_mes",
+                    "siif_cta_cte",
+                    "icaro_cta_cte",
+                    "err_cta_cte",
+                    "siif_cuit",
+                    "icaro_cuit",
+                    "err_cuit",
+                    "siif_partida",
+                    "icaro_partida",
+                    "err_partida",
+                ],
+            ]
+
             # 🔹 Validar datos usando Pydantic
             validate_and_errors = validate_and_extract_data_from_df(
-                dataframe=df, model=ControlAnualReport, field_id="estructura"
+                dataframe=df, model=ControlComprobantesReport, field_id="siif_nro"
             )
             partial_schema = await sync_validated_to_repository(
-                repository=self.control_anual_repo,
+                repository=self.control_comprobantes_repo,
                 validation=validate_and_errors,
                 delete_filter={"ejercicio": params.ejercicio},
-                title="Control de Ejecución Anual ICARO vs SIIF",
+                title="Control de Comprobantes ICARO vs SIIF",
                 logger=logger,
-                label=f"Control de Ejecución Anual ICARO vs SIIF ejercicio {params.ejercicio}",
+                label=f"Control de Comprobantes ICARO vs SIIF ejercicio {params.ejercicio}",
             )
         except ValidationError as e:
             logger.error(f"Validation Error: {e}")
             raise HTTPException(
                 status_code=400,
-                detail="Invalid response format from Control Anual ICARO vs SIIF",
+                detail="Invalid response format from Control Comprobantes ICARO vs SIIF",
             )
         except Exception as e:
-            logger.error(f"Error in compute_control_anual: {e}")
+            logger.error(f"Error in compute_control_comprobantes: {e}")
             raise HTTPException(
                 status_code=500,
-                detail="Error in compute_control_anual",
+                detail="Error in compute_control_comprobantes",
             )
         finally:
             return partial_schema
 
-    # # --------------------------------------------------
-    # def control_comprobantes(self):
-    #     select = [
-    #         'ejercicio', 'nro_comprobante', 'fuente', 'importe',
-    #         'mes', 'cta_cte', 'cuit', 'partida'
-    #     ]
-    #     siif = self.import_siif_comprobantes().copy()
-    #     # En ICARO limito los REG para regularizaciones de PA6
-    #     siif.loc[(siif.clase_reg == 'REG') & (siif.nro_fondo.isnull()), 'clase_reg'] = 'CYO'
-    #     siif = siif.loc[:, select + ['clase_reg']]
-    #     siif = siif.rename(columns={
-    #             'nro_comprobante':'siif_nro',
-    #             'clase_reg':'siif_tipo',
-    #             'fuente':'siif_fuente',
-    #             'importe':'siif_importe',
-    #             'mes':'siif_mes',
-    #             'cta_cte':'siif_cta_cte',
-    #             'cuit':'siif_cuit',
-    #             'partida':'siif_partida'
-    #     })
-    #     icaro = self.icaro_carga.copy()
-    #     icaro = icaro.loc[:, select + ['tipo']]
-    #     icaro = icaro.loc[icaro['tipo'] != 'PA6']
-    #     icaro = icaro.rename(columns={
-    #             'nro_comprobante':'icaro_nro',
-    #             'tipo':'icaro_tipo',
-    #             'fuente':'icaro_fuente',
-    #             'importe':'icaro_importe',
-    #             'mes':'icaro_mes',
-    #             'cta_cte':'icaro_cta_cte',
-    #             'cuit':'icaro_cuit',
-    #             'partida':'icaro_partida'
-    #     })
-    #     df = pd.merge(
-    #         siif, icaro, how='outer',
-    #         left_on = ['ejercicio', 'siif_nro'],
-    #         right_on = ['ejercicio', 'icaro_nro']
-    #     )
-    #     df['err_nro'] = df.siif_nro != df.icaro_nro
-    #     df['err_tipo'] = df.siif_tipo != df.icaro_tipo
-    #     df['err_mes'] = df.siif_mes != df.icaro_mes
-    #     df['err_partida'] = df.siif_partida != df.icaro_partida
-    #     df['err_fuente'] = df.siif_fuente != df.icaro_fuente
-    #     df['siif_importe'] = df['siif_importe'].fillna(0)
-    #     df['icaro_importe'] = df['icaro_importe'].fillna(0)
-    #     df['err_importe'] = (df.siif_importe - df.icaro_importe).abs()
-    #     df['err_importe'] = (df['err_importe'] > 0.1)
-    #     df['err_cta_cte'] = df.siif_cta_cte != df.icaro_cta_cte
-    #     df['err_cuit'] = df.siif_cuit != df.icaro_cuit
-    #     df = df.loc[(
-    #         df.err_nro + df.err_tipo + df.err_mes + df.err_partida +
-    #         df.err_fuente + df.err_importe + df.err_cta_cte + df.err_cuit
-    #     ) > 0]
-    #     df = df.loc[:, ['ejercicio',
-    #         'siif_nro', 'icaro_nro', 'err_nro',
-    #         'siif_tipo', 'icaro_tipo', 'err_tipo',
-    #         'siif_fuente', 'icaro_fuente', 'err_fuente',
-    #         'siif_importe', 'icaro_importe', 'err_importe',
-    #         'siif_mes', 'icaro_mes', 'err_mes',
-    #         'siif_cta_cte', 'icaro_cta_cte', 'err_cta_cte',
-    #         'siif_cuit', 'icaro_cuit', 'err_cuit',
-    #         'siif_partida', 'icaro_partida', 'err_partida']
-    #     ]
-    #     # comprobantes.sort_values(
-    #     #     by=['err_nro', 'err_fuente', 'err_importe',
-    #     #     'err_cta_cte', 'err_cuit', 'err_partida',
-    #     #     'err_mes'], ascending=False,
-    #     #     inplace=True)
-
-    #     return df
+    # -------------------------------------------------
+    async def get_control_comprobantes_from_db(
+        self, params: BaseFilterParams
+    ) -> List[ControlComprobantesDocument]:
+        try:
+            return await self.control_comprobantes_repo.find_with_filter_params(
+                params=params
+            )
+        except Exception as e:
+            logger.error(
+                f"Error retrieving Icaro's Control de Comprobantes from database: {e}"
+            )
+            raise HTTPException(
+                status_code=500,
+                detail="Error retrieving Icaro's Control de Comprobantes from the database",
+            )
 
     # # --------------------------------------------------
     # def control_pa6(self):
