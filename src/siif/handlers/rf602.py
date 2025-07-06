@@ -17,6 +17,14 @@ import numpy as np
 import pandas as pd
 from playwright.async_api import Download, async_playwright
 
+from ...config import logger
+from ...utils import (
+    RouteReturnSchema,
+    sync_validated_to_repository,
+    validate_and_extract_data_from_df,
+)
+from ..repositories.rf602 import Rf602Repository
+from ..schemas.rf602 import Rf602Report
 from .connect_siif import (
     ReportCategory,
     SIIFReportManager,
@@ -99,18 +107,40 @@ def get_args():
 class Rf602(SIIFReportManager):
     # --------------------------------------------------
     async def download_and_process_report(
-        self, ejercicio: str = str(dt.datetime.now().year)
+        self, ejercicio: int = dt.datetime.now().year
     ) -> pd.DataFrame:
         """Download and process the rf602 report for a specific year."""
         try:
             await self.go_to_specific_report()
-            self.download = await self.download_report(ejercicio=ejercicio)
+            self.download = await self.download_report(ejercicio=str(ejercicio))
             if self.download is None:
                 raise ValueError("No se pudo descargar el reporte rf602.")
             await self.read_xls_file()
             return await self.process_dataframe()
         except Exception as e:
             print(f"Error al descargar y procesar el reporte: {e}")
+
+    # --------------------------------------------------
+    async def download_and_sync_validated_to_repository(
+        self, ejercicio: int = dt.datetime.now().year
+    ) -> RouteReturnSchema:
+        """Download, process and sync the rf602 report to the repository."""
+        try:
+            validate_and_errors = validate_and_extract_data_from_df(
+                dataframe=await self.download_and_process_report(ejercicio=ejercicio),
+                model=Rf602Report,
+                field_id="estructura",
+            )
+            return await sync_validated_to_repository(
+                repository=Rf602Repository(),
+                validation=validate_and_errors,
+                delete_filter={"ejercicio": ejercicio},
+                title="SIIF RF610 Report",
+                logger=logger,
+                label=f"Ejercicio {ejercicio} del rf610",
+            )
+        except Exception as e:
+            print(f"Error al descargar y sincronizar el reporte: {e}")
 
     # --------------------------------------------------
     async def go_to_specific_report(self) -> None:
