@@ -203,6 +203,7 @@ class IcaroVsSIIFService:
     #     ]
     #     return df
 
+    # --------------------------------------------------
     async def get_icaro_carga(self, ejercicio: int = None) -> pd.DataFrame:
         """
         Get the icaro_carga data from the repository.
@@ -224,25 +225,36 @@ class IcaroVsSIIFService:
                 detail="Error retrieving Icaro's Carga Data from the database",
             )
 
-            # filters = {
-            #         "$or": [
-            #             {"partida": {"$in": ["421", "422"]}},
-            #             {
-            #                 "$and": [
-            #                     {"partida": "354"},
-            #                     {
-            #                         "CUIT": {
-            #                             "$nin": [
-            #                                 "30500049460",
-            #                                 "30632351514",
-            #                                 "20231243527",
-            #                             ]
-            #                         }
-            #                     },
-            #                 ]
-            #             },
-            #         ]
-            #     }
+    # --------------------------------------------------
+    async def import_siif_comprobantes(self):
+        df = super().import_siif_comprobantes(self.ejercicio)
+        df = df.loc[
+            (df["partida"].isin(["421", "422"]))
+            | (
+                (df["partida"] == "354")
+                & (~df["cuit"].isin(["30500049460", "30632351514", "20231243527"]))
+            )
+        ]
+        return df
+        # filters = {
+        #         "$or": [
+        #             {"partida": {"$in": ["421", "422"]}},
+        #             {
+        #                 "$and": [
+        #                     {"partida": "354"},
+        #                     {
+        #                         "CUIT": {
+        #                             "$nin": [
+        #                                 "30500049460",
+        #                                 "30632351514",
+        #                                 "20231243527",
+        #                             ]
+        #                         }
+        #                     },
+        #                 ]
+        #             },
+        #         ]
+        #     }
 
     # --------------------------------------------------
     async def get_siif_rf602(self, ejercicio: int = None) -> pd.DataFrame:
@@ -345,8 +357,8 @@ class IcaroVsSIIFService:
     # --------------------------------------------------
     async def compute_control_anual(
         self, params: ControlAnualParams
-    ) -> List[ControlAnualDocument]:
-        return_schema = RouteReturnSchema()
+    ) -> RouteReturnSchema:
+        # return_schema = RouteReturnSchema()
         try:
             group_by = ["ejercicio", "estructura", "fuente"]
             icaro = await self.get_icaro_carga(ejercicio=params.ejercicio)
@@ -383,19 +395,29 @@ class IcaroVsSIIFService:
             )
 
             # 🔹 Si hay registros validados, eliminar los antiguos e insertar los nuevos
-            if validate_and_errors.validated:
-                logger.info(
-                    f"Procesado Control de Ejecución Anual ICARO vs SIIF. Errores: {len(validate_and_errors.errors)}"
-                )
-                deleted_count = await self.control_anual_repo.delete_all()
-                data_to_store = jsonable_encoder(validate_and_errors.validated)
-                inserted_records = await self.control_anual_repo.save_all(data_to_store)
-                logger.info(
-                    f"Inserted {len(inserted_records.inserted_ids)} records into MongoDB."
-                )
-                return_schema.deleted = deleted_count
-                return_schema.added = len(data_to_store)
-                return_schema.errors = validate_and_errors.errors
+            # if validate_and_errors.validated:
+            #     logger.info(
+            #         f"Procesado Control de Ejecución Anual ICARO vs SIIF. Errores: {len(validate_and_errors.errors)}"
+            #     )
+            #     deleted_count = await self.control_anual_repo.delete_all()
+            #     data_to_store = jsonable_encoder(validate_and_errors.validated)
+            #     inserted_records = await self.control_anual_repo.save_all(data_to_store)
+            #     logger.info(
+            #         f"Inserted {len(inserted_records.inserted_ids)} records into MongoDB."
+            #     )
+            #     return_schema.deleted = deleted_count
+            #     return_schema.added = len(data_to_store)
+            #     return_schema.errors = validate_and_errors.errors
+
+            partial_schema = await sync_validated_to_repository(
+                repository=self.control_anual_repo,
+                validation=validate_and_errors,
+                delete_filter={"ejercicio": params.ejercicio},
+                title="Control de Ejecución Anual ICARO vs SIIF",
+                logger=logger,
+                label=f"Control de Ejecución Anual ICARO vs SIIF ejercicio {params.ejercicio}",
+            )
+            # return_schema.append(partial_schema)
 
         except ValidationError as e:
             logger.error(f"Validation Error: {e}")
@@ -410,7 +432,7 @@ class IcaroVsSIIFService:
                 detail="Error in compute_control_anual",
             )
         finally:
-            return return_schema
+            return partial_schema
 
     # -------------------------------------------------
     async def get_control_anual_from_db(
@@ -426,6 +448,40 @@ class IcaroVsSIIFService:
                 status_code=500,
                 detail="Error retrieving Icaro's Control de Ejecución Anual from the database",
             )
+
+    # --------------------------------------------------
+    async def compute_control_comprobantes(
+        self, params: ControlAnualParams
+    ) -> RouteReturnSchema:
+        # return_schema = RouteReturnSchema()
+        try:
+            df = await self.get_icaro_carga(ejercicio=params.ejercicio)
+            # 🔹 Validar datos usando Pydantic
+            validate_and_errors = validate_and_extract_data_from_df(
+                dataframe=df, model=ControlAnualReport, field_id="estructura"
+            )
+            partial_schema = await sync_validated_to_repository(
+                repository=self.control_anual_repo,
+                validation=validate_and_errors,
+                delete_filter={"ejercicio": params.ejercicio},
+                title="Control de Ejecución Anual ICARO vs SIIF",
+                logger=logger,
+                label=f"Control de Ejecución Anual ICARO vs SIIF ejercicio {params.ejercicio}",
+            )
+        except ValidationError as e:
+            logger.error(f"Validation Error: {e}")
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid response format from Control Anual ICARO vs SIIF",
+            )
+        except Exception as e:
+            logger.error(f"Error in compute_control_anual: {e}")
+            raise HTTPException(
+                status_code=500,
+                detail="Error in compute_control_anual",
+            )
+        finally:
+            return partial_schema
 
     # # --------------------------------------------------
     # def control_comprobantes(self):
