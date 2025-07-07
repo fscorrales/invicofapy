@@ -22,7 +22,6 @@ from typing import Annotated, List, Union
 
 import pandas as pd
 from fastapi import Depends, HTTPException
-from fastapi.encoders import jsonable_encoder
 from playwright.async_api import async_playwright
 from pydantic import ValidationError
 
@@ -31,7 +30,6 @@ from ...icaro.handlers import IcaroMongoMigrator
 from ...icaro.repositories import CargaRepositoryDependency
 from ...siif.handlers import JoinComprobantesGtosGpoPart, Rf602, Rf610, login, logout
 from ...siif.repositories import Rf602RepositoryDependency, Rf610RepositoryDependency
-from ...siif.schemas import Rf602Report, Rf610Report
 from ...utils import (
     BaseFilterParams,
     RouteReturnSchema,
@@ -91,7 +89,7 @@ class IcaroVsSIIFService:
                 password=password,
                 playwright=p,
                 headless=False,
-                )
+            )
             try:
                 # 🔹 RF602
                 self.siif_rf602_handler = Rf602(siif=connect_siif)
