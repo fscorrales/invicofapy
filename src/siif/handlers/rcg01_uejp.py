@@ -135,7 +135,7 @@ class Rcg01Uejp(SIIFReportManager):
                 repository=Rcg01UejpRepository(),
                 validation=validate_and_errors,
                 delete_filter={"ejercicio": ejercicio},
-                title="SIIF rcg01_Uejp Report",
+                title=f"SIIF rcg01_Uejp Report del {ejercicio}",
                 logger=logger,
                 label=f"Ejercicio {ejercicio} del rcg01_Uejp",
             )

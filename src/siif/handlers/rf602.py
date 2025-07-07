@@ -135,7 +135,7 @@ class Rf602(SIIFReportManager):
                 repository=Rf602Repository(),
                 validation=validate_and_errors,
                 delete_filter={"ejercicio": ejercicio},
-                title="SIIF RF602 Report",
+                title=f"SIIF RF602 Report del {ejercicio}",
                 logger=logger,
                 label=f"Ejercicio {ejercicio} del rf602",
             )
