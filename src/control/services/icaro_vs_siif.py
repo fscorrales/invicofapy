@@ -165,6 +165,37 @@ class IcaroVsSIIFService:
                     logger.warning(f"Logout falló o browser ya cerrado: {e}")
                 return return_schema
 
+    async def compute_all(
+        self, params: ControlCompletoParams
+    ) -> List[RouteReturnSchema]:
+        """
+        Compute all controls for the given params.
+        """
+        return_schema = []
+        try:
+            # 🔹 Control Anual
+            partial_schema = await self.compute_control_anual(params=params)
+            return_schema.append(partial_schema)
+
+            # 🔹 Control Comprobantes
+            partial_schema = await self.compute_control_comprobantes(params=params)
+            return_schema.append(partial_schema)
+
+        except ValidationError as e:
+            logger.error(f"Validation Error: {e}")
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid response format from Icaro vs SIIF",
+            )
+        except Exception as e:
+            logger.error(f"Error in compute_all: {e}")
+            raise HTTPException(
+                status_code=500,
+                detail="Error in compute_all",
+            )
+        finally:
+            return return_schema
+
     # --------------------------------------------------
     async def get_icaro_carga(self, ejercicio: int = None) -> pd.DataFrame:
         """
@@ -188,7 +219,7 @@ class IcaroVsSIIFService:
             )
 
     # --------------------------------------------------
-    async def import_siif_comprobantes(self):
+    async def get_siif_comprobantes(self):
         df = await JoinComprobantesGtosGpoPart().from_mongo()
         df = df.loc[
             (df["partida"].isin(["421", "422"]))
@@ -308,15 +339,9 @@ class IcaroVsSIIFService:
             icaro = icaro.groupby(group_by)["importe"].sum()
             icaro = icaro.reset_index(drop=False)
             icaro = icaro.rename(columns={"importe": "ejecucion_icaro"})
-            # logger.info(icaro.shape)
-            # logger.info(icaro.dtypes)
-            # logger.info(icaro.head())
             siif = await self.get_siif_rf602(ejercicio=params.ejercicio)
             siif = siif.loc[:, group_by + ["ordenado"]]
             siif = siif.rename(columns={"ordenado": "ejecucion_siif"})
-            # logger.info(siif.shape)
-            # logger.info(siif.dtypes)
-            # logger.info(siif.head())
             df = pd.merge(siif, icaro, how="outer", on=group_by, copy=False)
             df = df.fillna(0)
             df["diferencia"] = df["ejecucion_siif"] - df["ejecucion_icaro"]
@@ -408,7 +433,7 @@ class IcaroVsSIIFService:
                 "cuit",
                 "partida",
             ]
-            siif = await self.import_siif_comprobantes().copy()
+            siif = await self.get_siif_comprobantes().copy()
             siif.loc[
                 (siif.clase_reg == "REG") & (siif.nro_fondo.isnull()), "clase_reg"
             ] = "CYO"
