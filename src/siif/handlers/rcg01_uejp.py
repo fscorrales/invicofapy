@@ -109,12 +109,12 @@ class Rcg01Uejp(SIIFReportManager):
     async def download_and_process_report(
         self, ejercicio: int = dt.datetime.now().year
     ) -> pd.DataFrame:
-        """Download and process the rf610 report for a specific year."""
+        """Download and process the rcg01_Uejp report for a specific year."""
         try:
             await self.go_to_specific_report()
             self.download = await self.download_report(ejercicio=str(ejercicio))
             if self.download is None:
-                raise ValueError("No se pudo descargar el reporte rf610.")
+                raise ValueError("No se pudo descargar el reporte rcg01_Uejp.")
             await self.read_xls_file()
             return await self.process_dataframe()
         except Exception as e:
