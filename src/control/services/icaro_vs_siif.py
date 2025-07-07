@@ -28,8 +28,20 @@ from pydantic import ValidationError
 from ...config import logger
 from ...icaro.handlers import IcaroMongoMigrator
 from ...icaro.repositories import CargaRepositoryDependency
-from ...siif.handlers import JoinComprobantesGtosGpoPart, Rf602, Rf610, login, logout
-from ...siif.repositories import Rf602RepositoryDependency, Rf610RepositoryDependency
+from ...siif.handlers import (
+    JoinComprobantesGtosGpoPart,
+    Rcg01Uejp,
+    Rf602,
+    Rf610,
+    Rpa03g,
+    login,
+    logout,
+)
+from ...siif.repositories import (
+    Rf602RepositoryDependency,
+    Rf610RepositoryDependency,
+)
+from ...siif.schemas import GrupoPartidaSIIF
 from ...utils import (
     BaseFilterParams,
     RouteReturnSchema,
@@ -59,6 +71,8 @@ class IcaroVsSIIFService:
     siif_rf602_handler: Rf602 = field(init=False)  # No se pasa como argumento
     siif_rf610_repo: Rf610RepositoryDependency
     siif_rf610_handler: Rf610 = field(init=False)  # No se pasa como argumento
+    siif_rcg01_uejp_handler: Rcg01Uejp = field(init=False)  # No se pasa como argumento
+    siif_rpa03g_handler: Rpa03g = field(init=False)  # No se pasa como argumento
     icaro_carga_repo: CargaRepositoryDependency
 
     # -------------------------------------------------
@@ -106,6 +120,21 @@ class IcaroVsSIIFService:
                 )
                 return_schema.append(partial_schema)
 
+                # 🔹 Rcg01Uejp
+                self.siif_rcg01_uejp_handler = Rcg01Uejp(siif=connect_siif)
+                partial_schema = await self.siif_rcg01_uejp_handler.download_and_sync_validated_to_repository(
+                    ejercicio=int(params.ejercicio)
+                )
+                return_schema.append(partial_schema)
+
+                # 🔹 Rpa03g
+                self.siif_rpa03g_handler = Rpa03g(siif=connect_siif)
+                for grupo in [g.value for g in GrupoPartidaSIIF]:
+                    partial_schema = await self.siif_rpa03g_handler.download_and_sync_validated_to_repository(
+                        ejercicio=int(params.ejercicio), grupo=grupo
+                    )
+                    return_schema.append(partial_schema)
+
                 # 🔹 Icaro Carga
                 path = os.path.join(get_r_icaro_path(), "ICARO.sqlite")
                 migrator = IcaroMongoMigrator(sqlite_path=path)
@@ -126,42 +155,6 @@ class IcaroVsSIIFService:
                 except Exception as e:
                     logger.warning(f"Logout falló o browser ya cerrado: {e}")
                 return return_schema
-
-    # --------------------------------------------------
-    def update_sql_db(self):
-        pass
-        # if self.input_path == None:
-        #     update_path_input = self.get_update_path_input()
-        # else:
-        #     update_path_input = self.input_path
-
-        # update_siif = update_db.UpdateSIIF(
-        #     update_path_input + '/Reportes SIIF',
-        #     self.db_path + '/siif.sqlite')
-        # update_siif.update_ppto_gtos_fte_rf602()
-        # update_siif.update_comprobantes_gtos_gpo_part_gto_rpa03g()
-        # update_siif.update_comprobantes_gtos_rcg01_uejp()
-        # update_siif.update_resumen_fdos_rfondo07tp()
-
-        # update_sscc = update_db.UpdateSSCC(
-        #     update_path_input + '/Sistema de Seguimiento de Cuentas Corrientes',
-        #     self.db_path + '/sscc.sqlite')
-        # update_sscc.update_ctas_ctes()
-
-        # update_icaro = update_db.UpdateIcaro(
-        #     os.path.dirname(os.path.dirname(self.db_path))
-        #     + '/R Output/SQLite Files/ICARO.sqlite',
-        #     self.db_path + '/icaro.sqlite')
-        # update_icaro.migrate_icaro()
-
-    # # --------------------------------------------------
-    # def import_dfs(self):
-    #     self.import_ctas_ctes()
-    #     self.siif_desc_pres = self.import_siif_desc_pres(ejercicio_to=self.ejercicio)
-    #     self.import_icaro_carga(self.ejercicio)
-    #     self.import_siif_rfondo07tp_pa6(self.ejercicio)
-    #     self.import_siif_rf602()
-    #     self.import_siif_comprobantes()
 
     # --------------------------------------------------
     async def get_icaro_carga(self, ejercicio: int = None) -> pd.DataFrame:
