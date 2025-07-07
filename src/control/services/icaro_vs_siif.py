@@ -85,85 +85,49 @@ class IcaroVsSIIFService:
                 detail="Missing username or password",
             )
         return_schema = []
-        try:
-            async with async_playwright() as p:
-                connect_siif = await login(
-                    username=username,
-                    password=password,
-                    playwright=p,
-                    headless=False,
+        async with async_playwright() as p:
+            connect_siif = await login(
+                username=username,
+                password=password,
+                playwright=p,
+                headless=False,
                 )
-
+            try:
                 # 🔹 RF602
                 self.siif_rf602_handler = Rf602(siif=connect_siif)
                 await self.siif_rf602_handler.go_to_reports()
                 partial_schema = await self.siif_rf602_handler.download_and_sync_validated_to_repository(
-                    ejercicio=str(params.ejercicio)
+                    ejercicio=int(params.ejercicio)
                 )
-
-                # # Validar datos usando Pydantic
-                # validate_and_errors = validate_and_extract_data_from_df(
-                #     dataframe=df, model=Rf602Report, field_id="estructura"
-                # )
-                # partial_schema = await sync_validated_to_repository(
-                #     repository=self.siif_rf602_repo,
-                #     validation=validate_and_errors,
-                #     delete_filter={"ejercicio": params.ejercicio},
-                #     title="SIIF RF602 Report",
-                #     logger=logger,
-                #     label=f"Ejercicio {params.ejercicio} del rf602",
-                # )
                 return_schema.append(partial_schema)
 
                 # 🔹 RF610
                 self.siif_rf610_handler = Rf610(siif=connect_siif)
-                df = await self.siif_rf610_handler.download_and_process_report(
-                    ejercicio=str(params.ejercicio)
-                )
-
-                # Validar datos usando Pydantic
-                validate_and_errors = validate_and_extract_data_from_df(
-                    dataframe=df, model=Rf610Report, field_id="estructura"
-                )
-                partial_schema = await sync_validated_to_repository(
-                    repository=self.siif_rf610_repo,
-                    validation=validate_and_errors,
-                    delete_filter={"ejercicio": params.ejercicio},
-                    title="SIIF RF610 Report",
-                    logger=logger,
-                    label=f"Ejercicio {params.ejercicio} del rf610",
+                partial_schema = await self.siif_rf610_handler.download_and_sync_validated_to_repository(
+                    ejercicio=int(params.ejercicio)
                 )
                 return_schema.append(partial_schema)
-                
-                # 🔹 Cerrar SIIF
-                await logout(connect=connect_siif)
 
-            # 🔹 Icaro Carga
-            path = os.path.join(get_r_icaro_path(), "ICARO.sqlite")
-            migrator = IcaroMongoMigrator(sqlite_path=path)
-            return_schema.append(await migrator.migrate_carga())
+                # 🔹 Icaro Carga
+                path = os.path.join(get_r_icaro_path(), "ICARO.sqlite")
+                migrator = IcaroMongoMigrator(sqlite_path=path)
+                return_schema.append(await migrator.migrate_carga())
 
-        except ValidationError as e:
-            logger.error(f"Validation Error: {e}")
-            raise HTTPException(status_code=400, detail="Invalid response format")
-        except Exception as e:
-            logger.error(f"Error during report processing: {e}")
-            raise HTTPException(
-                status_code=401,
-                detail="Invalid credentials or unable to authenticate",
-            )
-        finally:
-            # 1️⃣  Si `connect_siif` existe y su browser sigue conectado -> hacer logout
-            try:
-                if (
-                    "connect_siif" in locals()                     # se creó
-                    and connect_siif.browser                       # no es None
-                    and connect_siif.browser.is_connected()        # sigue vivo
-                ):
-                    await logout(connect=connect_siif)
+            except ValidationError as e:
+                logger.error(f"Validation Error: {e}")
+                raise HTTPException(status_code=400, detail="Invalid response format")
             except Exception as e:
-                logger.warning(f"Logout falló o browser ya cerrado: {e}")
-            return return_schema
+                logger.error(f"Error during report processing: {e}")
+                raise HTTPException(
+                    status_code=401,
+                    detail="Invalid credentials or unable to authenticate",
+                )
+            finally:
+                try:
+                    await logout(connect=connect_siif)
+                except Exception as e:
+                    logger.warning(f"Logout falló o browser ya cerrado: {e}")
+                return return_schema
 
     # --------------------------------------------------
     def update_sql_db(self):

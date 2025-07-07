@@ -29,7 +29,7 @@ class CargaReport(BaseModel):
     fondo_reparo: float
     cta_cte: str
     avance: float
-    nro_certificado: str
+    nro_certificado: Optional[str] = None
     nro_comprobante: str
     desc_obra: str
     origen: str
