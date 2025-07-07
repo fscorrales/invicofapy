@@ -17,7 +17,15 @@ import numpy as np
 import pandas as pd
 from playwright.async_api import Download, async_playwright
 
+from ...config import logger
+from ...utils.validate import (
+    RouteReturnSchema,
+    sync_validated_to_repository,
+    validate_and_extract_data_from_df,
+)
+from ..repositories.rfondo07tp import Rfondo07tpRepository
 from ..schemas.common import TipoComprobanteSIIF
+from ..schemas.rfondo07tp import Rfondo07tpReport
 from .connect_siif import (
     ReportCategory,
     SIIFReportManager,
@@ -108,6 +116,54 @@ def get_args():
 
 # --------------------------------------------------
 class Rfondo07tp(SIIFReportManager):
+    # --------------------------------------------------
+    async def download_and_process_report(
+        self,
+        ejercicio: int = dt.datetime.now().year,
+        tipo_comprobante: TipoComprobanteSIIF = TipoComprobanteSIIF.adelanto_contratista.value,
+    ) -> pd.DataFrame:
+        """Download and process the rfondo07tp report for a specific year."""
+        try:
+            await self.go_to_specific_report()
+            self.download = await self.download_report(
+                ejercicio=str(ejercicio), tipo_comprobante=str(tipo_comprobante)
+            )
+            if self.download is None:
+                raise ValueError("No se pudo descargar el reporte rfondo07tp.")
+            await self.read_xls_file()
+            return await self.process_dataframe()
+        except Exception as e:
+            print(f"Error al descargar y procesar el reporte: {e}")
+
+    # --------------------------------------------------
+    async def download_and_sync_validated_to_repository(
+        self,
+        ejercicio: int = dt.datetime.now().year,
+        tipo_comprobante: TipoComprobanteSIIF = TipoComprobanteSIIF.adelanto_contratista.value,
+    ) -> RouteReturnSchema:
+        """Download, process and sync the rcg01_Uejp report to the repository."""
+        try:
+            validate_and_errors = validate_and_extract_data_from_df(
+                dataframe=await self.download_and_process_report(
+                    ejercicio=ejercicio, tipo_comprobante=tipo_comprobante
+                ),
+                model=Rfondo07tpReport,
+                field_id="nro_comprobante",
+            )
+            return await sync_validated_to_repository(
+                repository=Rfondo07tpRepository(),
+                validation=validate_and_errors,
+                delete_filter={
+                    "ejercicio": ejercicio,
+                    "tipo_comprobante": tipo_comprobante,
+                },
+                title=f"SIIF rfondo07tp Report {ejercicio} - {tipo_comprobante}",
+                logger=logger,
+                label=f"Ejercicio {ejercicio} del rfondo07tp (tipo comprobante: {tipo_comprobante}).",
+            )
+        except Exception as e:
+            print(f"Error al descargar y sincronizar el reporte: {e}")
+
     # --------------------------------------------------
     async def go_to_specific_report(self) -> None:
         await self.select_report_module(module=ReportCategory.Gastos)
