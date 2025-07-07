@@ -19,18 +19,18 @@ from playwright.async_api import Download, async_playwright
 
 from ...config import logger
 from ...utils.validate import (
-    validate_excel_file,
     RouteReturnSchema,
     sync_validated_to_repository,
     validate_and_extract_data_from_df,
+    validate_excel_file,
 )
+from ..repositories.rf610 import Rf610Repository
+from ..schemas.rf610 import Rf610Report
 from .connect_siif import (
     ReportCategory,
     SIIFReportManager,
     login,
 )
-from ..repositories.rf610 import Rf610Repository
-from ..schemas.rf610 import Rf610Report
 
 
 # --------------------------------------------------
