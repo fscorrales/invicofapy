@@ -135,9 +135,9 @@ class Rf602(SIIFReportManager):
                 repository=Rf602Repository(),
                 validation=validate_and_errors,
                 delete_filter={"ejercicio": ejercicio},
-                title="SIIF RF610 Report",
+                title="SIIF RF602 Report",
                 logger=logger,
-                label=f"Ejercicio {ejercicio} del rf610",
+                label=f"Ejercicio {ejercicio} del rf602",
             )
         except Exception as e:
             print(f"Error al descargar y sincronizar el reporte: {e}")

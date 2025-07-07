@@ -15,7 +15,7 @@ from ..services import IcaroVsSIIFServiceDependency
 icaro_vs_siif_router = APIRouter(prefix="/icaro_vs_siif")
 
 
-@icaro_vs_siif_router.post("/sync_from_source", response_model=RouteReturnSchema)
+@icaro_vs_siif_router.post("/sync_from_source", response_model=List[RouteReturnSchema])
 async def sync_icaro_vs_siif_from_source(
     auth: OptionalAuthorizationDependency,
     service: IcaroVsSIIFServiceDependency,
