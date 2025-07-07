@@ -33,6 +33,7 @@ from ...siif.handlers import (
     Rcg01Uejp,
     Rf602,
     Rf610,
+    Rfondo07tp,
     Rpa03g,
     login,
     logout,
@@ -73,6 +74,7 @@ class IcaroVsSIIFService:
     siif_rf610_handler: Rf610 = field(init=False)  # No se pasa como argumento
     siif_rcg01_uejp_handler: Rcg01Uejp = field(init=False)  # No se pasa como argumento
     siif_rpa03g_handler: Rpa03g = field(init=False)  # No se pasa como argumento
+    siif_rfondo07tp_handler: Rfondo07tp = field(init=False)  # No se pasa como argumento
     icaro_carga_repo: CargaRepositoryDependency
 
     # -------------------------------------------------
@@ -134,6 +136,13 @@ class IcaroVsSIIFService:
                         ejercicio=int(params.ejercicio), grupo=grupo
                     )
                     return_schema.append(partial_schema)
+
+                # 🔹 Rfondo07tp
+                self.siif_rfondo07tp_handler = Rfondo07tp(siif=connect_siif)
+                partial_schema = await self.siif_rfondo07tp_handler.download_and_sync_validated_to_repository(
+                    ejercicio=int(params.ejercicio)
+                )
+                return_schema.append(partial_schema)
 
                 # 🔹 Icaro Carga
                 path = os.path.join(get_r_icaro_path(), "ICARO.sqlite")
