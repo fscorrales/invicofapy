@@ -17,6 +17,14 @@ import numpy as np
 import pandas as pd
 from playwright.async_api import Download, async_playwright
 
+from ...config import logger
+from ...utils.validate import (
+    RouteReturnSchema,
+    sync_validated_to_repository,
+    validate_and_extract_data_from_df,
+)
+from ..repositories.rcg01_uejp import Rcg01UejpRepository
+from ..schemas.rcg01_uejp import Rcg01UejpReport
 from .connect_siif import (
     ReportCategory,
     SIIFReportManager,
@@ -97,6 +105,43 @@ def get_args():
 
 # --------------------------------------------------
 class Rcg01Uejp(SIIFReportManager):
+    # --------------------------------------------------
+    async def download_and_process_report(
+        self, ejercicio: int = dt.datetime.now().year
+    ) -> pd.DataFrame:
+        """Download and process the rf610 report for a specific year."""
+        try:
+            await self.go_to_specific_report()
+            self.download = await self.download_report(ejercicio=str(ejercicio))
+            if self.download is None:
+                raise ValueError("No se pudo descargar el reporte rf610.")
+            await self.read_xls_file()
+            return await self.process_dataframe()
+        except Exception as e:
+            print(f"Error al descargar y procesar el reporte: {e}")
+
+    # --------------------------------------------------
+    async def download_and_sync_validated_to_repository(
+        self, ejercicio: int = dt.datetime.now().year
+    ) -> RouteReturnSchema:
+        """Download, process and sync the rcg01_Uejp report to the repository."""
+        try:
+            validate_and_errors = validate_and_extract_data_from_df(
+                dataframe=await self.download_and_process_report(ejercicio=ejercicio),
+                model=Rcg01UejpReport,
+                field_id="nro_comprobante",
+            )
+            return await sync_validated_to_repository(
+                repository=Rcg01UejpRepository(),
+                validation=validate_and_errors,
+                delete_filter={"ejercicio": ejercicio},
+                title="SIIF rcg01_Uejp Report",
+                logger=logger,
+                label=f"Ejercicio {ejercicio} del rcg01_Uejp",
+            )
+        except Exception as e:
+            print(f"Error al descargar y sincronizar el reporte: {e}")
+
     # --------------------------------------------------
     async def go_to_specific_report(self) -> None:
         await self.select_report_module(module=ReportCategory.Gastos)
