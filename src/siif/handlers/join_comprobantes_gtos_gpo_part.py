@@ -36,8 +36,8 @@ class JoinComprobantesGtosGpoPart:
 
     # --------------------------------------------------
     async def from_mongo(self) -> pd.DataFrame:
-        self.df_gtos_gpo_part = pd.DataFrame(Rpa03gRepository().get_all())
-        self.df_gtos = pd.DataFrame(Rcg01UejpRepository().get_all())
+        self.df_gtos_gpo_part = pd.DataFrame(await Rpa03gRepository().get_all())
+        self.df_gtos = pd.DataFrame(await Rcg01UejpRepository().get_all())
         # self.df_part = DetallePartidasRog01().from_sql(sql_path)
         self.join_df()
         return self.df

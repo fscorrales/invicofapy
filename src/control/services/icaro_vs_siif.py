@@ -362,21 +362,6 @@ class IcaroVsSIIFService:
                 dataframe=df, model=ControlAnualReport, field_id="estructura"
             )
 
-            # 🔹 Si hay registros validados, eliminar los antiguos e insertar los nuevos
-            # if validate_and_errors.validated:
-            #     logger.info(
-            #         f"Procesado Control de Ejecución Anual ICARO vs SIIF. Errores: {len(validate_and_errors.errors)}"
-            #     )
-            #     deleted_count = await self.control_anual_repo.delete_all()
-            #     data_to_store = jsonable_encoder(validate_and_errors.validated)
-            #     inserted_records = await self.control_anual_repo.save_all(data_to_store)
-            #     logger.info(
-            #         f"Inserted {len(inserted_records.inserted_ids)} records into MongoDB."
-            #     )
-            #     return_schema.deleted = deleted_count
-            #     return_schema.added = len(data_to_store)
-            #     return_schema.errors = validate_and_errors.errors
-
             partial_schema = await sync_validated_to_repository(
                 repository=self.control_anual_repo,
                 validation=validate_and_errors,
@@ -421,7 +406,7 @@ class IcaroVsSIIFService:
     async def compute_control_comprobantes(
         self, params: ControlCompletoParams
     ) -> RouteReturnSchema:
-        # return_schema = RouteReturnSchema()
+        return_schema = []
         try:
             select = [
                 "ejercicio",
@@ -433,7 +418,7 @@ class IcaroVsSIIFService:
                 "cuit",
                 "partida",
             ]
-            siif = await self.get_siif_comprobantes().copy()
+            siif = await self.get_siif_comprobantes()
             siif.loc[
                 (siif.clase_reg == "REG") & (siif.nro_fondo.isnull()), "clase_reg"
             ] = "CYO"
@@ -531,7 +516,7 @@ class IcaroVsSIIFService:
             validate_and_errors = validate_and_extract_data_from_df(
                 dataframe=df, model=ControlComprobantesReport, field_id="siif_nro"
             )
-            partial_schema = await sync_validated_to_repository(
+            return_schema = await sync_validated_to_repository(
                 repository=self.control_comprobantes_repo,
                 validation=validate_and_errors,
                 delete_filter={"ejercicio": params.ejercicio},
@@ -552,7 +537,7 @@ class IcaroVsSIIFService:
                 detail="Error in compute_control_comprobantes",
             )
         finally:
-            return partial_schema
+            return return_schema
 
     # -------------------------------------------------
     async def get_control_comprobantes_from_db(

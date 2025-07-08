@@ -36,15 +36,15 @@ class ControlCompletoParams(BaseModel):
 # -------------------------------------------------
 class ControlAnualReport(BaseModel):
     ejercicio: int
-    estructura: str
+    estructura: Optional[str] = None
     fuente: int
     ejecucion_siif: float
     ejecucion_icaro: float
     diferencia: float
-    desc_actividad: str
-    desc_programa: str
-    desc_subprograma: str
-    desc_proyecto: str
+    desc_actividad: Optional[str] = None
+    desc_programa: Optional[str] = None
+    desc_subprograma: Optional[str] = None
+    desc_proyecto: Optional[str] = None
 
 
 # -------------------------------------------------
@@ -61,34 +61,34 @@ class ControlAnualFilter(BaseFilterParams):
 # -------------------------------------------------
 class ControlComprobantesReport(BaseModel):
     ejercicio: int
-    siif_nro: str
-    icaro_nro: str
+    siif_nro: Optional[str] = None
+    icaro_nro: Optional[str] = None
     err_nro: bool
-    siif_tipo: str
-    icaro_tipo: str
+    siif_tipo: Optional[str] = None
+    icaro_tipo: Optional[str] = None
     err_tipo: bool
-    siif_fuente: str
-    icaro_fuente: str
+    siif_fuente: Optional[str] = None
+    icaro_fuente: Optional[str] = None
     err_fuente: bool
-    siif_importe: float
-    icaro_importe: float
+    siif_importe: Optional[float] = None
+    icaro_importe: Optional[float] = None
     err_importe: bool
-    siif_mes: str
-    icaro_mes: str
+    siif_mes: Optional[str] = None
+    icaro_mes: Optional[str] = None
     err_mes: bool
-    siif_cta_cte: str
-    icaro_cta_cte: str
+    siif_cta_cte: Optional[str] = None
+    icaro_cta_cte: Optional[str] = None
     err_cta_cte: bool
-    siif_cuit: str
-    icaro_cuit: str
+    siif_cuit: Optional[str] = None
+    icaro_cuit: Optional[str] = None
     err_cuit: bool
-    siif_partida: str
-    icaro_partida: str
+    siif_partida: Optional[str] = None
+    icaro_partida: Optional[str] = None
     err_partida: bool
 
 
 # -------------------------------------------------
-class ControlComprobantesDocument(ControlAnualReport):
+class ControlComprobantesDocument(ControlComprobantesReport):
     id: PydanticObjectId = Field(alias="_id")
 
 

@@ -36,7 +36,7 @@ async def sync_icaro_vs_siif_from_source(
 
 
 # -------------------------------------------------
-@icaro_vs_siif_router.post("/compute", response_model=RouteReturnSchema)
+@icaro_vs_siif_router.post("/compute", response_model=List[RouteReturnSchema])
 async def compute_all(
     service: IcaroVsSIIFServiceDependency,
     params: Annotated[ControlCompletoParams, Depends()],

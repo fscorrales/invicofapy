@@ -17,7 +17,7 @@ from bson import ObjectId
 from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel, GetCoreSchemaHandler, ValidationError
 from pydantic_core import core_schema
-
+from .safe_get import sanitize_dataframe_for_json
 
 # -------------------------------------------------
 class ErrorsDetails(BaseModel):
@@ -69,6 +69,7 @@ def validate_and_extract_data_from_df(
     validated_list: List[model] = []
     # duplicates = dataframe.columns[dataframe.columns.duplicated()]
     # print("Columnas duplicadas:", duplicates)
+    dataframe = sanitize_dataframe_for_json(dataframe)
     df_dict = dataframe.to_dict(orient="records")
     for record in df_dict:
         try:
