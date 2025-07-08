@@ -133,7 +133,7 @@ class IcaroVsSIIFService:
                 self.siif_rpa03g_handler = Rpa03g(siif=connect_siif)
                 for grupo in [g.value for g in GrupoPartidaSIIF]:
                     partial_schema = await self.siif_rpa03g_handler.download_and_sync_validated_to_repository(
-                        ejercicio=int(params.ejercicio), grupo=grupo
+                        ejercicio=int(params.ejercicio), grupo_partida=grupo
                     )
                     return_schema.append(partial_schema)
 

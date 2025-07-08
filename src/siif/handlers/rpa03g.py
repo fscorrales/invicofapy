@@ -157,7 +157,7 @@ class Rpa03g(SIIFReportManager):
                     "ejercicio": ejercicio,
                     "grupo": grupo_partida + "00",
                 },
-                title=f"SIIF rpa03g Report (Gpo {grupo_partida}00)",
+                title=f"SIIF rpa03g Report {ejercicio} (Gpo {grupo_partida}00)",
                 logger=logger,
                 label=f"Ejercicio {ejercicio} del rpa03g (Gpo {grupo_partida}00)",
             )
@@ -221,6 +221,8 @@ class Rpa03g(SIIFReportManager):
             # Cerrar la ventana emergente (si realmente se abrió)
             if popup_page:
                 await popup_page.close()
+
+            await self.go_back_to_reports_list()
 
             return self.download
 
