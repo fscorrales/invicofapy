@@ -117,3 +117,40 @@ async def export_control_anual_from_db(
 # ):
 #     apply_auto_filter(params=params)
 #     return await service.get_control_comprobantes_from_db(params=params)
+
+
+# -------------------------------------------------
+@icaro_vs_siif_router.post("/control_pa6/compute", response_model=RouteReturnSchema)
+async def compute_control_comprobantes(
+    service: IcaroVsSIIFServiceDependency,
+    params: Annotated[ControlCompletoParams, Depends()],
+):
+    return await service.compute_control_pa6(params=params)
+
+
+# -------------------------------------------------
+@icaro_vs_siif_router.get(
+    "/control_pa6/get_from_db",
+    response_model=List[ControlComprobantesDocument],
+)
+async def get_control_pa6_from_db(
+    service: IcaroVsSIIFServiceDependency,
+    params: Annotated[ControlComprobantesFilter, Depends()],
+):
+    apply_auto_filter(params=params)
+    return await service.get_control_pa6_from_db(params=params)
+
+
+# # -------------------------------------------------
+# @icaro_vs_siif_router.get(
+#     "/control_pa6/export",
+#     summary="Descarga el Control PA6 como archivo .xlsx y exporta a Google Sheets",
+#     response_description="Archivo Excel con los registros solicitados",
+# )
+# async def export_control_pa6_from_db(
+#     service: IcaroVsSIIFServiceDependency,
+#     upload_to_google_sheets: bool = Query(True, alias="uploadToGoogleSheets"),
+# ):
+#     return await service.export_control_pa6_from_db(
+#         upload_to_google_sheets=upload_to_google_sheets
+#     )

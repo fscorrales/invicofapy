@@ -43,8 +43,9 @@ from ...siif.handlers import (
 from ...siif.repositories import (
     Rf602RepositoryDependency,
     Rf610RepositoryDependency,
+    Rfondo07tpRepositoryDependency,
 )
-from ...siif.schemas import GrupoPartidaSIIF
+from ...siif.schemas import GrupoPartidaSIIF, TipoComprobanteSIIF
 from ...utils import (
     BaseFilterParams,
     GoogleSheets,
@@ -57,6 +58,7 @@ from ...utils import (
 from ..repositories.icaro_vs_siif import (
     ControlAnualRepositoryDependency,
     ControlComprobantesRepositoryDependency,
+    ControlPa6RepositoryDependency,
 )
 from ..schemas.icaro_vs_siif import (
     ControlAnualDocument,
@@ -64,6 +66,8 @@ from ..schemas.icaro_vs_siif import (
     ControlCompletoParams,
     ControlComprobantesDocument,
     ControlComprobantesReport,
+    ControlPa6Document,
+    ControlPa6Report,
 )
 
 
@@ -72,12 +76,14 @@ from ..schemas.icaro_vs_siif import (
 class IcaroVsSIIFService:
     control_anual_repo: ControlAnualRepositoryDependency
     control_comprobantes_repo: ControlComprobantesRepositoryDependency
+    control_pa6_repo: ControlPa6RepositoryDependency
     siif_rf602_repo: Rf602RepositoryDependency
     siif_rf602_handler: Rf602 = field(init=False)  # No se pasa como argumento
     siif_rf610_repo: Rf610RepositoryDependency
     siif_rf610_handler: Rf610 = field(init=False)  # No se pasa como argumento
     siif_rcg01_uejp_handler: Rcg01Uejp = field(init=False)  # No se pasa como argumento
     siif_rpa03g_handler: Rpa03g = field(init=False)  # No se pasa como argumento
+    siif_rfondo07tp_repo: Rfondo07tpRepositoryDependency
     siif_rfondo07tp_handler: Rfondo07tp = field(init=False)  # No se pasa como argumento
     icaro_carga_repo: CargaRepositoryDependency
 
@@ -337,8 +343,26 @@ class IcaroVsSIIFService:
                 detail="Error retrieving SIIF's rf602 from the database",
             )
 
-        # df = pd.DataFrame(docs)
-        # return df
+    # --------------------------------------------------
+    async def get_siif_rfondo07tp(self, ejercicio: int = None) -> pd.DataFrame:
+        """
+        Get the rfondo07tp (PA6) data from the repository.
+        """
+        try:
+            filters = {
+                "$tipo_comprobante": TipoComprobanteSIIF.adelanto_contratista.value
+            }
+            if ejercicio is not None:
+                filters["ejercicio"] = ejercicio
+            docs = await self.siif_rfondo07tp_repo.find_by_filter(filters=filters)
+            df = pd.DataFrame(docs)
+            return df
+        except Exception as e:
+            logger.error(f"Error retrieving SIIF's rfondo07tp (PA6) from database: {e}")
+            raise HTTPException(
+                status_code=500,
+                detail="Error retrieving SIIF's rfondo07tp (PA6) from the database",
+            )
 
     async def get_siif_desc_pres(
         self, ejercicio_to: Union[int, List] = int(dt.datetime.now().year)
@@ -614,36 +638,38 @@ class IcaroVsSIIFService:
                 )
                 > 0
             ]
-            df = df.loc[
-                :,
-                [
-                    "ejercicio",
-                    "siif_nro",
-                    "icaro_nro",
-                    "err_nro",
-                    "siif_tipo",
-                    "icaro_tipo",
-                    "err_tipo",
-                    "siif_fuente",
-                    "icaro_fuente",
-                    "err_fuente",
-                    "siif_importe",
-                    "icaro_importe",
-                    "err_importe",
-                    "siif_mes",
-                    "icaro_mes",
-                    "err_mes",
-                    "siif_cta_cte",
-                    "icaro_cta_cte",
-                    "err_cta_cte",
-                    "siif_cuit",
-                    "icaro_cuit",
-                    "err_cuit",
-                    "siif_partida",
-                    "icaro_partida",
-                    "err_partida",
-                ],
-            ]
+            cols = list(ControlComprobantesReport.model_fields.keys())
+            df = df[cols]
+            # df = df.loc[
+            #     :,
+            #     [
+            #         "ejercicio",
+            #         "siif_nro",
+            #         "icaro_nro",
+            #         "err_nro",
+            #         "siif_tipo",
+            #         "icaro_tipo",
+            #         "err_tipo",
+            #         "siif_fuente",
+            #         "icaro_fuente",
+            #         "err_fuente",
+            #         "siif_importe",
+            #         "icaro_importe",
+            #         "err_importe",
+            #         "siif_mes",
+            #         "icaro_mes",
+            #         "err_mes",
+            #         "siif_cta_cte",
+            #         "icaro_cta_cte",
+            #         "err_cta_cte",
+            #         "siif_cuit",
+            #         "icaro_cuit",
+            #         "err_cuit",
+            #         "siif_partida",
+            #         "icaro_partida",
+            #         "err_partida",
+            #     ],
+            # ]
 
             # 🔹 Validar datos usando Pydantic
             validate_and_errors = validate_and_extract_data_from_df(
@@ -689,126 +715,236 @@ class IcaroVsSIIFService:
                 detail="Error retrieving Icaro's Control de Comprobantes from the database",
             )
 
-    # # --------------------------------------------------
-    # def control_pa6(self):
-    #     siif_fdos = self.siif_rfondo07tp.copy()
-    #     siif_fdos = siif_fdos.loc[
-    #         :, ['ejercicio', 'nro_fondo', 'mes', 'ingresos', 'saldo']
-    #     ]
-    #     siif_fdos['nro_fondo'] = siif_fdos['nro_fondo'].str.zfill(5) + '/' + siif_fdos.ejercicio.str[-2:]
-    #     siif_fdos = siif_fdos.rename(columns={
-    #         'nro_fondo':'siif_nro_fondo',
-    #         'mes':'siif_mes_pa6',
-    #         'ingresos':'siif_importe_pa6',
-    #         'saldo':'siif_saldo_pa6'
-    #     })
+    # --------------------------------------------------
+    async def compute_control_pa6(
+        self, params: ControlCompletoParams
+    ) -> RouteReturnSchema:
+        try:
+            siif_fdos = await self.get_siif_rfondo07tp(ejercicio=params.ejercicio)
+            siif_fdos = siif_fdos.loc[
+                :, ["ejercicio", "nro_fondo", "mes", "ingresos", "saldo"]
+            ]
+            siif_fdos["nro_fondo"] = (
+                siif_fdos["nro_fondo"].str.zfill(5) + "/" + siif_fdos.ejercicio.str[-2:]
+            )
+            siif_fdos = siif_fdos.rename(
+                columns={
+                    "nro_fondo": "siif_nro_fondo",
+                    "mes": "siif_mes_pa6",
+                    "ingresos": "siif_importe_pa6",
+                    "saldo": "siif_saldo_pa6",
+                }
+            )
 
-    #     select = [
-    #         'ejercicio','nro_comprobante', 'fuente', 'importe',
-    #         'mes', 'cta_cte', 'cuit'
-    #     ]
+            select = [
+                "ejercicio",
+                "nro_comprobante",
+                "fuente",
+                "importe",
+                "mes",
+                "cta_cte",
+                "cuit",
+            ]
 
-    #     siif_gtos = self.import_siif_comprobantes().copy()
-    #     siif_gtos = siif_gtos.loc[siif_gtos['clase_reg'] == 'REG']
-    #     siif_gtos = siif_gtos.loc[:, select + ['nro_fondo', 'clase_reg']]
-    #     siif_gtos['nro_fondo'] = siif_gtos['nro_fondo'].str.zfill(5) + '/' + siif_gtos.ejercicio.str[-2:]
-    #     siif_gtos = siif_gtos.rename(columns={
-    #             'nro_fondo':'siif_nro_fondo',
-    #             'cta_cte':'siif_cta_cte',
-    #             'cuit':'siif_cuit',
-    #             'clase_reg':'siif_tipo',
-    #             'fuente':'siif_fuente',
-    #             'nro_comprobante':'siif_nro_reg',
-    #             'importe':'siif_importe_reg',
-    #             'mes':'siif_mes_reg',
-    #     })
+            siif_gtos = await self.get_siif_comprobantes()
+            siif_gtos = siif_gtos.loc[siif_gtos["clase_reg"] == "REG"]
+            siif_gtos = siif_gtos.loc[:, select + ["nro_fondo", "clase_reg"]]
+            siif_gtos["nro_fondo"] = (
+                siif_gtos["nro_fondo"].str.zfill(5) + "/" + siif_gtos.ejercicio.str[-2:]
+            )
+            siif_gtos = siif_gtos.rename(
+                columns={
+                    "nro_fondo": "siif_nro_fondo",
+                    "cta_cte": "siif_cta_cte",
+                    "cuit": "siif_cuit",
+                    "clase_reg": "siif_tipo",
+                    "fuente": "siif_fuente",
+                    "nro_comprobante": "siif_nro_reg",
+                    "importe": "siif_importe_reg",
+                    "mes": "siif_mes_reg",
+                }
+            )
 
-    #     icaro = self.icaro_carga.copy()
-    #     icaro = icaro.loc[:, select + ['tipo']]
-    #     icaro = icaro.rename(columns={
-    #             'mes':'icaro_mes',
-    #             'nro_comprobante':'icaro_nro',
-    #             'tipo':'icaro_tipo',
-    #             'importe':'icaro_importe',
-    #             'cuit':'icaro_cuit',
-    #             'cta_cte':'icaro_cta_cte',
-    #             'fuente':'icaro_fuente'
-    #     })
+            icaro = self.get_icaro_carga(ejercicio=params.ejercicio)
+            icaro = icaro.loc[:, select + ["tipo"]]
+            icaro = icaro.rename(
+                columns={
+                    "mes": "icaro_mes",
+                    "nro_comprobante": "icaro_nro",
+                    "tipo": "icaro_tipo",
+                    "importe": "icaro_importe",
+                    "cuit": "icaro_cuit",
+                    "cta_cte": "icaro_cta_cte",
+                    "fuente": "icaro_fuente",
+                }
+            )
 
-    #     icaro_pa6 = icaro.loc[icaro['icaro_tipo'] == 'PA6']
-    #     icaro_pa6 = icaro_pa6.loc[:, ['icaro_mes', 'icaro_nro', 'icaro_importe']]
-    #     icaro_pa6 = icaro_pa6.rename(columns={
-    #             'icaro_mes':'icaro_mes_pa6',
-    #             'icaro_nro':'icaro_nro_fondo',
-    #             'icaro_importe':'icaro_importe_pa6',
-    #     })
+            icaro_pa6 = icaro.loc[icaro["icaro_tipo"] == "PA6"]
+            icaro_pa6 = icaro_pa6.loc[:, ["icaro_mes", "icaro_nro", "icaro_importe"]]
+            icaro_pa6 = icaro_pa6.rename(
+                columns={
+                    "icaro_mes": "icaro_mes_pa6",
+                    "icaro_nro": "icaro_nro_fondo",
+                    "icaro_importe": "icaro_importe_pa6",
+                }
+            )
 
-    #     icaro_reg = icaro.loc[icaro['icaro_tipo'] != 'PA6']
-    #     icaro_reg = icaro_reg.rename(columns={
-    #             'icaro_mes':'icaro_mes_reg',
-    #             'icaro_nro':'icaro_nro_reg',
-    #             'icaro_importe':'icaro_importe_reg',
-    #     })
+            icaro_reg = icaro.loc[icaro["icaro_tipo"] != "PA6"]
+            icaro_reg = icaro_reg.rename(
+                columns={
+                    "icaro_mes": "icaro_mes_reg",
+                    "icaro_nro": "icaro_nro_reg",
+                    "icaro_importe": "icaro_importe_reg",
+                }
+            )
 
-    #     df = pd.merge(
-    #         siif_fdos, siif_gtos, how='left',
-    #         on=['ejercicio','siif_nro_fondo'], copy=False
-    #     )
-    #     df = pd.merge(
-    #         df, icaro_pa6, how='outer',
-    #         left_on = 'siif_nro_fondo',
-    #         right_on = 'icaro_nro_fondo'
-    #     )
-    #     df = pd.merge(
-    #         df, icaro_reg, how='left',
-    #         left_on = ['ejercicio', 'siif_nro_reg'],
-    #         right_on = ['ejercicio', 'icaro_nro_reg']
-    #     )
-    #     df = df.fillna(0)
-    #     df['err_nro_fondo'] = df.siif_nro_fondo != df.icaro_nro_fondo
-    #     df['err_mes_pa6'] = df.siif_mes_pa6 != df.icaro_mes_pa6
-    #     df['siif_importe_pa6'] = df['siif_importe_pa6'].fillna(0)
-    #     df['icaro_importe_pa6'] = df['icaro_importe_pa6'].fillna(0)
-    #     df['err_importe_pa6'] = (df.siif_importe_pa6 - df.icaro_importe_pa6).abs()
-    #     df['err_importe_pa6'] = (df['err_importe_pa6'] > 0.1)
-    #     # df['err_importe_pa6'] = ~np.isclose((df.siif_importe_pa6 - df.icaro_importe_pa6), 0)
-    #     df['err_nro_reg'] = df.siif_nro_reg != df.icaro_nro_reg
-    #     df['err_mes_reg'] = df.siif_mes_reg != df.icaro_mes_reg
-    #     df['siif_importe_reg'] = df['siif_importe_reg'].fillna(0)
-    #     df['icaro_importe_reg'] = df['icaro_importe_reg'].fillna(0)
-    #     df['err_importe_reg'] = (df.siif_importe_reg - df.icaro_importe_reg).abs()
-    #     df['err_importe_reg'] = (df['err_importe_reg'] > 0.1)
-    #     #df['err_importe_reg'] = ~np.isclose((df.siif_importe_reg - df.icaro_importe_reg), 0)
-    #     df['err_tipo'] = df.siif_tipo != df.icaro_tipo
-    #     df['err_fuente'] = df.siif_fuente != df.icaro_fuente
-    #     df['err_cta_cte'] = df.siif_cta_cte != df.icaro_cta_cte
-    #     df['err_cuit'] = df.siif_cuit != df.icaro_cuit
-    #     df = df.loc[:, ['ejercicio',
-    #         'siif_nro_fondo', 'icaro_nro_fondo', 'err_nro_fondo',
-    #         'siif_mes_pa6', 'icaro_mes_pa6', 'err_mes_pa6',
-    #         'siif_importe_pa6', 'icaro_importe_pa6', 'err_importe_pa6',
-    #         'siif_nro_reg', 'icaro_nro_reg', 'err_nro_reg',
-    #         'siif_mes_reg', 'icaro_mes_reg', 'err_mes_reg',
-    #         'siif_importe_reg', 'icaro_importe_reg', 'err_importe_reg',
-    #         'siif_tipo', 'icaro_tipo', 'err_tipo',
-    #         'siif_fuente', 'icaro_fuente', 'err_fuente',
-    #         'siif_cta_cte', 'icaro_cta_cte', 'err_cta_cte',
-    #         'siif_cuit', 'icaro_cuit', 'err_cuit'
-    #     ]]
-    #     df = df.loc[(
-    #         df.err_nro_fondo + df.err_mes_pa6 + df.err_importe_pa6 +
-    #         df.err_nro_reg + df.err_mes_reg + df.err_importe_reg +
-    #         df.err_fuente + df.err_tipo + df.err_cta_cte +
-    #         df.err_cuit
-    #     ) > 0]
-    #     df = df.sort_values(
-    #         by=['err_nro_fondo','err_importe_pa6',
-    #         'err_nro_reg', 'err_importe_reg',
-    #         'err_fuente', 'err_cta_cte', 'err_cuit',
-    #         'err_tipo', 'err_mes_pa6', 'err_mes_reg'],
-    #         ascending=False
-    #     )
-    #     return df
+            df = pd.merge(
+                siif_fdos,
+                siif_gtos,
+                how="left",
+                on=["ejercicio", "siif_nro_fondo"],
+                copy=False,
+            )
+            df = pd.merge(
+                df,
+                icaro_pa6,
+                how="outer",
+                left_on="siif_nro_fondo",
+                right_on="icaro_nro_fondo",
+            )
+            df = pd.merge(
+                df,
+                icaro_reg,
+                how="left",
+                left_on=["ejercicio", "siif_nro_reg"],
+                right_on=["ejercicio", "icaro_nro_reg"],
+            )
+            df = df.fillna(0)
+            df["err_nro_fondo"] = df.siif_nro_fondo != df.icaro_nro_fondo
+            df["err_mes_pa6"] = df.siif_mes_pa6 != df.icaro_mes_pa6
+            df["siif_importe_pa6"] = df["siif_importe_pa6"].fillna(0)
+            df["icaro_importe_pa6"] = df["icaro_importe_pa6"].fillna(0)
+            df["err_importe_pa6"] = (df.siif_importe_pa6 - df.icaro_importe_pa6).abs()
+            df["err_importe_pa6"] = df["err_importe_pa6"] > 0.1
+            # df['err_importe_pa6'] = ~np.isclose((df.siif_importe_pa6 - df.icaro_importe_pa6), 0)
+            df["err_nro_reg"] = df.siif_nro_reg != df.icaro_nro_reg
+            df["err_mes_reg"] = df.siif_mes_reg != df.icaro_mes_reg
+            df["siif_importe_reg"] = df["siif_importe_reg"].fillna(0)
+            df["icaro_importe_reg"] = df["icaro_importe_reg"].fillna(0)
+            df["err_importe_reg"] = (df.siif_importe_reg - df.icaro_importe_reg).abs()
+            df["err_importe_reg"] = df["err_importe_reg"] > 0.1
+            # df['err_importe_reg'] = ~np.isclose((df.siif_importe_reg - df.icaro_importe_reg), 0)
+            df["err_tipo"] = df.siif_tipo != df.icaro_tipo
+            df["err_fuente"] = df.siif_fuente != df.icaro_fuente
+            df["err_cta_cte"] = df.siif_cta_cte != df.icaro_cta_cte
+            df["err_cuit"] = df.siif_cuit != df.icaro_cuit
+            cols = list(ControlPa6Report.model_fields.keys())
+            df = df[cols]
+            # df = df.loc[
+            #     :,
+            #     [
+            #         "ejercicio",
+            #         "siif_nro_fondo",
+            #         "icaro_nro_fondo",
+            #         "err_nro_fondo",
+            #         "siif_mes_pa6",
+            #         "icaro_mes_pa6",
+            #         "err_mes_pa6",
+            #         "siif_importe_pa6",
+            #         "icaro_importe_pa6",
+            #         "err_importe_pa6",
+            #         "siif_nro_reg",
+            #         "icaro_nro_reg",
+            #         "err_nro_reg",
+            #         "siif_mes_reg",
+            #         "icaro_mes_reg",
+            #         "err_mes_reg",
+            #         "siif_importe_reg",
+            #         "icaro_importe_reg",
+            #         "err_importe_reg",
+            #         "siif_tipo",
+            #         "icaro_tipo",
+            #         "err_tipo",
+            #         "siif_fuente",
+            #         "icaro_fuente",
+            #         "err_fuente",
+            #         "siif_cta_cte",
+            #         "icaro_cta_cte",
+            #         "err_cta_cte",
+            #         "siif_cuit",
+            #         "icaro_cuit",
+            #         "err_cuit",
+            #     ],
+            # ]
+            df = df.loc[
+                (
+                    df.err_nro_fondo
+                    + df.err_mes_pa6
+                    + df.err_importe_pa6
+                    + df.err_nro_reg
+                    + df.err_mes_reg
+                    + df.err_importe_reg
+                    + df.err_fuente
+                    + df.err_tipo
+                    + df.err_cta_cte
+                    + df.err_cuit
+                )
+                > 0
+            ]
+            df = df.sort_values(
+                by=[
+                    "err_nro_fondo",
+                    "err_importe_pa6",
+                    "err_nro_reg",
+                    "err_importe_reg",
+                    "err_fuente",
+                    "err_cta_cte",
+                    "err_cuit",
+                    "err_tipo",
+                    "err_mes_pa6",
+                    "err_mes_reg",
+                ],
+                ascending=False,
+            )
+            # 🔹 Validar datos usando Pydantic
+            validate_and_errors = validate_and_extract_data_from_df(
+                dataframe=df, model=ControlPa6Report, field_id="siif_nro_fondo"
+            )
+            return_schema = await sync_validated_to_repository(
+                repository=self.control_pa6_repo,
+                validation=validate_and_errors,
+                delete_filter={"ejercicio": params.ejercicio},
+                title="Control de PA6 ICARO vs SIIF",
+                logger=logger,
+                label=f"Control de PA6 ICARO vs SIIF ejercicio {params.ejercicio}",
+            )
+        except ValidationError as e:
+            logger.error(f"Validation Error: {e}")
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid response format from Control PA6 ICARO vs SIIF",
+            )
+        except Exception as e:
+            logger.error(f"Error in compute_control_pa6: {e}")
+            raise HTTPException(
+                status_code=500,
+                detail="Error in compute_control_pa6",
+            )
+        finally:
+            return return_schema
+
+    # -------------------------------------------------
+    async def get_control_pa6_from_db(
+        self, params: BaseFilterParams
+    ) -> List[ControlPa6Document]:
+        try:
+            return await self.control_pa6_repo.find_with_filter_params(params=params)
+        except Exception as e:
+            logger.error(f"Error retrieving Icaro's Control de PA6 from database: {e}")
+            raise HTTPException(
+                status_code=500,
+                detail="Error retrieving Icaro's Control de PA6 from the database",
+            )
 
 
 IcaroVsSIIFServiceDependency = Annotated[IcaroVsSIIFService, Depends()]

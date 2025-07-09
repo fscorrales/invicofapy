@@ -37,6 +37,7 @@ COLLECTIONS = [
     "sscc_ctas_ctes",
     "icaro_vs_siif_control_anual",
     "icaro_vs_siif_control_comprobantes",
+    "icaro_vs_siif_control_pa6",
 ]
 
 

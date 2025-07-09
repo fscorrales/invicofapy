@@ -6,6 +6,9 @@ __all__ = [
     "ControlComprobantesReport",
     "ControlComprobantesDocument",
     "ControlComprobantesFilter",
+    "ControlPa6Report",
+    "ControlPa6Document",
+    "ControlPa6Filter",
 ]
 
 from datetime import date
@@ -96,3 +99,48 @@ class ControlComprobantesDocument(ControlComprobantesReport):
 class ControlComprobantesFilter(BaseFilterParams):
     ejercicio: Optional[int] = None
     fuente: Optional[int] = None
+
+
+# -------------------------------------------------
+class ControlPa6Report(BaseModel):
+    ejercicio: int
+    siif_nro_fondo: Optional[str] = None
+    icaro_nro_fondo: Optional[str] = None
+    err_nro_fondo: bool
+    siif_mes_pa6: Optional[str] = None
+    icaro_mes_pa6: Optional[str] = None
+    err_mes_pa6: bool
+    siif_importe_pa6: Optional[float] = None
+    icaro_importe_pa6: Optional[float] = None
+    err_importe_pa6: bool
+    siif_nro_reg: Optional[str] = None
+    icaro_nro_reg: Optional[str] = None
+    err_nro_reg: bool
+    siif_mes_reg: Optional[str] = None
+    icaro_mes_reg: Optional[str] = None
+    err_mes_reg: bool
+    siif_importe_reg: Optional[float] = None
+    icaro_importe_reg: Optional[float] = None
+    err_importe_reg: bool
+    siif_tipo: Optional[str] = None
+    icaro_tipo: Optional[str] = None
+    err_tipo: bool
+    siif_fuente: Optional[str] = None
+    icaro_fuente: Optional[str] = None
+    err_fuente: bool
+    siif_cta_cte: Optional[str] = (None,)
+    icaro_cta_cte: Optional[str] = (None,)
+    err_cta_cte: bool
+    siif_cuit: Optional[str] = (None,)
+    icaro_cuit: Optional[str] = (None,)
+    err_cuit: bool
+
+
+# -------------------------------------------------
+class ControlPa6Document(ControlPa6Report):
+    id: PydanticObjectId = Field(alias="_id")
+
+
+# -------------------------------------------------
+class ControlPa6Filter(BaseFilterParams):
+    ejercicio: Optional[int] = None
