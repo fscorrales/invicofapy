@@ -20,6 +20,7 @@ class BaseAppSettings(BaseSettings):
     ADMIN_PASSWORD: str | None = None
     DB_URI: str = "mongodb://127.0.0.1:27017/invico"
     MONGO_DB_NAME: str = "invico"
+    GOOGLE_CREDENTIALS: str | None = None  # JSON credentials for Google Sheets
     JWT_SECRET: str = "super_secret_key"
     # Otros valores opcionales...
     # HOST_URL: str = "localhost"
