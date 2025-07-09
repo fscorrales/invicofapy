@@ -200,6 +200,85 @@ class IcaroVsSIIFService:
         finally:
             return return_schema
 
+    # -------------------------------------------------
+    async def export_all_from_db(
+        self, upload_to_google_sheets: bool = True
+    ) -> StreamingResponse:
+        try:
+            # 1️⃣ Obtenemos los documentos
+            control_anual_docs = await self.control_anual_repo.get_all()
+            control_comprobantes_docs = await self.control_comprobantes_repo.get_all()
+
+            if not control_anual_docs and not control_comprobantes_docs:
+                raise HTTPException(
+                    status_code=404, detail="No se encontraron registros"
+                )
+
+            # 2️⃣ Convertimos a DataFrame
+            control_anual_df = (
+                sanitize_dataframe_for_json(
+                    pd.DataFrame([doc.model_dump() for doc in control_anual_docs])
+                )
+                if control_anual_docs
+                else pd.DataFrame()
+            )
+            control_comprobantes_df = (
+                sanitize_dataframe_for_json(
+                    pd.DataFrame(
+                        [doc.model_dump() for doc in control_comprobantes_docs]
+                    )
+                )
+                if control_comprobantes_docs
+                else pd.DataFrame()
+            )
+
+            # 3️⃣ Subimos a Google Sheets si se solicita
+            if upload_to_google_sheets:
+                gs_service = GoogleSheets()
+                if not control_anual_df.empty:
+                    await gs_service.to_google_sheets(
+                        df=control_anual_df,
+                        spreadsheet_key="1KKeeoop_v_Nf21s7eFp4sS6SmpxRZQ9DPa1A5wVqnZ0",
+                        worksheet_name="control_ejecucion_anual_db",
+                    )
+                if not control_comprobantes_df.empty:
+                    await gs_service.to_google_sheets(
+                        df=control_comprobantes_df,
+                        spreadsheet_key="1KKeeoop_v_Nf21s7eFp4sS6SmpxRZQ9DPa1A5wVqnZ0",
+                        worksheet_name="control_comprobantes_db",
+                    )
+
+            # 4️⃣ Escribimos a un buffer Excel en memoria
+            buffer = BytesIO()
+            with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
+                if not control_anual_df.empty:
+                    control_anual_df.to_excel(
+                        writer, index=False, sheet_name="control_ejecucion_anual"
+                    )
+                if not control_comprobantes_df.empty:
+                    control_comprobantes_df.to_excel(
+                        writer, index=False, sheet_name="control_comprobantes"
+                    )
+
+            buffer.seek(0)
+
+            # 5️⃣ Devolvemos StreamingResponse
+            file_name = "icaro_vs_siif.xlsx"
+            headers = {"Content-Disposition": f'attachment; filename="{file_name}"'}
+            return StreamingResponse(
+                buffer,
+                media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                headers=headers,
+            )
+        except Exception as e:
+            logger.error(
+                f"Error retrieving Icaro's Control de Ejecución Anual from database: {e}"
+            )
+            raise HTTPException(
+                status_code=500,
+                detail="Error retrieving Icaro's Control de Ejecución Anual from the database",
+            )
+
     # --------------------------------------------------
     async def get_icaro_carga(self, ejercicio: int = None) -> pd.DataFrame:
         """
@@ -409,7 +488,7 @@ class IcaroVsSIIFService:
     # -------------------------------------------------
     async def export_control_anual_from_db(
         self, upload_to_google_sheets: bool = True
-    ) -> List[ControlAnualDocument]:
+    ) -> StreamingResponse:
         try:
             # 1️⃣ Obtenemos los documentos
             docs = await self.control_anual_repo.get_all()
@@ -429,13 +508,13 @@ class IcaroVsSIIFService:
                 await gs_service.to_google_sheets(
                     df=df,
                     spreadsheet_key="1KKeeoop_v_Nf21s7eFp4sS6SmpxRZQ9DPa1A5wVqnZ0",
-                    worksheet_name="control_ejecutivo_anual_db",
+                    worksheet_name="control_ejecucion_anual_db",
                 )
 
             # 4️⃣ Escribimos a un buffer Excel en memoria
             buffer = BytesIO()
             with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
-                df.to_excel(writer, index=False, sheet_name="control_ejecutivo_anual")
+                df.to_excel(writer, index=False, sheet_name="control_ejecucion_anual")
 
             buffer.seek(0)
 

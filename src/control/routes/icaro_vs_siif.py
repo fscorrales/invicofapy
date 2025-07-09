@@ -45,6 +45,21 @@ async def compute_all(
 
 
 # -------------------------------------------------
+@icaro_vs_siif_router.get(
+    "/export",
+    summary="Descarga todos los controles como archivo .xlsx y exporta a Google Sheets",
+    response_description="Archivo Excel con los registros solicitados",
+)
+async def export_all_from_db(
+    service: IcaroVsSIIFServiceDependency,
+    upload_to_google_sheets: bool = Query(True, alias="uploadToGoogleSheets"),
+):
+    return await service.export_all_from_db(
+        upload_to_google_sheets=upload_to_google_sheets
+    )
+
+
+# -------------------------------------------------
 @icaro_vs_siif_router.post("/control_anual/compute", response_model=RouteReturnSchema)
 async def compute_control_anual(
     service: IcaroVsSIIFServiceDependency,
@@ -80,25 +95,25 @@ async def export_control_anual_from_db(
     )
 
 
-# -------------------------------------------------
-@icaro_vs_siif_router.post(
-    "/control_comprobantes/compute", response_model=RouteReturnSchema
-)
-async def compute_control_comprobantes(
-    service: IcaroVsSIIFServiceDependency,
-    params: Annotated[ControlCompletoParams, Depends()],
-):
-    return await service.compute_control_comprobantes(params=params)
+# # -------------------------------------------------
+# @icaro_vs_siif_router.post(
+#     "/control_comprobantes/compute", response_model=RouteReturnSchema
+# )
+# async def compute_control_comprobantes(
+#     service: IcaroVsSIIFServiceDependency,
+#     params: Annotated[ControlCompletoParams, Depends()],
+# ):
+#     return await service.compute_control_comprobantes(params=params)
 
 
-# -------------------------------------------------
-@icaro_vs_siif_router.get(
-    "/control_comprobantes/get_from_db",
-    response_model=List[ControlComprobantesDocument],
-)
-async def get_control_comprobantes_from_db(
-    service: IcaroVsSIIFServiceDependency,
-    params: Annotated[ControlComprobantesFilter, Depends()],
-):
-    apply_auto_filter(params=params)
-    return await service.get_control_comprobantes_from_db(params=params)
+# # -------------------------------------------------
+# @icaro_vs_siif_router.get(
+#     "/control_comprobantes/get_from_db",
+#     response_model=List[ControlComprobantesDocument],
+# )
+# async def get_control_comprobantes_from_db(
+#     service: IcaroVsSIIFServiceDependency,
+#     params: Annotated[ControlComprobantesFilter, Depends()],
+# ):
+#     apply_auto_filter(params=params)
+#     return await service.get_control_comprobantes_from_db(params=params)
