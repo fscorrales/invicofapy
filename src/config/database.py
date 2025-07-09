@@ -6,7 +6,7 @@ from fastapi.encoders import jsonable_encoder
 from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel
 
-from ..utils import BaseFilterParams, parse_filter_keys
+from ..utils.query_filter import BaseFilterParams, parse_filter_keys
 from .__base_config import settings
 
 ModelType = TypeVar("ModelType", bound=BaseModel)

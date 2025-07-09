@@ -1,6 +1,6 @@
 from typing import Annotated, List
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from ...auth.services import OptionalAuthorizationDependency
 from ...config import settings
@@ -63,6 +63,21 @@ async def get_control_anual_from_db(
 ):
     apply_auto_filter(params=params)
     return await service.get_control_anual_from_db(params=params)
+
+
+# -------------------------------------------------
+@icaro_vs_siif_router.get(
+    "/control_anual/export",
+    summary="Descarga el Control Anual como archivo .xlsx y exporta a Google Sheets",
+    response_description="Archivo Excel con los registros solicitados",
+)
+async def export_control_anual_from_db(
+    service: IcaroVsSIIFServiceDependency,
+    upload_to_google_sheets: bool = Query(True, alias="uploadToGoogleSheets"),
+):
+    return await service.export_control_anual_from_db(
+        upload_to_google_sheets=upload_to_google_sheets
+    )
 
 
 # -------------------------------------------------

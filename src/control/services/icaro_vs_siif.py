@@ -18,10 +18,12 @@ __all__ = ["IcaroVsSIIFService", "IcaroVsSIIFServiceDependency"]
 import datetime as dt
 import os
 from dataclasses import dataclass, field
+from io import BytesIO
 from typing import Annotated, List, Union
 
 import pandas as pd
 from fastapi import Depends, HTTPException
+from fastapi.responses import StreamingResponse
 from playwright.async_api import async_playwright
 from pydantic import ValidationError
 
@@ -45,8 +47,10 @@ from ...siif.repositories import (
 from ...siif.schemas import GrupoPartidaSIIF
 from ...utils import (
     BaseFilterParams,
+    GoogleSheets,
     RouteReturnSchema,
     get_r_icaro_path,
+    sanitize_dataframe_for_json,
     sync_validated_to_repository,
     validate_and_extract_data_from_df,
 )
@@ -393,6 +397,56 @@ class IcaroVsSIIFService:
     ) -> List[ControlAnualDocument]:
         try:
             return await self.control_anual_repo.find_with_filter_params(params=params)
+        except Exception as e:
+            logger.error(
+                f"Error retrieving Icaro's Control de Ejecución Anual from database: {e}"
+            )
+            raise HTTPException(
+                status_code=500,
+                detail="Error retrieving Icaro's Control de Ejecución Anual from the database",
+            )
+
+    # -------------------------------------------------
+    async def export_control_anual_from_db(
+        self, upload_to_google_sheets: bool = True
+    ) -> List[ControlAnualDocument]:
+        try:
+            # 1️⃣ Obtenemos los documentos
+            docs = await self.control_anual_repo.get_all()
+
+            if not docs:
+                raise HTTPException(
+                    status_code=404, detail="No se encontraron registros"
+                )
+
+            # 2️⃣ Convertimos a DataFrame
+            df = pd.DataFrame([doc.model_dump() for doc in docs])
+            df = sanitize_dataframe_for_json(df)
+
+            # 3️⃣ Subimos a Google Sheets si se solicita
+            if upload_to_google_sheets:
+                gs_service = GoogleSheets()
+                await gs_service.to_google_sheets(
+                    df=df,
+                    spreadsheet_key="1KKeeoop_v_Nf21s7eFp4sS6SmpxRZQ9DPa1A5wVqnZ0",
+                    worksheet_name="control_ejecutivo_anual_db",
+                )
+
+            # 4️⃣ Escribimos a un buffer Excel en memoria
+            buffer = BytesIO()
+            with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
+                df.to_excel(writer, index=False, sheet_name="control_ejecutivo_anual")
+
+            buffer.seek(0)
+
+            # 5️⃣ Devolvemos StreamingResponse
+            file_name = "icaro_vs_siif_control_anual.xlsx"
+            headers = {"Content-Disposition": f'attachment; filename="{file_name}"'}
+            return StreamingResponse(
+                buffer,
+                media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                headers=headers,
+            )
         except Exception as e:
             logger.error(
                 f"Error retrieving Icaro's Control de Ejecución Anual from database: {e}"

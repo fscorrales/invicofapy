@@ -20,6 +20,7 @@ fastapi-jwt = {extras = ["authlib"], version = "^0.3.0"}
 passlib = {extras = ["bcrypt"], version = "^1.7.4"}
 pydantic-mongo = "^3.1.0"
 pywinauto = "^0.6.9"
+gspread = "^6.2.1"
 
 
 [tool.poetry.group.dev.dependencies]
