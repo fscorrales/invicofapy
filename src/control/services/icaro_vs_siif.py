@@ -15,11 +15,10 @@ Data required:
 
 __all__ = ["IcaroVsSIIFService", "IcaroVsSIIFServiceDependency"]
 
-import datetime as dt
 import os
 from dataclasses import dataclass, field
 from io import BytesIO
-from typing import Annotated, List, Union
+from typing import Annotated, List
 
 import pandas as pd
 from fastapi import Depends, HTTPException
@@ -29,7 +28,8 @@ from pydantic import ValidationError
 
 from ...config import logger
 from ...icaro.handlers import IcaroMongoMigrator
-from ...icaro.repositories import CargaRepositoryDependency
+
+# from ...icaro.repositories import CargaRepositoryDependency
 from ...siif.handlers import (
     JoinComprobantesGtosGpoPart,
     Rcg01Uejp,
@@ -40,11 +40,12 @@ from ...siif.handlers import (
     login,
     logout,
 )
-from ...siif.repositories import (
-    Rf602RepositoryDependency,
-    Rf610RepositoryDependency,
-    Rfondo07tpRepositoryDependency,
-)
+
+# from ...siif.repositories import (
+#     Rf602RepositoryDependency,
+#     Rf610RepositoryDependency,
+#     Rfondo07tpRepositoryDependency,
+# )
 from ...siif.schemas import GrupoPartidaSIIF, TipoComprobanteSIIF
 from ...utils import (
     BaseFilterParams,
@@ -83,15 +84,15 @@ class IcaroVsSIIFService:
     control_anual_repo: ControlAnualRepositoryDependency
     control_comprobantes_repo: ControlComprobantesRepositoryDependency
     control_pa6_repo: ControlPa6RepositoryDependency
-    siif_rf602_repo: Rf602RepositoryDependency
+    # siif_rf602_repo: Rf602RepositoryDependency
     siif_rf602_handler: Rf602 = field(init=False)  # No se pasa como argumento
-    siif_rf610_repo: Rf610RepositoryDependency
+    # siif_rf610_repo: Rf610RepositoryDependency
     siif_rf610_handler: Rf610 = field(init=False)  # No se pasa como argumento
     siif_rcg01_uejp_handler: Rcg01Uejp = field(init=False)  # No se pasa como argumento
     siif_rpa03g_handler: Rpa03g = field(init=False)  # No se pasa como argumento
-    siif_rfondo07tp_repo: Rfondo07tpRepositoryDependency
+    # siif_rfondo07tp_repo: Rfondo07tpRepositoryDependency
     siif_rfondo07tp_handler: Rfondo07tp = field(init=False)  # No se pasa como argumento
-    icaro_carga_repo: CargaRepositoryDependency
+    # icaro_carga_repo: CargaRepositoryDependency
 
     # -------------------------------------------------
     async def sync_icaro_vs_siif_from_source(
