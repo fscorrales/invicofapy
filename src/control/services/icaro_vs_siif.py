@@ -214,8 +214,9 @@ class IcaroVsSIIFService:
             # 1️⃣ Obtenemos los documentos
             control_anual_docs = await self.control_anual_repo.get_all()
             control_comprobantes_docs = await self.control_comprobantes_repo.get_all()
+            control_pa6_repo = await self.control_pa6_repo.get_all()
 
-            if not control_anual_docs and not control_comprobantes_docs:
+            if not control_anual_docs and not control_comprobantes_docs and not control_pa6_repo:
                 raise HTTPException(
                     status_code=404, detail="No se encontraron registros"
                 )
@@ -233,6 +234,11 @@ class IcaroVsSIIFService:
                     pd.DataFrame(control_comprobantes_docs)
                 )
                 if control_comprobantes_docs
+                else pd.DataFrame()
+            )
+            control_pa6_df = (
+                sanitize_dataframe_for_json(pd.DataFrame(control_pa6_repo))
+                if control_pa6_repo
                 else pd.DataFrame()
             )
 
@@ -253,6 +259,13 @@ class IcaroVsSIIFService:
                         spreadsheet_key="1KKeeoop_v_Nf21s7eFp4sS6SmpxRZQ9DPa1A5wVqnZ0",
                         wks_name="control_comprobantes_db",
                     )
+                if not control_pa6_df.empty:
+                    control_pa6_df.drop(columns=['_id'], inplace=True)
+                    gs_service.to_google_sheets(
+                        df=control_pa6_df,
+                        spreadsheet_key="1KKeeoop_v_Nf21s7eFp4sS6SmpxRZQ9DPa1A5wVqnZ0",
+                        wks_name="control_pa6_db",
+                    )
 
             # 4️⃣ Escribimos a un buffer Excel en memoria
             buffer = BytesIO()
@@ -264,6 +277,10 @@ class IcaroVsSIIFService:
                 if not control_comprobantes_df.empty:
                     control_comprobantes_df.to_excel(
                         writer, index=False, sheet_name="control_comprobantes"
+                    )
+                if not control_pa6_df.empty:
+                    control_pa6_df.to_excel(
+                        writer, index=False, sheet_name="control_pa6"
                     )
 
             buffer.seek(0)
@@ -350,7 +367,7 @@ class IcaroVsSIIFService:
         """
         try:
             filters = {
-                "$tipo_comprobante": TipoComprobanteSIIF.adelanto_contratista.value
+                "tipo_comprobante": TipoComprobanteSIIF.adelanto_contratista.value
             }
             if ejercicio is not None:
                 filters["ejercicio"] = ejercicio
@@ -719,13 +736,14 @@ class IcaroVsSIIFService:
     async def compute_control_pa6(
         self, params: ControlCompletoParams
     ) -> RouteReturnSchema:
+        return_schema = []
         try:
             siif_fdos = await self.get_siif_rfondo07tp(ejercicio=params.ejercicio)
             siif_fdos = siif_fdos.loc[
                 :, ["ejercicio", "nro_fondo", "mes", "ingresos", "saldo"]
             ]
             siif_fdos["nro_fondo"] = (
-                siif_fdos["nro_fondo"].str.zfill(5) + "/" + siif_fdos.ejercicio.str[-2:]
+                siif_fdos["nro_fondo"].str.zfill(5) + "/" + siif_fdos.ejercicio.astype(str)[-2:]
             )
             siif_fdos = siif_fdos.rename(
                 columns={
@@ -750,7 +768,7 @@ class IcaroVsSIIFService:
             siif_gtos = siif_gtos.loc[siif_gtos["clase_reg"] == "REG"]
             siif_gtos = siif_gtos.loc[:, select + ["nro_fondo", "clase_reg"]]
             siif_gtos["nro_fondo"] = (
-                siif_gtos["nro_fondo"].str.zfill(5) + "/" + siif_gtos.ejercicio.str[-2:]
+                siif_gtos["nro_fondo"].str.zfill(5) + "/" + siif_gtos.ejercicio.astype(str)[-2:]
             )
             siif_gtos = siif_gtos.rename(
                 columns={
@@ -819,6 +837,8 @@ class IcaroVsSIIFService:
                 left_on=["ejercicio", "siif_nro_reg"],
                 right_on=["ejercicio", "icaro_nro_reg"],
             )
+            logger.info(df.head())
+
             df = df.fillna(0)
             df["err_nro_fondo"] = df.siif_nro_fondo != df.icaro_nro_fondo
             df["err_mes_pa6"] = df.siif_mes_pa6 != df.icaro_mes_pa6

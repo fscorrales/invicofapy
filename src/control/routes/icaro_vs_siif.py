@@ -11,6 +11,8 @@ from ..schemas.icaro_vs_siif import (
     ControlCompletoParams,
     ControlComprobantesDocument,
     ControlComprobantesFilter,
+    ControlPa6Document,
+    ControlPa6Filter,
 )
 from ..services import IcaroVsSIIFServiceDependency
 
@@ -121,7 +123,7 @@ async def export_control_anual_from_db(
 
 # -------------------------------------------------
 @icaro_vs_siif_router.post("/control_pa6/compute", response_model=RouteReturnSchema)
-async def compute_control_comprobantes(
+async def compute_control_pa6(
     service: IcaroVsSIIFServiceDependency,
     params: Annotated[ControlCompletoParams, Depends()],
 ):
@@ -131,11 +133,11 @@ async def compute_control_comprobantes(
 # -------------------------------------------------
 @icaro_vs_siif_router.get(
     "/control_pa6/get_from_db",
-    response_model=List[ControlComprobantesDocument],
+    response_model=List[ControlPa6Document],
 )
 async def get_control_pa6_from_db(
     service: IcaroVsSIIFServiceDependency,
-    params: Annotated[ControlComprobantesFilter, Depends()],
+    params: Annotated[ControlPa6Filter, Depends()],
 ):
     apply_auto_filter(params=params)
     return await service.get_control_pa6_from_db(params=params)
