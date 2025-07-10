@@ -55,6 +55,12 @@ from ...utils import (
     sync_validated_to_repository,
     validate_and_extract_data_from_df,
 )
+from ..handlers import (
+    get_icaro_carga,
+    get_siif_desc_pres,
+    get_siif_rf602,
+    get_siif_rfondo07tp,
+)
 from ..repositories.icaro_vs_siif import (
     ControlAnualRepositoryDependency,
     ControlComprobantesRepositoryDependency,
@@ -216,23 +222,23 @@ class IcaroVsSIIFService:
             control_comprobantes_docs = await self.control_comprobantes_repo.get_all()
             control_pa6_repo = await self.control_pa6_repo.get_all()
 
-            if not control_anual_docs and not control_comprobantes_docs and not control_pa6_repo:
+            if (
+                not control_anual_docs
+                and not control_comprobantes_docs
+                and not control_pa6_repo
+            ):
                 raise HTTPException(
                     status_code=404, detail="No se encontraron registros"
                 )
 
             # 2️⃣ Convertimos a DataFrame
             control_anual_df = (
-                sanitize_dataframe_for_json(
-                    pd.DataFrame(control_anual_docs)
-                )
+                sanitize_dataframe_for_json(pd.DataFrame(control_anual_docs))
                 if control_anual_docs
                 else pd.DataFrame()
             )
             control_comprobantes_df = (
-                sanitize_dataframe_for_json(
-                    pd.DataFrame(control_comprobantes_docs)
-                )
+                sanitize_dataframe_for_json(pd.DataFrame(control_comprobantes_docs))
                 if control_comprobantes_docs
                 else pd.DataFrame()
             )
@@ -246,21 +252,21 @@ class IcaroVsSIIFService:
             if upload_to_google_sheets:
                 gs_service = GoogleSheets()
                 if not control_anual_df.empty:
-                    control_anual_df.drop(columns=['_id'], inplace=True)
+                    control_anual_df.drop(columns=["_id"], inplace=True)
                     gs_service.to_google_sheets(
                         df=control_anual_df,
                         spreadsheet_key="1KKeeoop_v_Nf21s7eFp4sS6SmpxRZQ9DPa1A5wVqnZ0",
                         wks_name="control_ejecucion_anual_db",
                     )
                 if not control_comprobantes_df.empty:
-                    control_comprobantes_df.drop(columns=['_id'], inplace=True)
+                    control_comprobantes_df.drop(columns=["_id"], inplace=True)
                     gs_service.to_google_sheets(
                         df=control_comprobantes_df,
                         spreadsheet_key="1KKeeoop_v_Nf21s7eFp4sS6SmpxRZQ9DPa1A5wVqnZ0",
                         wks_name="control_comprobantes_db",
                     )
                 if not control_pa6_df.empty:
-                    control_pa6_df.drop(columns=['_id'], inplace=True)
+                    control_pa6_df.drop(columns=["_id"], inplace=True)
                     gs_service.to_google_sheets(
                         df=control_pa6_df,
                         spreadsheet_key="1KKeeoop_v_Nf21s7eFp4sS6SmpxRZQ9DPa1A5wVqnZ0",
@@ -302,27 +308,25 @@ class IcaroVsSIIFService:
                 detail="Error retrieving Icaro's Control de Ejecución Anual from the database",
             )
 
-    # --------------------------------------------------
-    async def get_icaro_carga(self, ejercicio: int = None) -> pd.DataFrame:
-        """
-        Get the icaro_carga data from the repository.
-        """
-        try:
-            filters = {
-                "tipo__ne": "PA6",
-            }
-            if ejercicio is not None:
-                filters["ejercicio"] = ejercicio
-            docs = await self.icaro_carga_repo.find_by_filter(filters=filters)
-            df = pd.DataFrame(docs)
-            df["estructura"] = df.actividad + "-" + df.partida
-            return df
-        except Exception as e:
-            logger.error(f"Error retrieving Icaro's Carga Data from database: {e}")
-            raise HTTPException(
-                status_code=500,
-                detail="Error retrieving Icaro's Carga Data from the database",
-            )
+    # # --------------------------------------------------
+    # async def get_icaro_carga(
+    #     self, ejercicio: int = None, filters: dict = {}
+    # ) -> pd.DataFrame:
+    #     """
+    #     Get the icaro_carga data from the repository.
+    #     """
+    #     try:
+    #         if ejercicio is not None:
+    #             filters["ejercicio"] = ejercicio
+    #         docs = await self.icaro_carga_repo.find_by_filter(filters=filters)
+    #         df = pd.DataFrame(docs)
+    #         return df
+    #     except Exception as e:
+    #         logger.error(f"Error retrieving Icaro's Carga Data from database: {e}")
+    #         raise HTTPException(
+    #             status_code=500,
+    #             detail="Error retrieving Icaro's Carga Data from the database",
+    #         )
 
     # --------------------------------------------------
     async def get_siif_comprobantes(self):
@@ -336,121 +340,122 @@ class IcaroVsSIIFService:
         ]
         return df
 
-    # --------------------------------------------------
-    async def get_siif_rf602(self, ejercicio: int = None) -> pd.DataFrame:
-        """
-        Get the rf602 data from the repository.
-        """
-        try:
-            filters = {
-                "$or": [
-                    {"partida": {"$in": ["421", "422"]}},
-                    {"estructura": "01-00-00-03-354"},
-                ]
-            }
-            if ejercicio is not None:
-                filters["ejercicio"] = ejercicio
-            docs = await self.siif_rf602_repo.find_by_filter(filters=filters)
-            df = pd.DataFrame(docs)
-            return df
-        except Exception as e:
-            logger.error(f"Error retrieving SIIF's rf602 from database: {e}")
-            raise HTTPException(
-                status_code=500,
-                detail="Error retrieving SIIF's rf602 from the database",
-            )
+    # # --------------------------------------------------
+    # async def get_siif_rf602(self, ejercicio: int = None) -> pd.DataFrame:
+    #     """
+    #     Get the rf602 data from the repository.
+    #     """
+    #     try:
+    #         filters = {
+    #             "$or": [
+    #                 {"partida": {"$in": ["421", "422"]}},
+    #                 {"estructura": "01-00-00-03-354"},
+    #             ]
+    #         }
+    #         if ejercicio is not None:
+    #             filters["ejercicio"] = ejercicio
+    #         docs = await self.siif_rf602_repo.find_by_filter(filters=filters)
+    #         df = pd.DataFrame(docs)
+    #         return df
+    #     except Exception as e:
+    #         logger.error(f"Error retrieving SIIF's rf602 from database: {e}")
+    #         raise HTTPException(
+    #             status_code=500,
+    #             detail="Error retrieving SIIF's rf602 from the database",
+    #         )
 
-    # --------------------------------------------------
-    async def get_siif_rfondo07tp(self, ejercicio: int = None) -> pd.DataFrame:
-        """
-        Get the rfondo07tp (PA6) data from the repository.
-        """
-        try:
-            filters = {
-                "tipo_comprobante": TipoComprobanteSIIF.adelanto_contratista.value
-            }
-            if ejercicio is not None:
-                filters["ejercicio"] = ejercicio
-            docs = await self.siif_rfondo07tp_repo.find_by_filter(filters=filters)
-            df = pd.DataFrame(docs)
-            return df
-        except Exception as e:
-            logger.error(f"Error retrieving SIIF's rfondo07tp (PA6) from database: {e}")
-            raise HTTPException(
-                status_code=500,
-                detail="Error retrieving SIIF's rfondo07tp (PA6) from the database",
-            )
+    # # --------------------------------------------------
+    # async def get_siif_rfondo07tp(self, ejercicio: int = None) -> pd.DataFrame:
+    #     """
+    #     Get the rfondo07tp (PA6) data from the repository.
+    #     """
+    #     try:
+    #         filters = {
+    #             "tipo_comprobante": TipoComprobanteSIIF.adelanto_contratista.value
+    #         }
+    #         if ejercicio is not None:
+    #             filters["ejercicio"] = ejercicio
+    #         docs = await self.siif_rfondo07tp_repo.find_by_filter(filters=filters)
+    #         df = pd.DataFrame(docs)
+    #         return df
+    #     except Exception as e:
+    #         logger.error(f"Error retrieving SIIF's rfondo07tp (PA6) from database: {e}")
+    #         raise HTTPException(
+    #             status_code=500,
+    #             detail="Error retrieving SIIF's rfondo07tp (PA6) from the database",
+    #         )
 
-    async def get_siif_desc_pres(
-        self, ejercicio_to: Union[int, List] = int(dt.datetime.now().year)
-    ) -> pd.DataFrame:
-        """
-        Get the rf610 data from the repository.
-        """
+    # # --------------------------------------------------
+    # async def get_siif_desc_pres(
+    #     self, ejercicio_to: Union[int, List] = int(dt.datetime.now().year)
+    # ) -> pd.DataFrame:
+    #     """
+    #     Get the rf610 data from the repository.
+    #     """
 
-        if ejercicio_to is None:
-            docs = await self.siif_rf610_repo.get_all()
-        elif isinstance(ejercicio_to, list):
-            docs = await self.siif_rf610_repo.find_by_filter(
-                filters={
-                    "ejercicio__in": ejercicio_to,
-                }
-            )
-        else:
-            docs = await self.siif_rf610_repo.find_by_filter(
-                filters={
-                    "ejercicio__lte": int(ejercicio_to),
-                }
-            )
+    #     if ejercicio_to is None:
+    #         docs = await self.siif_rf610_repo.get_all()
+    #     elif isinstance(ejercicio_to, list):
+    #         docs = await self.siif_rf610_repo.find_by_filter(
+    #             filters={
+    #                 "ejercicio__in": ejercicio_to,
+    #             }
+    #         )
+    #     else:
+    #         docs = await self.siif_rf610_repo.find_by_filter(
+    #             filters={
+    #                 "ejercicio__lte": int(ejercicio_to),
+    #             }
+    #         )
 
-        df = pd.DataFrame(docs)
-        df.sort_values(
-            by=["ejercicio", "estructura"], inplace=True, ascending=[False, True]
-        )
-        # Programas únicos
-        df_prog = df.loc[:, ["programa", "desc_programa"]]
-        df_prog.drop_duplicates(subset=["programa"], inplace=True, keep="first")
-        # Subprogramas únicos
-        df_subprog = df.loc[:, ["programa", "subprograma", "desc_subprograma"]]
-        df_subprog.drop_duplicates(
-            subset=["programa", "subprograma"], inplace=True, keep="first"
-        )
-        # Proyectos únicos
-        df_proy = df.loc[:, ["programa", "subprograma", "proyecto", "desc_proyecto"]]
-        df_proy.drop_duplicates(
-            subset=["programa", "subprograma", "proyecto"], inplace=True, keep="first"
-        )
-        # Actividades únicos
-        df_act = df.loc[
-            :,
-            [
-                "estructura",
-                "programa",
-                "subprograma",
-                "proyecto",
-                "actividad",
-                "desc_actividad",
-            ],
-        ]
-        df_act.drop_duplicates(subset=["estructura"], inplace=True, keep="first")
-        # Merge all
-        df = df_act.merge(df_prog, how="left", on="programa", copy=False)
-        df = df.merge(
-            df_subprog, how="left", on=["programa", "subprograma"], copy=False
-        )
-        df = df.merge(
-            df_proy, how="left", on=["programa", "subprograma", "proyecto"], copy=False
-        )
-        df["desc_programa"] = df.programa + " - " + df.desc_programa
-        df["desc_subprograma"] = df.subprograma + " - " + df.desc_subprograma
-        df["desc_proyecto"] = df.proyecto + " - " + df.desc_proyecto
-        df["desc_actividad"] = df.actividad + " - " + df.desc_actividad
-        df.drop(
-            labels=["programa", "subprograma", "proyecto", "actividad"],
-            axis=1,
-            inplace=True,
-        )
-        return df
+    #     df = pd.DataFrame(docs)
+    #     df.sort_values(
+    #         by=["ejercicio", "estructura"], inplace=True, ascending=[False, True]
+    #     )
+    #     # Programas únicos
+    #     df_prog = df.loc[:, ["programa", "desc_programa"]]
+    #     df_prog.drop_duplicates(subset=["programa"], inplace=True, keep="first")
+    #     # Subprogramas únicos
+    #     df_subprog = df.loc[:, ["programa", "subprograma", "desc_subprograma"]]
+    #     df_subprog.drop_duplicates(
+    #         subset=["programa", "subprograma"], inplace=True, keep="first"
+    #     )
+    #     # Proyectos únicos
+    #     df_proy = df.loc[:, ["programa", "subprograma", "proyecto", "desc_proyecto"]]
+    #     df_proy.drop_duplicates(
+    #         subset=["programa", "subprograma", "proyecto"], inplace=True, keep="first"
+    #     )
+    #     # Actividades únicos
+    #     df_act = df.loc[
+    #         :,
+    #         [
+    #             "estructura",
+    #             "programa",
+    #             "subprograma",
+    #             "proyecto",
+    #             "actividad",
+    #             "desc_actividad",
+    #         ],
+    #     ]
+    #     df_act.drop_duplicates(subset=["estructura"], inplace=True, keep="first")
+    #     # Merge all
+    #     df = df_act.merge(df_prog, how="left", on="programa", copy=False)
+    #     df = df.merge(
+    #         df_subprog, how="left", on=["programa", "subprograma"], copy=False
+    #     )
+    #     df = df.merge(
+    #         df_proy, how="left", on=["programa", "subprograma", "proyecto"], copy=False
+    #     )
+    #     df["desc_programa"] = df.programa + " - " + df.desc_programa
+    #     df["desc_subprograma"] = df.subprograma + " - " + df.desc_subprograma
+    #     df["desc_proyecto"] = df.proyecto + " - " + df.desc_proyecto
+    #     df["desc_actividad"] = df.actividad + " - " + df.desc_actividad
+    #     df.drop(
+    #         labels=["programa", "subprograma", "proyecto", "actividad"],
+    #         axis=1,
+    #         inplace=True,
+    #     )
+    #     return df
 
     # --------------------------------------------------
     async def compute_control_anual(
@@ -459,11 +464,22 @@ class IcaroVsSIIFService:
         # return_schema = RouteReturnSchema()
         try:
             group_by = ["ejercicio", "estructura", "fuente"]
-            icaro = await self.get_icaro_carga(ejercicio=params.ejercicio)
+            icaro = await get_icaro_carga(
+                ejercicio=params.ejercicio, filters={"tipo__ne": "PA6"}
+            )
+            icaro["estructura"] = icaro.actividad + "-" + icaro.partida
             icaro = icaro.groupby(group_by)["importe"].sum()
             icaro = icaro.reset_index(drop=False)
             icaro = icaro.rename(columns={"importe": "ejecucion_icaro"})
-            siif = await self.get_siif_rf602(ejercicio=params.ejercicio)
+            siif = await get_siif_rf602(
+                ejercicio=params.ejercicio,
+                filters={
+                    "$or": [
+                        {"partida": {"$in": ["421", "422"]}},
+                        {"estructura": "01-00-00-03-354"},
+                    ]
+                },
+            )
             siif = siif.loc[:, group_by + ["ordenado"]]
             siif = siif.rename(columns={"ordenado": "ejecucion_siif"})
             df = pd.merge(siif, icaro, how="outer", on=group_by, copy=False)
@@ -471,7 +487,7 @@ class IcaroVsSIIFService:
             df["diferencia"] = df["ejecucion_siif"] - df["ejecucion_icaro"]
             logger.info(df.head())
             df = df.merge(
-                await self.get_siif_desc_pres(ejercicio_to=params.ejercicio),
+                await get_siif_desc_pres(ejercicio_to=params.ejercicio),
                 how="left",
                 on="estructura",
                 copy=False,
@@ -541,7 +557,7 @@ class IcaroVsSIIFService:
 
             # 2️⃣ Convertimos a DataFrame
             df = sanitize_dataframe_for_json(pd.DataFrame(docs))
-            df = df.drop(columns=['_id'])
+            df = df.drop(columns=["_id"])
 
             # 3️⃣ Subimos a Google Sheets si se solicita
             if upload_to_google_sheets:
@@ -609,9 +625,10 @@ class IcaroVsSIIFService:
                     "partida": "siif_partida",
                 }
             )
-            icaro = await self.get_icaro_carga(ejercicio=params.ejercicio)
+            icaro = await get_icaro_carga(
+                ejercicio=params.ejercicio, filters={"tipo__ne": "PA6"}
+            )
             icaro = icaro.loc[:, select + ["tipo"]]
-            icaro = icaro.loc[icaro["tipo"] != "PA6"]
             icaro = icaro.rename(
                 columns={
                     "nro_comprobante": "icaro_nro",
@@ -657,36 +674,6 @@ class IcaroVsSIIFService:
             ]
             cols = list(ControlComprobantesReport.model_fields.keys())
             df = df[cols]
-            # df = df.loc[
-            #     :,
-            #     [
-            #         "ejercicio",
-            #         "siif_nro",
-            #         "icaro_nro",
-            #         "err_nro",
-            #         "siif_tipo",
-            #         "icaro_tipo",
-            #         "err_tipo",
-            #         "siif_fuente",
-            #         "icaro_fuente",
-            #         "err_fuente",
-            #         "siif_importe",
-            #         "icaro_importe",
-            #         "err_importe",
-            #         "siif_mes",
-            #         "icaro_mes",
-            #         "err_mes",
-            #         "siif_cta_cte",
-            #         "icaro_cta_cte",
-            #         "err_cta_cte",
-            #         "siif_cuit",
-            #         "icaro_cuit",
-            #         "err_cuit",
-            #         "siif_partida",
-            #         "icaro_partida",
-            #         "err_partida",
-            #     ],
-            # ]
 
             # 🔹 Validar datos usando Pydantic
             validate_and_errors = validate_and_extract_data_from_df(
@@ -738,12 +725,19 @@ class IcaroVsSIIFService:
     ) -> RouteReturnSchema:
         return_schema = []
         try:
-            siif_fdos = await self.get_siif_rfondo07tp(ejercicio=params.ejercicio)
+            siif_fdos = await get_siif_rfondo07tp(
+                ejercicio=params.ejercicio,
+                filters={
+                    "tipo_comprobante": TipoComprobanteSIIF.adelanto_contratista.value
+                },
+            )
             siif_fdos = siif_fdos.loc[
                 :, ["ejercicio", "nro_fondo", "mes", "ingresos", "saldo"]
             ]
             siif_fdos["nro_fondo"] = (
-                siif_fdos["nro_fondo"].str.zfill(5) + "/" + siif_fdos.ejercicio.astype(str)[-2:]
+                siif_fdos["nro_fondo"].str.zfill(5)
+                + "/"
+                + siif_fdos.ejercicio.astype(str)[-2:]
             )
             siif_fdos = siif_fdos.rename(
                 columns={
@@ -768,7 +762,9 @@ class IcaroVsSIIFService:
             siif_gtos = siif_gtos.loc[siif_gtos["clase_reg"] == "REG"]
             siif_gtos = siif_gtos.loc[:, select + ["nro_fondo", "clase_reg"]]
             siif_gtos["nro_fondo"] = (
-                siif_gtos["nro_fondo"].str.zfill(5) + "/" + siif_gtos.ejercicio.astype(str)[-2:]
+                siif_gtos["nro_fondo"].str.zfill(5)
+                + "/"
+                + siif_gtos.ejercicio.astype(str)[-2:]
             )
             siif_gtos = siif_gtos.rename(
                 columns={
@@ -783,7 +779,7 @@ class IcaroVsSIIFService:
                 }
             )
 
-            icaro = self.get_icaro_carga(ejercicio=params.ejercicio)
+            icaro = await get_icaro_carga(ejercicio=params.ejercicio)
             icaro = icaro.loc[:, select + ["tipo"]]
             icaro = icaro.rename(
                 columns={
@@ -860,42 +856,6 @@ class IcaroVsSIIFService:
             df["err_cuit"] = df.siif_cuit != df.icaro_cuit
             cols = list(ControlPa6Report.model_fields.keys())
             df = df[cols]
-            # df = df.loc[
-            #     :,
-            #     [
-            #         "ejercicio",
-            #         "siif_nro_fondo",
-            #         "icaro_nro_fondo",
-            #         "err_nro_fondo",
-            #         "siif_mes_pa6",
-            #         "icaro_mes_pa6",
-            #         "err_mes_pa6",
-            #         "siif_importe_pa6",
-            #         "icaro_importe_pa6",
-            #         "err_importe_pa6",
-            #         "siif_nro_reg",
-            #         "icaro_nro_reg",
-            #         "err_nro_reg",
-            #         "siif_mes_reg",
-            #         "icaro_mes_reg",
-            #         "err_mes_reg",
-            #         "siif_importe_reg",
-            #         "icaro_importe_reg",
-            #         "err_importe_reg",
-            #         "siif_tipo",
-            #         "icaro_tipo",
-            #         "err_tipo",
-            #         "siif_fuente",
-            #         "icaro_fuente",
-            #         "err_fuente",
-            #         "siif_cta_cte",
-            #         "icaro_cta_cte",
-            #         "err_cta_cte",
-            #         "siif_cuit",
-            #         "icaro_cuit",
-            #         "err_cuit",
-            #     ],
-            # ]
             df = df.loc[
                 (
                     df.err_nro_fondo
