@@ -198,6 +198,10 @@ class IcaroVsSIIFService:
             partial_schema = await self.compute_control_comprobantes(params=params)
             return_schema.append(partial_schema)
 
+            # 🔹 Control PA6
+            partial_schema = await self.compute_control_pa6(params=params)
+            return_schema.append(partial_schema)
+
         except ValidationError as e:
             logger.error(f"Validation Error: {e}")
             raise HTTPException(
