@@ -10,11 +10,24 @@ def sanitize_dataframe_for_json(df: pd.DataFrame) -> pd.DataFrame:
     - Reemplaza np.nan, np.inf, -np.inf con None
     - Convierte np.* types a tipos nativos de Python
     """
+    with pd.option_context("future.no_silent_downcasting", True):
+        # Reemplazar NaN e infinitos por None
+        # df_clean = df.replace([np.nan, np.inf, -np.inf], None)
+        df_clean = df.replace([np.nan, np.inf, -np.inf], None).infer_objects(
+            copy=False
+        )
+        df_clean = df_clean.astype(object).where(pd.notnull(df_clean), None)
+        # df_clean = df_clean.astype(object)
 
-    # Reemplazar NaN e infinitos por None
-    df = df.replace([np.nan, np.inf, -np.inf], None)
+        # Convertir a object donde haya valores nulos para asegurar compatibilidad
 
-    # Asegurar que todos los valores se conviertan a tipos nativos
-    df = df.applymap(lambda x: x.item() if hasattr(x, "item") else x)
+        # Convertir np.* types (como np.int64, np.float64) a sus tipos nativos
+        df_clean = df_clean.apply(
+            lambda col: col.map(lambda x: x.item() if hasattr(x, "item") else x)
+        )
+        # df_clean = df_clean.applymap(lambda x: x.item() if hasattr(x, "item") else x)
 
-    return df
+        # Convertir todo a string para evitar problemas con tipos
+        # df_clean = df_clean.astype(str)
+
+        return df_clean
