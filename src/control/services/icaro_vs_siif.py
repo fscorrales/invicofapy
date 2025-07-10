@@ -223,16 +223,14 @@ class IcaroVsSIIFService:
             # 2️⃣ Convertimos a DataFrame
             control_anual_df = (
                 sanitize_dataframe_for_json(
-                    pd.DataFrame([doc.model_dump() for doc in control_anual_docs])
+                    pd.DataFrame(control_anual_docs)
                 )
                 if control_anual_docs
                 else pd.DataFrame()
             )
             control_comprobantes_df = (
                 sanitize_dataframe_for_json(
-                    pd.DataFrame(
-                        [doc.model_dump() for doc in control_comprobantes_docs]
-                    )
+                    pd.DataFrame(control_comprobantes_docs)
                 )
                 if control_comprobantes_docs
                 else pd.DataFrame()
@@ -242,16 +240,18 @@ class IcaroVsSIIFService:
             if upload_to_google_sheets:
                 gs_service = GoogleSheets()
                 if not control_anual_df.empty:
-                    await gs_service.to_google_sheets(
+                    control_anual_df.drop(columns=['_id'], inplace=True)
+                    gs_service.to_google_sheets(
                         df=control_anual_df,
                         spreadsheet_key="1KKeeoop_v_Nf21s7eFp4sS6SmpxRZQ9DPa1A5wVqnZ0",
-                        worksheet_name="control_ejecucion_anual_db",
+                        wks_name="control_ejecucion_anual_db",
                     )
                 if not control_comprobantes_df.empty:
-                    await gs_service.to_google_sheets(
+                    control_comprobantes_df.drop(columns=['_id'], inplace=True)
+                    gs_service.to_google_sheets(
                         df=control_comprobantes_df,
                         spreadsheet_key="1KKeeoop_v_Nf21s7eFp4sS6SmpxRZQ9DPa1A5wVqnZ0",
-                        worksheet_name="control_comprobantes_db",
+                        wks_name="control_comprobantes_db",
                     )
 
             # 4️⃣ Escribimos a un buffer Excel en memoria
@@ -523,16 +523,16 @@ class IcaroVsSIIFService:
                 )
 
             # 2️⃣ Convertimos a DataFrame
-            df = pd.DataFrame([doc.model_dump() for doc in docs])
-            df = sanitize_dataframe_for_json(df)
+            df = sanitize_dataframe_for_json(pd.DataFrame(docs))
+            df = df.drop(columns=['_id'])
 
             # 3️⃣ Subimos a Google Sheets si se solicita
             if upload_to_google_sheets:
                 gs_service = GoogleSheets()
-                await gs_service.to_google_sheets(
+                gs_service.to_google_sheets(
                     df=df,
                     spreadsheet_key="1KKeeoop_v_Nf21s7eFp4sS6SmpxRZQ9DPa1A5wVqnZ0",
-                    worksheet_name="control_ejecucion_anual_db",
+                    wks_name="control_ejecucion_anual_db",
                 )
 
             # 4️⃣ Escribimos a un buffer Excel en memoria
