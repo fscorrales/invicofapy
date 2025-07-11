@@ -33,7 +33,7 @@ async def get_siif_rfondo07tp(
 
 # --------------------------------------------------
 async def get_siif_rf602(
-    self, ejercicio: int = None, filters: dict = {}
+    ejercicio: int = None, filters: dict = {}
 ) -> pd.DataFrame:
     """
     Get the rf602 data from the repository.
@@ -54,7 +54,7 @@ async def get_siif_rf602(
 
 # --------------------------------------------------
 async def get_siif_desc_pres(
-    self, ejercicio_to: Union[int, List] = int(dt.datetime.now().year)
+    ejercicio_to: Union[int, List] = int(dt.datetime.now().year)
 ) -> pd.DataFrame:
     """
     Get the rf610 data from the repository.

@@ -128,11 +128,11 @@ class ControlPa6Report(BaseModel):
     siif_fuente: Optional[str] = None
     icaro_fuente: Optional[str] = None
     err_fuente: bool
-    siif_cta_cte: Optional[str] = (None,)
-    icaro_cta_cte: Optional[str] = (None,)
+    siif_cta_cte: Optional[str] = None
+    icaro_cta_cte: Optional[str] = None
     err_cta_cte: bool
-    siif_cuit: Optional[str] = (None,)
-    icaro_cuit: Optional[str] = (None,)
+    siif_cuit: Optional[str] = None
+    icaro_cuit: Optional[str] = None
     err_cuit: bool
 
 
