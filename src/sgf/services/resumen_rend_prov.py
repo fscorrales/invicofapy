@@ -146,7 +146,7 @@ class ResumenRendProvService:
         self, params: BaseFilterParams
     ) -> List[ResumenRendProvDocument]:
         try:
-            return await self.instruments.find_with_filter_params(params=params)
+            return await self.repository.find_with_filter_params(params=params)
         except Exception as e:
             logger.error(
                 f"Error retrieving SGF's Resumen Rend Prov. from database: {e}"
