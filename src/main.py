@@ -6,9 +6,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from .auth.routes import auth_router
 from .config import Database
 from .control.routes import control_router
-from .siif.routes import siif_router
-from .sgf.routes import sgf_router
 from .icaro.routes import icaro_router
+from .sgf.routes import sgf_router
+from .siif.routes import siif_router
+from .sscc.routes import sscc_router
 
 
 @asynccontextmanager
@@ -40,6 +41,7 @@ app.include_router(auth_router)
 app.include_router(control_router)
 app.include_router(siif_router)
 app.include_router(sgf_router)
+app.include_router(sscc_router)
 app.include_router(icaro_router)
 
 
