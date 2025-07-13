@@ -36,7 +36,7 @@ async def sync_rf602_from_siif(
 # -------------------------------------------------
 @rf602_router.post("/sync_from_sqlite", response_model=RouteReturnSchema)
 async def sync_rf602_from_sqlite(
-    service: Rf602ServiceDependency = Depends(),
+    service: Rf602ServiceDependency,
     sqlite_path: str = Query(
         default=os.path.join(get_sqlite_path(), "SIIF.sqlite"),
         description="Ruta al archivo SIIF SQLite",
