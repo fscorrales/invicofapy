@@ -5,10 +5,11 @@ Purpose: Working With Files in Python
 Source: https://realpython.com/working-with-files-in-python/#:~:text=To%20get%20a%20list%20of,scandir()%20in%20Python%203.
 """
 
-__all__ = ["read_csv", "read_xls", "get_list_of_files"]
+__all__ = ["read_csv", "read_xls", "get_list_of_files", "get_df_from_sql_table"]
 
 
 import os
+import sqlite3
 
 import pandas as pd
 
@@ -82,3 +83,9 @@ def get_list_of_files(path: str, years: list[str] = None) -> list:
     print("File list to update:")
     print(file_list)
     return file_list
+
+
+# --------------------------------------------------
+def get_df_from_sql_table(sqlite_path: str, table: str) -> pd.DataFrame:
+    with sqlite3.connect(sqlite_path) as conn:
+        return pd.read_sql_query(f"SELECT * FROM {table}", conn)
