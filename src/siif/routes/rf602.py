@@ -1,13 +1,14 @@
+import os
 from io import BytesIO
 from typing import Annotated, List
 
 import pandas as pd
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 
 from ...auth.services import OptionalAuthorizationDependency
 from ...config import settings
-from ...utils import RouteReturnSchema, apply_auto_filter
+from ...utils import RouteReturnSchema, apply_auto_filter, get_sqlite_path
 from ..schemas import Rf602Document, Rf602Filter, Rf602Params
 from ..services import Rf602ServiceDependency
 
@@ -30,6 +31,19 @@ async def sync_rf602_from_siif(
     return await service.sync_rf602_from_siif(
         username=username, password=password, params=params
     )
+
+
+# -------------------------------------------------
+@rf602_router.post("/sync_from_sqlite", response_model=RouteReturnSchema)
+async def sync_rf602_from_sqlite(
+    service: Rf602ServiceDependency = Depends(),
+    sqlite_path: str = Query(
+        default=os.path.join(get_sqlite_path(), "SIIF.sqlite"),
+        description="Ruta al archivo SIIF SQLite",
+        alias="path",
+    ),
+):
+    return await service.sync_rf602_from_sqlite(sqlite_path)
 
 
 # -------------------------------------------------
