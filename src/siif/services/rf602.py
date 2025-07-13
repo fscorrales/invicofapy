@@ -1,5 +1,6 @@
 __all__ = ["Rf602Service", "Rf602ServiceDependency"]
 
+import os
 from dataclasses import dataclass, field
 from typing import Annotated, List
 
@@ -12,6 +13,8 @@ from ...config import logger
 from ...utils import (
     BaseFilterParams,
     RouteReturnSchema,
+    get_df_from_sql_table,
+    sync_validated_to_repository,
     validate_and_extract_data_from_df,
 )
 from ..handlers import Rf602
@@ -108,13 +111,55 @@ class Rf602Service:
     # -------------------------------------------------
     async def get_rf602_from_db(self, params: BaseFilterParams) -> List[Rf602Document]:
         try:
-            return await self.instruments.find_with_filter_params(params=params)
+            return await self.repository.find_with_filter_params(params=params)
         except Exception as e:
             logger.error(f"Error retrieving SIIF's rf602 from database: {e}")
             raise HTTPException(
                 status_code=500,
                 detail="Error retrieving SIIF's rf602 from the database",
             )
+
+    # -------------------------------------------------
+    async def sync_rf602_from_sqlite(self, sqlite_path: str) -> RouteReturnSchema:
+        # ✅ Validación temprana
+        if not os.path.exists(sqlite_path):
+            raise HTTPException(status_code=404, detail="Archivo SQLite no encontrado")
+
+        return_schema = RouteReturnSchema()
+        try:
+            df = get_df_from_sql_table(sqlite_path, table="ppto_gtos_fte_rf602")
+            df.rename(
+                columns={"Programa": "programa", "DescProg": "desc_programa"},
+                inplace=True,
+            )
+
+            validate_and_errors = validate_and_extract_data_from_df(
+                dataframe=df,
+                model=Rf602Report,
+                field_id="estructura",
+            )
+
+            return_schema = await sync_validated_to_repository(
+                repository=self.repository,
+                validation=validate_and_errors,
+                delete_filter={"ejercicio": {"$lt": 2024}},
+                title="Sync SIIF RF602 Report from SQLite",
+                logger=logger,
+                label="Sync SIIF RF602 Report from SQLite",
+            )
+        except ValidationError as e:
+            logger.error(f"Validation Error: {e}")
+            raise HTTPException(
+                status_code=400, detail="Invalid response format from SIIF"
+            )
+        except Exception as e:
+            logger.error(f"Error during report processing: {e}")
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid credentials or unable to authenticate",
+            )
+        finally:
+            return return_schema
 
 
 Rf602ServiceDependency = Annotated[Rf602Service, Depends()]
