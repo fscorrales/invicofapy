@@ -150,10 +150,8 @@ class Rf602(SIIFReportManager):
         """Download, process and sync the rf602 report to the repository."""
         try:
             df = get_df_from_sql_table(sqlite_path, table="ppto_gtos_fte_rf602")
-            df.rename(
-                columns={"Programa": "programa", "DescProg": "desc_programa"},
-                inplace=True,
-            )
+            df.drop(columns=["id"], inplace=True)
+            df["ejercicio"] = pd.to_numeric(df["ejercicio"], errors="coerce")
 
             validate_and_errors = validate_and_extract_data_from_df(
                 dataframe=df,
