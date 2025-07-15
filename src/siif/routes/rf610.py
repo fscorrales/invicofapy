@@ -1,10 +1,11 @@
+import os
 from typing import Annotated, List
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 
 from ...auth.services import OptionalAuthorizationDependency
 from ...config import settings
-from ...utils import RouteReturnSchema, apply_auto_filter
+from ...utils import RouteReturnSchema, apply_auto_filter, get_sqlite_path
 from ..schemas import Rf610Document, Rf610Filter, Rf610Params
 from ..services import Rf610ServiceDependency
 
@@ -28,6 +29,19 @@ async def sync_rf610_from_siif(
     )
 
 
+# -------------------------------------------------
+@rf610_router.post("/sync_from_sqlite", response_model=RouteReturnSchema)
+async def sync_rf602_from_sqlite(
+    service: Rf610ServiceDependency,
+    sqlite_path: str = Query(
+        default=os.path.join(get_sqlite_path(), "SIIF.sqlite"),
+        description="Ruta al archivo SIIF SQLite",
+        alias="path",
+    ),
+):
+    return await service.sync_rf602_from_sqlite(sqlite_path)
+
+
 @rf610_router.get("/get_from_db", response_model=List[Rf610Document])
 async def get_rf610_from_db(
     service: Rf610ServiceDependency,
@@ -35,11 +49,3 @@ async def get_rf610_from_db(
 ):
     apply_auto_filter(params=params)
     return await service.get_rf610_from_db(params=params)
-
-
-# @rf602_router.post("/download_and_update/")
-# async def siif_download(
-#     ejercicio: str,
-#     service: Rf602ServiceDependency,
-# ) -> Rf602ValidationOutput:
-#     return await service.download_and_update(ejercicio=ejercicio)

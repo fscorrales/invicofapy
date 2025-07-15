@@ -1,5 +1,6 @@
 __all__ = ["Rf610Service", "Rf610ServiceDependency"]
 
+import os
 from dataclasses import dataclass, field
 from typing import Annotated, List
 
@@ -117,6 +118,29 @@ class Rf610Service:
                 status_code=500,
                 detail="Error retrieving SIIF's rf602 from the database",
             )
+
+    # -------------------------------------------------
+    async def sync_rf610_from_sqlite(self, sqlite_path: str) -> RouteReturnSchema:
+        # ✅ Validación temprana
+        if not os.path.exists(sqlite_path):
+            raise HTTPException(status_code=404, detail="Archivo SQLite no encontrado")
+
+        return_schema = RouteReturnSchema()
+        try:
+            self.rf610.sync_validated_sqlite_to_repository(sqlite_path=sqlite_path)
+        except ValidationError as e:
+            logger.error(f"Validation Error: {e}")
+            raise HTTPException(
+                status_code=400, detail="Invalid response format from SIIF"
+            )
+        except Exception as e:
+            logger.error(f"Error during report processing: {e}")
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid credentials or unable to authenticate",
+            )
+        finally:
+            return return_schema
 
 
 Rf610ServiceDependency = Annotated[Rf610Service, Depends()]

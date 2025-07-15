@@ -18,8 +18,9 @@ import pandas as pd
 from playwright.async_api import Download, async_playwright
 
 from ...config import logger
-from ...utils.validate import (
+from ...utils import (
     RouteReturnSchema,
+    get_df_from_sql_table,
     sync_validated_to_repository,
     validate_and_extract_data_from_df,
     validate_excel_file,
@@ -146,6 +147,44 @@ class Rf610(SIIFReportManager):
             )
         except Exception as e:
             print(f"Error al descargar y sincronizar el reporte: {e}")
+
+    # --------------------------------------------------
+    async def sync_validated_sqlite_to_repository(
+        self, sqlite_path: str
+    ) -> RouteReturnSchema:
+        """Download, process and sync the rf610 report to the repository."""
+        try:
+            df = get_df_from_sql_table(sqlite_path, table="ppto_gtos_desc_rf610")
+            df.drop(columns=["id"], inplace=True)
+            df["ejercicio"] = pd.to_numeric(df["ejercicio"], errors="coerce")
+            df.rename(
+                columns={
+                    "desc_prog": "desc_programa",
+                    "desc_subprog": "desc_subprograma",
+                    "desc_proy": "desc_proyecto",
+                    "desc_act": "desc_actividad",
+                    "desc_gpo": "desc_grupo",
+                    "desc_part": "desc_partida",
+                },
+                inplace=True,
+            )
+
+            validate_and_errors = validate_and_extract_data_from_df(
+                dataframe=df,
+                model=Rf610Report,
+                field_id="estructura",
+            )
+
+            return await sync_validated_to_repository(
+                repository=Rf610Repository(),
+                validation=validate_and_errors,
+                delete_filter={"ejercicio": {"$lt": 2024}},
+                title="Sync SIIF RF610 Report from SQLite",
+                logger=logger,
+                label="Sync SIIF RF610 Report from SQLite",
+            )
+        except Exception as e:
+            print(f"Error migrar y sincronizar el reporte: {e}")
 
     # --------------------------------------------------
     async def go_to_specific_report(self) -> None:
