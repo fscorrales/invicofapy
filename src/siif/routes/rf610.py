@@ -49,3 +49,13 @@ async def get_rf610_from_db(
 ):
     apply_auto_filter(params=params)
     return await service.get_rf610_from_db(params=params)
+
+
+# -------------------------------------------------
+@rf610_router.get(
+    "/export",
+    summary="Descarga los registros rf610 como archivo .xlsx",
+    response_description="Archivo Excel con los registros solicitados",
+)
+async def export_rf610_from_db(service: Rf610ServiceDependency, ejercicio: int = None):
+    return await service.export_rf610_from_db(ejercicio)
