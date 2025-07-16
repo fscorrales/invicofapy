@@ -2,10 +2,13 @@ __all__ = ["Rf602Service", "Rf602ServiceDependency"]
 
 import os
 from dataclasses import dataclass, field
+from io import BytesIO
 from typing import Annotated, List
 
+import pandas as pd
 from fastapi import Depends, HTTPException
 from fastapi.encoders import jsonable_encoder
+from fastapi.responses import StreamingResponse
 from playwright.async_api import async_playwright
 from pydantic import ValidationError
 
@@ -13,6 +16,7 @@ from ...config import logger
 from ...utils import (
     BaseFilterParams,
     RouteReturnSchema,
+    sanitize_dataframe_for_json,
     validate_and_extract_data_from_df,
 )
 from ..handlers import Rf602
@@ -140,55 +144,54 @@ class Rf602Service:
         finally:
             return return_schema
 
-    # # -------------------------------------------------
-    # async def export_control_anual_from_db(
-    #     self, upload_to_google_sheets: bool = True, params: BaseFilterParams = None
-    # ) -> StreamingResponse:
-    #     try:
-    #         # 1️⃣ Obtenemos los documentos
-    #         docs = await self.get_rf602_from_db(params=params)
+    # -------------------------------------------------
+    async def export_rf602_from_db(self, ejercicio: int = None) -> StreamingResponse:
+        try:
+            # 1️⃣ Obtenemos los documentos
+            if ejercicio is not None:
+                docs = await self.repository.get_by_fields({"ejercicio": ejercicio})
+            else:
+                docs = await self.repository.get_all()
 
-    #         if not docs:
-    #             raise HTTPException(
-    #                 status_code=404, detail="No se encontraron registros"
-    #             )
+            if not docs:
+                raise HTTPException(
+                    status_code=404, detail="No se encontraron registros"
+                )
 
-    #         # 2️⃣ Convertimos a DataFrame
-    #         df = sanitize_dataframe_for_json(pd.DataFrame(docs))
-    #         df = df.drop(columns=["_id"])
+            # 2️⃣ Convertimos a DataFrame
+            df = sanitize_dataframe_for_json(pd.DataFrame(docs))
+            df = df.drop(columns=["_id"])
 
-    #         # 3️⃣ Subimos a Google Sheets si se solicita
-    #         if upload_to_google_sheets:
-    #             gs_service = GoogleSheets()
-    #             gs_service.to_google_sheets(
-    #                 df=df,
-    #                 spreadsheet_key="1KKeeoop_v_Nf21s7eFp4sS6SmpxRZQ9DPa1A5wVqnZ0",
-    #                 wks_name="control_ejecucion_anual_db",
-    #             )
+            # # 3️⃣ Subimos a Google Sheets si se solicita
+            # if upload_to_google_sheets:
+            #     gs_service = GoogleSheets()
+            #     gs_service.to_google_sheets(
+            #         df=df,
+            #         spreadsheet_key="1KKeeoop_v_Nf21s7eFp4sS6SmpxRZQ9DPa1A5wVqnZ0",
+            #         wks_name="control_ejecucion_anual_db",
+            #     )
 
-    #         # 4️⃣ Escribimos a un buffer Excel en memoria
-    #         buffer = BytesIO()
-    #         with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
-    #             df.to_excel(writer, index=False, sheet_name="control_ejecucion_anual")
+            # 3️⃣ Escribimos a un buffer Excel en memoria
+            buffer = BytesIO()
+            with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
+                df.to_excel(writer, index=False, sheet_name="rf602")
 
-    #         buffer.seek(0)
+            buffer.seek(0)
 
-    #         # 5️⃣ Devolvemos StreamingResponse
-    #         file_name = "icaro_vs_siif_control_anual.xlsx"
-    #         headers = {"Content-Disposition": f'attachment; filename="{file_name}"'}
-    #         return StreamingResponse(
-    #             buffer,
-    #             media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    #             headers=headers,
-    #         )
-    #     except Exception as e:
-    #         logger.error(
-    #             f"Error retrieving Icaro's Control de Ejecución Anual from database: {e}"
-    #         )
-    #         raise HTTPException(
-    #             status_code=500,
-    #             detail="Error retrieving Icaro's Control de Ejecución Anual from the database",
-    #         )
+            # 4️⃣ Devolvemos StreamingResponse
+            file_name = f"rf602_{ejercicio or 'all'}.xlsx"
+            headers = {"Content-Disposition": f'attachment; filename="{file_name}"'}
+            return StreamingResponse(
+                buffer,
+                media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                headers=headers,
+            )
+        except Exception as e:
+            logger.error(f"Error retrieving SIIF's rf602 from database: {e}")
+            raise HTTPException(
+                status_code=500,
+                detail="Error retrieving SIIF's rf602 from the database",
+            )
 
 
 Rf602ServiceDependency = Annotated[Rf602Service, Depends()]
