@@ -1,18 +1,12 @@
 from typing import Annotated, List
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 
 from ...auth.services import OptionalAuthorizationDependency
 from ...config import settings
-from ...utils import RouteReturnSchema, apply_auto_filter
+from ...utils import RouteReturnSchema
 from ..schemas.icaro_vs_siif import (
-    ControlAnualDocument,
-    ControlAnualFilter,
     ControlCompletoParams,
-    ControlComprobantesDocument,
-    ControlComprobantesFilter,
-    ControlPa6Document,
-    ControlPa6Filter,
 )
 from ..services import IcaroVsSIIFServiceDependency
 
@@ -61,40 +55,40 @@ async def export_all_from_db(
     )
 
 
-# -------------------------------------------------
-@icaro_vs_siif_router.post("/control_anual/compute", response_model=RouteReturnSchema)
-async def compute_control_anual(
-    service: IcaroVsSIIFServiceDependency,
-    params: Annotated[ControlCompletoParams, Depends()],
-):
-    return await service.compute_control_anual(params=params)
+# # -------------------------------------------------
+# @icaro_vs_siif_router.post("/control_anual/compute", response_model=RouteReturnSchema)
+# async def compute_control_anual(
+#     service: IcaroVsSIIFServiceDependency,
+#     params: Annotated[ControlCompletoParams, Depends()],
+# ):
+#     return await service.compute_control_anual(params=params)
 
 
-# -------------------------------------------------
-@icaro_vs_siif_router.get(
-    "/control_anual/get_from_db", response_model=List[ControlAnualDocument]
-)
-async def get_control_anual_from_db(
-    service: IcaroVsSIIFServiceDependency,
-    params: Annotated[ControlAnualFilter, Depends()],
-):
-    apply_auto_filter(params=params)
-    return await service.get_control_anual_from_db(params=params)
+# # -------------------------------------------------
+# @icaro_vs_siif_router.get(
+#     "/control_anual/get_from_db", response_model=List[ControlAnualDocument]
+# )
+# async def get_control_anual_from_db(
+#     service: IcaroVsSIIFServiceDependency,
+#     params: Annotated[ControlAnualFilter, Depends()],
+# ):
+#     apply_auto_filter(params=params)
+#     return await service.get_control_anual_from_db(params=params)
 
 
-# -------------------------------------------------
-@icaro_vs_siif_router.get(
-    "/control_anual/export",
-    summary="Descarga el Control Anual como archivo .xlsx y exporta a Google Sheets",
-    response_description="Archivo Excel con los registros solicitados",
-)
-async def export_control_anual_from_db(
-    service: IcaroVsSIIFServiceDependency,
-    upload_to_google_sheets: bool = Query(True, alias="uploadToGoogleSheets"),
-):
-    return await service.export_control_anual_from_db(
-        upload_to_google_sheets=upload_to_google_sheets
-    )
+# # -------------------------------------------------
+# @icaro_vs_siif_router.get(
+#     "/control_anual/export",
+#     summary="Descarga el Control Anual como archivo .xlsx y exporta a Google Sheets",
+#     response_description="Archivo Excel con los registros solicitados",
+# )
+# async def export_control_anual_from_db(
+#     service: IcaroVsSIIFServiceDependency,
+#     upload_to_google_sheets: bool = Query(True, alias="uploadToGoogleSheets"),
+# ):
+#     return await service.export_control_anual_from_db(
+#         upload_to_google_sheets=upload_to_google_sheets
+#     )
 
 
 # # -------------------------------------------------
@@ -121,26 +115,26 @@ async def export_control_anual_from_db(
 #     return await service.get_control_comprobantes_from_db(params=params)
 
 
-# -------------------------------------------------
-@icaro_vs_siif_router.post("/control_pa6/compute", response_model=RouteReturnSchema)
-async def compute_control_pa6(
-    service: IcaroVsSIIFServiceDependency,
-    params: Annotated[ControlCompletoParams, Depends()],
-):
-    return await service.compute_control_pa6(params=params)
+# # -------------------------------------------------
+# @icaro_vs_siif_router.post("/control_pa6/compute", response_model=RouteReturnSchema)
+# async def compute_control_pa6(
+#     service: IcaroVsSIIFServiceDependency,
+#     params: Annotated[ControlCompletoParams, Depends()],
+# ):
+#     return await service.compute_control_pa6(params=params)
 
 
-# -------------------------------------------------
-@icaro_vs_siif_router.get(
-    "/control_pa6/get_from_db",
-    response_model=List[ControlPa6Document],
-)
-async def get_control_pa6_from_db(
-    service: IcaroVsSIIFServiceDependency,
-    params: Annotated[ControlPa6Filter, Depends()],
-):
-    apply_auto_filter(params=params)
-    return await service.get_control_pa6_from_db(params=params)
+# # -------------------------------------------------
+# @icaro_vs_siif_router.get(
+#     "/control_pa6/get_from_db",
+#     response_model=List[ControlPa6Document],
+# )
+# async def get_control_pa6_from_db(
+#     service: IcaroVsSIIFServiceDependency,
+#     params: Annotated[ControlPa6Filter, Depends()],
+# ):
+#     apply_auto_filter(params=params)
+#     return await service.get_control_pa6_from_db(params=params)
 
 
 # # -------------------------------------------------
