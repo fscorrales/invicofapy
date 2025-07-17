@@ -37,7 +37,7 @@ from ..repositories import (
     RetencionesRepository,
     SubprogramasRepository,
 )
-from ..schemas import CargaReport
+from ..schemas import CargaReport, EstructurasReport, ProveedoresReport
 
 
 def validate_sqlite_file(path):
@@ -163,50 +163,65 @@ class IcaroMongoMigrator:
 
     # --------------------------------------------------
     async def migrate_estructuras(self):
-        await self.estructuras_repo.delete_all()
+        # await self.estructuras_repo.delete_all()
         # Programas
         df = self.from_sql("PROGRAMAS")
         df.rename(
             columns={"Programa": "estructura", "DescProg": "desc_estructura"},
             inplace=True,
         )
-        await self.estructuras_repo.save_all(df.to_dict(orient="records"))
+        # await self.estructuras_repo.save_all(df.to_dict(orient="records"))
 
         # Subprogramas
-        df = self.from_sql("SUBPROGRAMAS")
-        df.rename(
+        df_aux = self.from_sql("SUBPROGRAMAS")
+        df_aux.rename(
             columns={
                 "Subprograma": "estructura",
                 "DescSubprog": "desc_estructura",
             },
             inplace=True,
         )
-        df.drop(["Programa"], axis=1, inplace=True)
-        await self.estructuras_repo.save_all(df.to_dict(orient="records"))
+        df_aux.drop(["Programa"], axis=1, inplace=True)
+        df = pd.concat([df, df_aux], ignore_index=True)
+        # await self.estructuras_repo.save_all(df.to_dict(orient="records"))
 
         # Proyectos
-        df = self.from_sql("PROYECTOS")
-        df.rename(
+        df_aux = self.from_sql("PROYECTOS")
+        df_aux.rename(
             columns={
                 "Proyecto": "estructura",
                 "DescProy": "desc_estructura",
             },
             inplace=True,
         )
-        df.drop(["Subprograma"], axis=1, inplace=True)
-        await self.estructuras_repo.save_all(df.to_dict(orient="records"))
+        df_aux.drop(["Subprograma"], axis=1, inplace=True)
+        df = pd.concat([df, df_aux], ignore_index=True)
+        # await self.estructuras_repo.save_all(df.to_dict(orient="records"))
 
         # Actividades
-        df = self.from_sql("ACTIVIDADES")
-        df.rename(
+        df_aux = self.from_sql("ACTIVIDADES")
+        df_aux.rename(
             columns={
                 "Actividad": "estructura",
                 "DescAct": "desc_estructura",
             },
             inplace=True,
         )
-        df.drop(["Proyecto"], axis=1, inplace=True)
-        await self.estructuras_repo.save_all(df.to_dict(orient="records"))
+        df_aux.drop(["Proyecto"], axis=1, inplace=True)
+        df = pd.concat([df, df_aux], ignore_index=True)
+        # Validar datos usando Pydantic
+        validate_and_errors = validate_and_extract_data_from_df(
+            dataframe=df, model=EstructurasReport, field_id="estructura"
+        )
+        return await sync_validated_to_repository(
+            repository=self.proveedores_repo,
+            validation=validate_and_errors,
+            delete_filter=None,
+            title="ICARO Estructuras Migration",
+            logger=logger,
+            label="Tabla Estructuras de ICARO",
+        )
+        # await self.estructuras_repo.save_all(df.to_dict(orient="records"))
 
     # --------------------------------------------------
     async def migrate_ctas_ctes(self):
@@ -269,8 +284,20 @@ class IcaroMongoMigrator:
             },
             inplace=True,
         )
-        await self.proveedores_repo.delete_all()
-        await self.proveedores_repo.save_all(df.to_dict(orient="records"))
+        # Validar datos usando Pydantic
+        validate_and_errors = validate_and_extract_data_from_df(
+            dataframe=df, model=ProveedoresReport, field_id="codigo"
+        )
+        # await self.proveedores_repo.delete_all()
+        # await self.proveedores_repo.save_all(df.to_dict(orient="records"))
+        return await sync_validated_to_repository(
+            repository=self.proveedores_repo,
+            validation=validate_and_errors,
+            delete_filter=None,
+            title="ICARO Proveedores Migration",
+            logger=logger,
+            label="Tabla Proveedores de ICARO",
+        )
 
     # --------------------------------------------------
     async def migrate_obras(self):
