@@ -3,9 +3,9 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from .analisis.routes import control_router
 from .auth.routes import auth_router
 from .config import Database
-from .control.routes import control_router
 from .icaro.routes import icaro_router
 from .sgf.routes import sgf_router
 from .siif.routes import siif_router
