@@ -37,7 +37,7 @@ from ..repositories import (
     RetencionesRepository,
     SubprogramasRepository,
 )
-from ..schemas import CargaReport, EstructurasReport, ProveedoresReport
+from ..schemas import CargaReport, EstructurasReport, ObrasReport, ProveedoresReport
 
 
 def validate_sqlite_file(path):
@@ -318,8 +318,20 @@ class IcaroMongoMigrator:
             },
             inplace=True,
         )
-        await self.obras_repo.delete_all()
-        await self.obras_repo.save_all(df.to_dict(orient="records"))
+        # Validar datos usando Pydantic
+        validate_and_errors = validate_and_extract_data_from_df(
+            dataframe=df, model=ObrasReport, field_id="actividad"
+        )
+        # await self.obras_repo.delete_all()
+        # await self.obras_repo.save_all(df.to_dict(orient="records"))
+        return await sync_validated_to_repository(
+            repository=self.obras_repo,
+            validation=validate_and_errors,
+            delete_filter=None,
+            title="ICARO Obras Migration",
+            logger=logger,
+            label="Tabla OBRAS de ICARO",
+        )
 
     # --------------------------------------------------
     async def migrate_carga(self) -> RouteReturnSchema:
