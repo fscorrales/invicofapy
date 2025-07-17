@@ -57,12 +57,12 @@ from ..handlers import (
     get_siif_desc_pres,
     get_siif_rf602,
 )
-from ..repositories.icaro_vs_siif import (
+from ..repositories.control_icaro_vs_siif import (
     ControlAnualRepositoryDependency,
     ControlComprobantesRepositoryDependency,
     ControlPa6RepositoryDependency,
 )
-from ..schemas.icaro_vs_siif import (
+from ..schemas.control_icaro_vs_siif import (
     ControlAnualDocument,
     ControlAnualReport,
     ControlCompletoParams,

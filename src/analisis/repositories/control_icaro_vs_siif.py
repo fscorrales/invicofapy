@@ -9,7 +9,7 @@ from typing import Annotated
 from fastapi import Depends
 
 from ...config import BaseRepository
-from ..schemas.icaro_vs_siif import (
+from ..schemas.control_icaro_vs_siif import (
     ControlAnualReport,
     ControlComprobantesReport,
     ControlPa6Report,

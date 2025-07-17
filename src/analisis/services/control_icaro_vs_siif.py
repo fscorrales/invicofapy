@@ -13,7 +13,7 @@ Data required:
     - SSCC ctas_ctes (manual data)
 """
 
-__all__ = ["IcaroVsSIIFService", "IcaroVsSIIFServiceDependency"]
+__all__ = ["ControlIcaroVsSIIFService", "ControlIcaroVsSIIFServiceDependency"]
 
 import os
 from dataclasses import dataclass, field
@@ -62,12 +62,12 @@ from ..handlers import (
     get_siif_rf602,
     get_siif_rfondo07tp,
 )
-from ..repositories.icaro_vs_siif import (
+from ..repositories.control_icaro_vs_siif import (
     ControlAnualRepositoryDependency,
     ControlComprobantesRepositoryDependency,
     ControlPa6RepositoryDependency,
 )
-from ..schemas.icaro_vs_siif import (
+from ..schemas.control_icaro_vs_siif import (
     ControlAnualDocument,
     ControlAnualReport,
     ControlCompletoParams,
@@ -80,7 +80,7 @@ from ..schemas.icaro_vs_siif import (
 
 # --------------------------------------------------
 @dataclass
-class IcaroVsSIIFService:
+class ControlIcaroVsSIIFService:
     control_anual_repo: ControlAnualRepositoryDependency
     control_comprobantes_repo: ControlComprobantesRepositoryDependency
     control_pa6_repo: ControlPa6RepositoryDependency
@@ -603,9 +603,7 @@ class IcaroVsSIIFService:
                 :, ["ejercicio", "nro_fondo", "mes", "ingresos", "saldo"]
             ]
             siif_fdos["nro_fondo"] = (
-                siif_fdos["nro_fondo"].str.zfill(5)
-                + "/"
-                + siif_fdos.mes.str[-2:]
+                siif_fdos["nro_fondo"].str.zfill(5) + "/" + siif_fdos.mes.str[-2:]
             )
             siif_fdos = siif_fdos.rename(
                 columns={
@@ -631,9 +629,7 @@ class IcaroVsSIIFService:
             siif_gtos = siif_gtos.loc[siif_gtos["clase_reg"] == "REG"]
             siif_gtos = siif_gtos.loc[:, select + ["nro_fondo", "clase_reg"]]
             siif_gtos["nro_fondo"] = (
-                siif_gtos["nro_fondo"].str.zfill(5)
-                + "/"
-                + siif_gtos.mes.str[-2:]
+                siif_gtos["nro_fondo"].str.zfill(5) + "/" + siif_gtos.mes.str[-2:]
             )
             siif_gtos = siif_gtos.rename(
                 columns={
@@ -664,7 +660,9 @@ class IcaroVsSIIFService:
             )
 
             icaro_pa6 = icaro.loc[icaro["icaro_tipo"] == "PA6"]
-            icaro_pa6 = icaro_pa6.loc[:, ["ejercicio","icaro_mes", "icaro_nro", "icaro_importe"]]
+            icaro_pa6 = icaro_pa6.loc[
+                :, ["ejercicio", "icaro_mes", "icaro_nro", "icaro_importe"]
+            ]
             icaro_pa6 = icaro_pa6.rename(
                 columns={
                     "icaro_mes": "icaro_mes_pa6",
@@ -689,7 +687,7 @@ class IcaroVsSIIFService:
                 on=["ejercicio", "siif_nro_fondo"],
                 copy=False,
             )
-            
+
             df = pd.merge(
                 df,
                 icaro_pa6,
@@ -705,27 +703,42 @@ class IcaroVsSIIFService:
                 left_on=["ejercicio", "siif_nro_reg"],
                 right_on=["ejercicio", "icaro_nro_reg"],
             )
-            
 
             # df = df.fillna(0)
-            df["err_nro_fondo"] = (df.siif_nro_fondo != df.icaro_nro_fondo) & ~(df.siif_nro_fondo.isna() & df.icaro_nro_fondo.isna())
-            df["err_mes_pa6"] = (df.siif_mes_pa6 != df.icaro_mes_pa6) & ~(df.siif_mes_pa6.isna() & df.icaro_mes_pa6.isna())
+            df["err_nro_fondo"] = (df.siif_nro_fondo != df.icaro_nro_fondo) & ~(
+                df.siif_nro_fondo.isna() & df.icaro_nro_fondo.isna()
+            )
+            df["err_mes_pa6"] = (df.siif_mes_pa6 != df.icaro_mes_pa6) & ~(
+                df.siif_mes_pa6.isna() & df.icaro_mes_pa6.isna()
+            )
             df["siif_importe_pa6"] = df["siif_importe_pa6"].fillna(0)
             df["icaro_importe_pa6"] = df["icaro_importe_pa6"].fillna(0)
             df["err_importe_pa6"] = (df.siif_importe_pa6 - df.icaro_importe_pa6).abs()
             df["err_importe_pa6"] = df["err_importe_pa6"] > 0.1
             # df['err_importe_pa6'] = ~np.isclose((df.siif_importe_pa6 - df.icaro_importe_pa6), 0)
-            df["err_nro_reg"] = (df.siif_nro_reg != df.icaro_nro_reg) & ~(df.siif_nro_reg.isna() & df.icaro_nro_reg.isna())
-            df["err_mes_reg"] = (df.siif_mes_reg != df.icaro_mes_reg) & ~(df.siif_mes_reg.isna() & df.icaro_mes_reg.isna()) 
+            df["err_nro_reg"] = (df.siif_nro_reg != df.icaro_nro_reg) & ~(
+                df.siif_nro_reg.isna() & df.icaro_nro_reg.isna()
+            )
+            df["err_mes_reg"] = (df.siif_mes_reg != df.icaro_mes_reg) & ~(
+                df.siif_mes_reg.isna() & df.icaro_mes_reg.isna()
+            )
             df["siif_importe_reg"] = df["siif_importe_reg"].fillna(0)
             df["icaro_importe_reg"] = df["icaro_importe_reg"].fillna(0)
             df["err_importe_reg"] = (df.siif_importe_reg - df.icaro_importe_reg).abs()
             df["err_importe_reg"] = df["err_importe_reg"] > 0.1
             # df['err_importe_reg'] = ~np.isclose((df.siif_importe_reg - df.icaro_importe_reg), 0)
-            df["err_tipo"] = (df.siif_tipo != df.icaro_tipo) & ~(df.siif_tipo.isna() & df.icaro_tipo.isna())
-            df["err_fuente"] = (df.siif_fuente != df.icaro_fuente) & ~(df.siif_fuente.isna() & df.icaro_fuente.isna())
-            df["err_cta_cte"] = (df.siif_cta_cte != df.icaro_cta_cte) & ~(df.siif_cta_cte.isna() & df.icaro_cta_cte.isna())
-            df["err_cuit"] = (df.siif_cuit != df.icaro_cuit) & ~(df.siif_cuit.isna() & df.icaro_cuit.isna())
+            df["err_tipo"] = (df.siif_tipo != df.icaro_tipo) & ~(
+                df.siif_tipo.isna() & df.icaro_tipo.isna()
+            )
+            df["err_fuente"] = (df.siif_fuente != df.icaro_fuente) & ~(
+                df.siif_fuente.isna() & df.icaro_fuente.isna()
+            )
+            df["err_cta_cte"] = (df.siif_cta_cte != df.icaro_cta_cte) & ~(
+                df.siif_cta_cte.isna() & df.icaro_cta_cte.isna()
+            )
+            df["err_cuit"] = (df.siif_cuit != df.icaro_cuit) & ~(
+                df.siif_cuit.isna() & df.icaro_cuit.isna()
+            )
             cols = list(ControlPa6Report.model_fields.keys())
             df = df[cols]
             df = df.loc[
@@ -759,7 +772,7 @@ class IcaroVsSIIFService:
                 ],
                 ascending=False,
             )
-                        
+
             # 🔹 Validar datos usando Pydantic
             validate_and_errors = validate_and_extract_data_from_df(
                 dataframe=df, model=ControlPa6Report
@@ -801,4 +814,4 @@ class IcaroVsSIIFService:
             )
 
 
-IcaroVsSIIFServiceDependency = Annotated[IcaroVsSIIFService, Depends()]
+ControlIcaroVsSIIFServiceDependency = Annotated[ControlIcaroVsSIIFService, Depends()]

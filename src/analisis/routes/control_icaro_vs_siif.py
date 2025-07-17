@@ -5,19 +5,21 @@ from fastapi import APIRouter, Depends, Query
 from ...auth.services import OptionalAuthorizationDependency
 from ...config import settings
 from ...utils import RouteReturnSchema
-from ..schemas.icaro_vs_siif import (
+from ..schemas.control_icaro_vs_siif import (
     ControlCompletoParams,
 )
-from ..services import IcaroVsSIIFServiceDependency
+from ..services import ControlIcaroVsSIIFServiceDependency
 
-icaro_vs_siif_router = APIRouter(prefix="/icaro_vs_siif")
+control_icaro_vs_siif_router = APIRouter(prefix="/control_icaro_vs_siif")
 
 
 # -------------------------------------------------
-@icaro_vs_siif_router.post("/sync_from_source", response_model=List[RouteReturnSchema])
+@control_icaro_vs_siif_router.post(
+    "/sync_from_source", response_model=List[RouteReturnSchema]
+)
 async def sync_icaro_vs_siif_from_source(
     auth: OptionalAuthorizationDependency,
-    service: IcaroVsSIIFServiceDependency,
+    service: ControlIcaroVsSIIFServiceDependency,
     params: Annotated[ControlCompletoParams, Depends()],
     username: str = None,
     password: str = None,
@@ -32,22 +34,22 @@ async def sync_icaro_vs_siif_from_source(
 
 
 # -------------------------------------------------
-@icaro_vs_siif_router.post("/compute", response_model=List[RouteReturnSchema])
+@control_icaro_vs_siif_router.post("/compute", response_model=List[RouteReturnSchema])
 async def compute_all(
-    service: IcaroVsSIIFServiceDependency,
+    service: ControlIcaroVsSIIFServiceDependency,
     params: Annotated[ControlCompletoParams, Depends()],
 ):
     return await service.compute_all(params=params)
 
 
 # -------------------------------------------------
-@icaro_vs_siif_router.get(
+@control_icaro_vs_siif_router.get(
     "/export",
     summary="Descarga todos los controles como archivo .xlsx y exporta a Google Sheets",
     response_description="Archivo Excel con los registros solicitados",
 )
 async def export_all_from_db(
-    service: IcaroVsSIIFServiceDependency,
+    service: ControlIcaroVsSIIFServiceDependency,
     upload_to_google_sheets: bool = Query(True, alias="uploadToGoogleSheets"),
 ):
     return await service.export_all_from_db(
