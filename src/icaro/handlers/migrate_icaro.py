@@ -162,7 +162,7 @@ class IcaroMongoMigrator:
         await self.actividades_repo.save_all(df.to_dict(orient="records"))
 
     # --------------------------------------------------
-    async def migrate_estructuras(self):
+    async def migrate_estructuras(self) -> RouteReturnSchema:
         # await self.estructuras_repo.delete_all()
         # Programas
         df = self.from_sql("PROGRAMAS")
@@ -270,7 +270,7 @@ class IcaroMongoMigrator:
         await self.partidas_repo.save_all(df.to_dict(orient="records"))
 
     # --------------------------------------------------
-    async def migrate_proveedores(self):
+    async def migrate_proveedores(self) -> RouteReturnSchema:
         df = self.from_sql("PROVEEDORES")
         df.rename(
             columns={
@@ -300,7 +300,7 @@ class IcaroMongoMigrator:
         )
 
     # --------------------------------------------------
-    async def migrate_obras(self):
+    async def migrate_obras(self) -> RouteReturnSchema:
         df = self.from_sql("OBRAS")
         df.rename(
             columns={
