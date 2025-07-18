@@ -71,7 +71,7 @@ class ResumenRendProvService:
                     "ejercicio": params.ejercicio,
                     "origen": params.origen.value,
                 }
-                # Contar los instrumentos existentes antes de eliminarlos
+                # Contar los documentos existentes antes de eliminarlos
                 deleted_count = await self.repository.count_by_fields(delete_dict)
                 await self.repository.delete_by_fields(delete_dict)
                 # await self.collection.delete_many({"ejercicio": ejercicio})

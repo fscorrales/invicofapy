@@ -76,7 +76,7 @@ class Rcg01UejpService:
                         f"Procesado ejercicio {str(params.ejercicio)}. Errores: {len(validate_and_errors.errors)}"
                     )
                     delete_dict = {"ejercicio": params.ejercicio}
-                    # Contar los instrumentos existentes antes de eliminarlos
+                    # Contar los documentos existentes antes de eliminarlos
                     deleted_count = await self.repository.count_by_fields(delete_dict)
                     await self.repository.delete_by_fields(delete_dict)
                     # await self.collection.delete_many({"ejercicio": ejercicio})
@@ -110,7 +110,7 @@ class Rcg01UejpService:
         self, params: BaseFilterParams
     ) -> List[Rcg01UejpDocument]:
         try:
-            return await self.instruments.find_with_filter_params(params=params)
+            return await self.repository.find_with_filter_params(params=params)
         except Exception as e:
             logger.error(f"Error retrieving SIIF's rcg01_uejp from database: {e}")
             raise HTTPException(

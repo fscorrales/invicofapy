@@ -80,7 +80,7 @@ class Rf610Service:
                             f"Procesado ejercicio {ejercicio}. Errores: {len(validate_and_errors.errors)}"
                         )
                         delete_dict = {"ejercicio": ejercicio}
-                        # Contar los instrumentos existentes antes de eliminarlos
+                        # Contar los documentos existentes antes de eliminarlos
                         deleted_count = await self.repository.count_by_fields(
                             delete_dict
                         )
@@ -115,7 +115,7 @@ class Rf610Service:
     # -------------------------------------------------
     async def get_rf610_from_db(self, params: BaseFilterParams) -> List[Rf610Document]:
         try:
-            return await self.instruments.find_with_filter_params(params=params)
+            return await self.repository.find_with_filter_params(params=params)
         except Exception as e:
             logger.error(f"Error retrieving SIIF's rf602 from database: {e}")
             raise HTTPException(

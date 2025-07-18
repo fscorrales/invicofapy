@@ -84,7 +84,7 @@ class Rfondo07tpService:
                         "ejercicio": params.ejercicio,
                         "tipo_comprobante": params.tipo_comprobante.value,
                     }
-                    # Contar los instrumentos existentes antes de eliminarlos
+                    # Contar los documentos existentes antes de eliminarlos
                     deleted_count = await self.repository.count_by_fields(delete_dict)
                     await self.repository.delete_by_fields(delete_dict)
                     # await self.collection.delete_many({"ejercicio": ejercicio})
@@ -118,7 +118,7 @@ class Rfondo07tpService:
         self, params: BaseFilterParams
     ) -> List[Rfondo07tpDocument]:
         try:
-            return await self.instruments.find_with_filter_params(params=params)
+            return await self.repository.find_with_filter_params(params=params)
         except Exception as e:
             logger.error(f"Error retrieving SIIF's rfondo07tp from database: {e}")
             raise HTTPException(
