@@ -5,8 +5,6 @@ from typing import Annotated
 
 from fastapi import Depends, HTTPException, status
 
-# from ...config import COLLECTIONS, Database
-# from pydantic_mongo import PydanticObjectId
 from ...utils import PyObjectId
 from ..repositories import (
     UsersRepositoryDependency,
