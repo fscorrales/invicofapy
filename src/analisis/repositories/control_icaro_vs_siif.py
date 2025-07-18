@@ -18,7 +18,7 @@ from ..schemas.control_icaro_vs_siif import (
 
 # -------------------------------------------------
 class ControlAnualRepository(BaseRepository[ControlAnualReport]):
-    collection_name = "icaro_vs_siif_control_anual"
+    collection_name = "control_icaro_vs_siif_anual"
     model = ControlAnualReport
 
 
@@ -27,7 +27,7 @@ ControlAnualRepositoryDependency = Annotated[ControlAnualRepository, Depends()]
 
 # -------------------------------------------------
 class ControlComprobantesRepository(BaseRepository[ControlComprobantesReport]):
-    collection_name = "icaro_vs_siif_control_comprobantes"
+    collection_name = "control_icaro_vs_siif_comprobantes"
     model = ControlComprobantesReport
 
 
@@ -38,7 +38,7 @@ ControlComprobantesRepositoryDependency = Annotated[
 
 # -------------------------------------------------
 class ControlPa6Repository(BaseRepository[ControlPa6Report]):
-    collection_name = "icaro_vs_siif_control_pa6"
+    collection_name = "control_icaro_vs_siif_pa6"
     model = ControlPa6Report
 
 
