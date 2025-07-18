@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .analisis.routes import control_router
+from .analisis.routes import control_router, reporte_router
 from .auth.routes import auth_router
 from .config import Database
 from .icaro.routes import icaro_router
@@ -39,6 +39,7 @@ app = FastAPI(title="Final Project API", lifespan=lifespan)
 app.include_router(auth_router)
 # Include our API routes
 app.include_router(control_router)
+app.include_router(reporte_router)
 app.include_router(siif_router)
 app.include_router(sgf_router)
 app.include_router(sscc_router)

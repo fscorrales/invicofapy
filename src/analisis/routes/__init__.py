@@ -1,9 +1,12 @@
-__all__ = ["control_router"]
+__all__ = ["control_router", "reporte_router"]
 
 from fastapi import APIRouter
 
 from .control_icaro_vs_siif import control_icaro_vs_siif_router
+from .reporte_modulos_basicos import reporte_modulos_basicos_router
 
-control_router = APIRouter(prefix="/control", tags=["Control"])
-
+control_router = APIRouter(prefix="/control", tags=["Controles"])
 control_router.include_router(control_icaro_vs_siif_router)
+
+reporte_router = APIRouter(prefix="/reporte", tags=["Reportes"])
+reporte_router.include_router(reporte_modulos_basicos_router)
