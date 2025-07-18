@@ -2,12 +2,13 @@ __all__ = ["Database", "COLLECTIONS", "BaseRepository"]
 
 from typing import Generic, List, Optional, Type, TypeVar
 
+from fastapi import HTTPException
 from fastapi.encoders import jsonable_encoder
 from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel
 
 from ..utils.query_filter import BaseFilterParams, parse_filter_keys
-from .__base_config import settings
+from .__base_config import logger, settings
 
 ModelType = TypeVar("ModelType", bound=BaseModel)
 
@@ -206,6 +207,22 @@ class BaseRepository(Generic[ModelType]):
         )
         return await cursor.to_list(length=params.limit)
         # return [self.model(**doc) for doc in docs]
+
+    # -------------------------------------------------
+    async def safe_find_with_filter_params(
+        self, params: BaseFilterParams, error_title: Optional[str] = None
+    ) -> List[ModelType]:
+        """
+        Igual que find_with_filter_params pero con manejo de errores y logging estándar.
+        """
+        try:
+            return await self.find_with_filter_params(params=params)
+        except Exception as e:
+            message = (
+                error_title or f"Error retrieving data from {self.collection_name}"
+            )
+            logger.error(f"{message}: {e}")
+            raise HTTPException(status_code=500, detail=message)
 
     # -------------------------------------------------
     async def count_by_fields(self, filters: dict) -> int:

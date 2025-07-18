@@ -7,6 +7,8 @@ Data required:
     - Icaro
     - SIIF rf602
     - SIIF rf610
+    - SIIF ri102
+    - SIIF rfp_p605b
     - SSCC ctas_ctes (manual data)
 Google Sheet:
     - https://docs.google.com/spreadsheets/d/1hJyBOkA8sj5otGjYGVOzYViqSpmv_b4L8dXNju_GJ5Q
@@ -44,6 +46,8 @@ from ...utils import (
     BaseFilterParams,
     GoogleSheets,
     RouteReturnSchema,
+    export_dataframe_as_excel_response,
+    export_multiple_dataframes_to_excel,
     get_r_icaro_path,
     sanitize_dataframe_for_json,
     sync_validated_to_repository,
@@ -57,12 +61,13 @@ from ..handlers import (
     get_siif_desc_pres,
     get_siif_rf602,
 )
-from ..repositories.control_icaro_vs_siif import (
+from ..repositories.reporte_formulacion_presupuesto import (
     ControlAnualRepositoryDependency,
     ControlComprobantesRepositoryDependency,
     ControlPa6RepositoryDependency,
+    ReporteSIIFPresWithDescRepositoryDependency,
 )
-from ..schemas.control_icaro_vs_siif import (
+from ..schemas.reporte_formulacion_presupuesto import (
     ControlAnualDocument,
     ControlAnualReport,
     ControlCompletoParams,
@@ -70,12 +75,16 @@ from ..schemas.control_icaro_vs_siif import (
     ControlComprobantesReport,
     ControlPa6Document,
     ControlPa6Report,
+    ReporteSIIFPresWithDescDocument,
+    ReporteSIIFPresWithDescParams,
+    ReporteSIIFPresWithDescReport,
 )
 
 
 # --------------------------------------------------
 @dataclass
 class ReporteEjecucionObrasService:
+    reporte_siif_pres_with_desc_repo: ReporteSIIFPresWithDescRepositoryDependency
     control_anual_repo: ControlAnualRepositoryDependency
     control_comprobantes_repo: ControlComprobantesRepositoryDependency
     control_pa6_repo: ControlPa6RepositoryDependency
@@ -115,7 +124,6 @@ class ReporteEjecucionObrasService:
                 headless=False,
             )
             try:
-                # import_acum_2008 (PATRICIA)
                 # 🔹 RF610
                 self.siif_rf610_handler = Rf610(siif=connect_siif)
                 partial_schema = await self.siif_rf610_handler.download_and_sync_validated_to_repository(
@@ -131,27 +139,9 @@ class ReporteEjecucionObrasService:
                 )
                 return_schema.append(partial_schema)
 
-                # # 🔹 Rcg01Uejp
-                # self.siif_rcg01_uejp_handler = Rcg01Uejp(siif=connect_siif)
-                # partial_schema = await self.siif_rcg01_uejp_handler.download_and_sync_validated_to_repository(
-                #     ejercicio=int(params.ejercicio)
-                # )
-                # return_schema.append(partial_schema)
+                # # 🔹 Ri102
 
-                # # 🔹 Rpa03g
-                # self.siif_rpa03g_handler = Rpa03g(siif=connect_siif)
-                # for grupo in [g.value for g in GrupoPartidaSIIF]:
-                #     partial_schema = await self.siif_rpa03g_handler.download_and_sync_validated_to_repository(
-                #         ejercicio=int(params.ejercicio), grupo_partida=grupo
-                #     )
-                #     return_schema.append(partial_schema)
-
-                # # 🔹 Rfondo07tp
-                # self.siif_rfondo07tp_handler = Rfondo07tp(siif=connect_siif)
-                # partial_schema = await self.siif_rfondo07tp_handler.download_and_sync_validated_to_repository(
-                #     ejercicio=int(params.ejercicio)
-                # )
-                # return_schema.append(partial_schema)
+                # # 🔹 Rfp_p605b
 
                 # 🔹 Icaro
                 path = os.path.join(get_r_icaro_path(), "ICARO.sqlite")
@@ -160,6 +150,8 @@ class ReporteEjecucionObrasService:
                 return_schema.append(await migrator.migrate_estructuras())
                 return_schema.append(await migrator.migrate_proveedores())
                 return_schema.append(await migrator.migrate_obras())
+
+                # import_acum_2008 (PATRICIA)
 
             except ValidationError as e:
                 logger.error(f"Validation Error: {e}")
@@ -178,7 +170,7 @@ class ReporteEjecucionObrasService:
                 return return_schema
 
     # -------------------------------------------------
-    async def compute_all(
+    async def generate_all(
         self, params: ControlCompletoParams
     ) -> List[RouteReturnSchema]:
         """
@@ -217,142 +209,127 @@ class ReporteEjecucionObrasService:
     async def export_all_from_db(
         self, upload_to_google_sheets: bool = True
     ) -> StreamingResponse:
-        try:
-            # 1️⃣ Obtenemos los documentos
-            control_anual_docs = await self.control_anual_repo.get_all()
-            control_comprobantes_docs = await self.control_comprobantes_repo.get_all()
-            control_pa6_repo = await self.control_pa6_repo.get_all()
+        # ejecucion_obras.reporte_planillometro_contabilidad (planillometro_contabilidad)
+        # ejecucion_gastos.import_siif_gtos_desc() (siif_ejec_gastos)
+        # ejecucion_gastos.import_siif_rfp_p605b() (siif_carga_form_gtos)
+        # control_recursos.import_siif_ri102() (siif_recursos_cod)
 
-            if (
-                not control_anual_docs
-                and not control_comprobantes_docs
-                and not control_pa6_repo
-            ):
-                raise HTTPException(
-                    status_code=404, detail="No se encontraron registros"
-                )
+        siif_pres_with_desc_docs = await self.reporte_siif_pres_with_desc_repo.get_all()
+        siif_comprobantes_gtos_docs = await self.control_comprobantes_repo.get_all()
+        siif_recursos_gtos_docs = await self.control_pa6_repo.get_all()
 
-            # 2️⃣ Convertimos a DataFrame
-            control_anual_df = (
-                sanitize_dataframe_for_json(pd.DataFrame(control_anual_docs))
-                if control_anual_docs
-                else pd.DataFrame()
-            )
-            control_comprobantes_df = (
-                sanitize_dataframe_for_json(pd.DataFrame(control_comprobantes_docs))
-                if control_comprobantes_docs
-                else pd.DataFrame()
-            )
-            control_pa6_df = (
-                sanitize_dataframe_for_json(pd.DataFrame(control_pa6_repo))
-                if control_pa6_repo
-                else pd.DataFrame()
-            )
+        if (
+            not siif_pres_with_desc_docs
+            and not siif_comprobantes_gtos_docs
+            and not siif_recursos_gtos_docs
+        ):
+            raise HTTPException(status_code=404, detail="No se encontraron registros")
 
-            # 3️⃣ Subimos a Google Sheets si se solicita
-            if upload_to_google_sheets:
-                gs_service = GoogleSheets()
-                if not control_anual_df.empty:
-                    control_anual_df.drop(columns=["_id"], inplace=True)
-                    gs_service.to_google_sheets(
-                        df=control_anual_df,
-                        spreadsheet_key="1KKeeoop_v_Nf21s7eFp4sS6SmpxRZQ9DPa1A5wVqnZ0",
-                        wks_name="control_ejecucion_anual_db",
-                    )
-                if not control_comprobantes_df.empty:
-                    control_comprobantes_df.drop(columns=["_id"], inplace=True)
-                    gs_service.to_google_sheets(
-                        df=control_comprobantes_df,
-                        spreadsheet_key="1KKeeoop_v_Nf21s7eFp4sS6SmpxRZQ9DPa1A5wVqnZ0",
-                        wks_name="control_comprobantes_db",
-                    )
-                if not control_pa6_df.empty:
-                    control_pa6_df.drop(columns=["_id"], inplace=True)
-                    gs_service.to_google_sheets(
-                        df=control_pa6_df,
-                        spreadsheet_key="1KKeeoop_v_Nf21s7eFp4sS6SmpxRZQ9DPa1A5wVqnZ0",
-                        wks_name="control_pa6_db",
-                    )
-
-            # 4️⃣ Escribimos a un buffer Excel en memoria
-            buffer = BytesIO()
-            with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
-                if not control_anual_df.empty:
-                    control_anual_df.to_excel(
-                        writer, index=False, sheet_name="control_ejecucion_anual"
-                    )
-                if not control_comprobantes_df.empty:
-                    control_comprobantes_df.to_excel(
-                        writer, index=False, sheet_name="control_comprobantes"
-                    )
-                if not control_pa6_df.empty:
-                    control_pa6_df.to_excel(
-                        writer, index=False, sheet_name="control_pa6"
-                    )
-
-            buffer.seek(0)
-
-            # 5️⃣ Devolvemos StreamingResponse
-            file_name = "icaro_vs_siif.xlsx"
-            headers = {"Content-Disposition": f'attachment; filename="{file_name}"'}
-            return StreamingResponse(
-                buffer,
-                media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                headers=headers,
-            )
-        except Exception as e:
-            logger.error(
-                f"Error retrieving Icaro's Control de Ejecución Anual from database: {e}"
-            )
-            raise HTTPException(
-                status_code=500,
-                detail="Error retrieving Icaro's Control de Ejecución Anual from the database",
-            )
+        return export_multiple_dataframes_to_excel(
+            df_sheet_pairs=[
+                (pd.DataFrame(siif_pres_with_desc_docs), "siif_ejec_gastos"),
+                (pd.DataFrame(siif_comprobantes_gtos_docs), "siif_carga_form_gtos"),
+                (pd.DataFrame(siif_recursos_gtos_docs), "siif_recursos_cod"),
+            ],
+            filename="reportes_formulacion_presupuesto.xlsx",
+            spreadsheet_key="1hJyBOkA8sj5otGjYGVOzYViqSpmv_b4L8dXNju_GJ5Q",
+            upload_to_google_sheets=upload_to_google_sheets,
+        )
 
     # --------------------------------------------------
-    async def get_siif_pres_with_desc(self, ejercicio: int = None) -> pd.DataFrame:
-        df = await get_siif_rf602(
-            ejercicio=ejercicio,
-            filters={
-                "partida": {"$in": ["421", "422"]},
-            },
-        )
-        df = df.sort_values(by=["ejercicio", "estructura"], ascending=[False, True])
-        df = df.merge(
-            get_siif_desc_pres(ejercicio_to=ejercicio),
-            how="left",
-            on="estructura",
-            copy=False,
-        )
-        df.drop(
-            labels=[
-                "org",
-                "pendiente",
-                "programa",
-                "subprograma",
-                "proyecto",
-                "actividad",
-                "grupo",
-            ],
-            axis=1,
-            inplace=True,
+    async def generate_siif_pres_with_desc(
+        self, params: ReporteSIIFPresWithDescParams
+    ) -> RouteReturnSchema:
+        return_schema = RouteReturnSchema()
+        try:
+            df = await get_siif_rf602(ejercicio=params.ejercicio)
+            df = df.sort_values(by=["ejercicio", "estructura"], ascending=[False, True])
+            df = df.merge(
+                get_siif_desc_pres(ejercicio_to=params.ejercicio),
+                how="left",
+                on="estructura",
+                copy=False,
+            )
+            df.drop(
+                labels=[
+                    "org",
+                    "pendiente",
+                    "programa",
+                    "subprograma",
+                    "proyecto",
+                    "actividad",
+                    "grupo",
+                ],
+                axis=1,
+                inplace=True,
+            )
+
+            first_cols = [
+                "ejercicio",
+                "estructura",
+                "partida",
+                "fuente",
+                "desc_prog",
+                "desc_subprog",
+                "desc_proy",
+                "desc_act",
+            ]
+            df = df.loc[:, first_cols].join(df.drop(first_cols, axis=1))
+
+            df = pd.DataFrame(df)
+            df.reset_index(drop=True, inplace=True)
+            # 🔹 Validar datos usando Pydantic
+            validate_and_errors = validate_and_extract_data_from_df(
+                dataframe=df, model=ReporteSIIFPresWithDescReport, field_id="estructura"
+            )
+
+            return_schema = await sync_validated_to_repository(
+                repository=self.reporte_siif_pres_with_desc_repo,
+                validation=validate_and_errors,
+                delete_filter=None,
+                title="Reporte de Ejecución Presupuestaria SIIF con Descripción",
+                logger=logger,
+                label=f"Reporte de Ejecución Presupuestaria SIIF con Descripción hasta el ejercicio {params.ejercicio}",
+            )
+            # return_schema.append(partial_schema)
+
+        except ValidationError as e:
+            logger.error(f"Validation Error: {e}")
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid response format from Reporte de Ejecución Presupuestaria SIIF con Descripción",
+            )
+        except Exception as e:
+            logger.error(f"Error in generate_siif_pres_with_desc: {e}")
+            raise HTTPException(
+                status_code=500,
+                detail="Error in generate_siif_pres_with_desc",
+            )
+        finally:
+            return return_schema
+
+    # -------------------------------------------------
+    async def get_siif_pres_with_desc_from_db(
+        self, params: BaseFilterParams
+    ) -> List[ReporteSIIFPresWithDescDocument]:
+        return await self.reporte_siif_pres_with_desc_repo.safe_find_with_filter_params(
+            params=params,
+            error_title="Error retrieving Reporte de Ejecución Presupuestaria SIIF con Descripción from the database",
         )
 
-        first_cols = [
-            "ejercicio",
-            "estructura",
-            "partida",
-            "fuente",
-            "desc_prog",
-            "desc_subprog",
-            "desc_proy",
-            "desc_act",
-        ]
-        df = df.loc[:, first_cols].join(df.drop(first_cols, axis=1))
+    # -------------------------------------------------
+    async def export_siif_pres_with_desc_from_db(
+        self, upload_to_google_sheets: bool = True
+    ) -> StreamingResponse:
+        df = pd.DataFrame(await self.reporte_siif_pres_with_desc_repo.get_all())
 
-        df = pd.DataFrame(df)
-        df.reset_index(drop=True, inplace=True)
-        return df
+        return export_dataframe_as_excel_response(
+            df,
+            filename="siif_pres_with_desc_from_db.xlsx",
+            sheet_name="siif_ejec_gastos",
+            upload_to_google_sheets=upload_to_google_sheets,
+            google_sheet_key="1hJyBOkA8sj5otGjYGVOzYViqSpmv_b4L8dXNju_GJ5Q",
+        )
 
     # --------------------------------------------------
     async def import_siif_pres_with_icaro_desc(self, ejercicio: int = None):
