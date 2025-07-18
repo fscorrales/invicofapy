@@ -36,9 +36,10 @@ COLLECTIONS = [
     "icaro_resumen_rend_obras",
     "sscc_banco_invico",
     "sscc_ctas_ctes",
-    "icaro_vs_siif_control_anual",
-    "icaro_vs_siif_control_comprobantes",
-    "icaro_vs_siif_control_pa6",
+    "control_icaro_vs_siif_anual",
+    "control_icaro_vs_siif_comprobantes",
+    "control_icaro_vs_siif_pa6",
+    "reporte_modulos_basicos_icaro",
 ]
 
 
