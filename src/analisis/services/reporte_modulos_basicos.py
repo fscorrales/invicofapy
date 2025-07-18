@@ -7,8 +7,7 @@ Data required:
     - Icaro (CARGA, ESTRUCTURAS, OBRAS, PROVEEDORES)
     - SIIF rf610
 Google Sheet:
-    - https://docs.google.com/spreadsheets/d/1hJyBOkA8sj5otGjYGVOzYViqSpmv_b4L8dXNju_GJ5Q
-    - https://docs.google.com/spreadsheets/d/1SRmgep84KGJNj_nKxiwXLe28gVUiIu2Uha4j_C7BzeU
+    - https://docs.google.com/spreadsheets/d/195qPSga7cU1kx3z2-gadEWNC2eupdkbR-rb-O8SPWuA
 
 """
 
