@@ -84,7 +84,7 @@ from ..schemas.reporte_formulacion_presupuesto import (
 # --------------------------------------------------
 @dataclass
 class ReporteEjecucionObrasService:
-    reporte_siif_pres_with_desc_repo: ReporteSIIFPresWithDescRepositoryDependency
+    siif_pres_with_desc_repo: ReporteSIIFPresWithDescRepositoryDependency
     control_anual_repo: ControlAnualRepositoryDependency
     control_comprobantes_repo: ControlComprobantesRepositoryDependency
     control_pa6_repo: ControlPa6RepositoryDependency
@@ -214,7 +214,7 @@ class ReporteEjecucionObrasService:
         # ejecucion_gastos.import_siif_rfp_p605b() (siif_carga_form_gtos)
         # control_recursos.import_siif_ri102() (siif_recursos_cod)
 
-        siif_pres_with_desc_docs = await self.reporte_siif_pres_with_desc_repo.get_all()
+        siif_pres_with_desc_docs = await self.siif_pres_with_desc_repo.get_all()
         siif_comprobantes_gtos_docs = await self.control_comprobantes_repo.get_all()
         siif_recursos_gtos_docs = await self.control_pa6_repo.get_all()
 
@@ -284,7 +284,7 @@ class ReporteEjecucionObrasService:
             )
 
             return_schema = await sync_validated_to_repository(
-                repository=self.reporte_siif_pres_with_desc_repo,
+                repository=self.siif_pres_with_desc_repo,
                 validation=validate_and_errors,
                 delete_filter=None,
                 title="Reporte de Ejecución Presupuestaria SIIF con Descripción",
@@ -312,7 +312,7 @@ class ReporteEjecucionObrasService:
     async def get_siif_pres_with_desc_from_db(
         self, params: BaseFilterParams
     ) -> List[ReporteSIIFPresWithDescDocument]:
-        return await self.reporte_siif_pres_with_desc_repo.safe_find_with_filter_params(
+        return await self.siif_pres_with_desc_repo.safe_find_with_filter_params(
             params=params,
             error_title="Error retrieving Reporte de Ejecución Presupuestaria SIIF con Descripción from the database",
         )
@@ -321,7 +321,7 @@ class ReporteEjecucionObrasService:
     async def export_siif_pres_with_desc_from_db(
         self, upload_to_google_sheets: bool = True
     ) -> StreamingResponse:
-        df = pd.DataFrame(await self.reporte_siif_pres_with_desc_repo.get_all())
+        df = pd.DataFrame(await self.siif_pres_with_desc_repo.get_all())
 
         return export_dataframe_as_excel_response(
             df,
