@@ -29,19 +29,18 @@ from fastapi.responses import StreamingResponse
 from playwright.async_api import async_playwright
 from pydantic import ValidationError
 
+from siif.repositories import Ri102RepositoryDependency
+
 from ...config import logger
 from ...icaro.handlers import IcaroMongoMigrator
 from ...siif.handlers import (
-    JoinComprobantesGtosGpoPart,
-    Rcg01Uejp,
     Rf602,
     Rf610,
-    Rfondo07tp,
-    Rpa03g,
+    RfpP605b,
+    Ri102,
     login,
     logout,
 )
-from ...siif.schemas import GrupoPartidaSIIF, TipoComprobanteSIIF
 from ...utils import (
     BaseFilterParams,
     GoogleSheets,
@@ -60,21 +59,12 @@ from ..handlers import (
     get_icaro_proveedores,
     get_siif_desc_pres,
     get_siif_rf602,
+    get_siif_ri102,
 )
 from ..repositories.reporte_formulacion_presupuesto import (
-    ControlAnualRepositoryDependency,
-    ControlComprobantesRepositoryDependency,
-    ControlPa6RepositoryDependency,
     ReporteSIIFPresWithDescRepositoryDependency,
 )
 from ..schemas.reporte_formulacion_presupuesto import (
-    ControlAnualDocument,
-    ControlAnualReport,
-    ControlCompletoParams,
-    ControlComprobantesDocument,
-    ControlComprobantesReport,
-    ControlPa6Document,
-    ControlPa6Report,
     ReporteSIIFPresWithDescDocument,
     ReporteSIIFPresWithDescParams,
     ReporteSIIFPresWithDescReport,
@@ -85,14 +75,11 @@ from ..schemas.reporte_formulacion_presupuesto import (
 @dataclass
 class ReporteEjecucionObrasService:
     siif_pres_with_desc_repo: ReporteSIIFPresWithDescRepositoryDependency
-    control_anual_repo: ControlAnualRepositoryDependency
-    control_comprobantes_repo: ControlComprobantesRepositoryDependency
-    control_pa6_repo: ControlPa6RepositoryDependency
+    siif_comprobantes_recursos_repo: Ri102RepositoryDependency
     siif_rf602_handler: Rf602 = field(init=False)  # No se pasa como argumento
     siif_rf610_handler: Rf610 = field(init=False)  # No se pasa como argumento
-    siif_rcg01_uejp_handler: Rcg01Uejp = field(init=False)  # No se pasa como argumento
-    siif_rpa03g_handler: Rpa03g = field(init=False)  # No se pasa como argumento
-    siif_rfondo07tp_handler: Rfondo07tp = field(init=False)  # No se pasa como argumento
+    siif_ri102_handler: Ri102 = field(init=False)  # No se pasa como argumento
+    siif_rfp_p605b_handler: RfpP605b = field(init=False)  # No se pasa como argumento
 
     # -------------------------------------------------
     async def sync_icaro_vs_siif_from_source(
@@ -140,8 +127,20 @@ class ReporteEjecucionObrasService:
                 return_schema.append(partial_schema)
 
                 # # 🔹 Ri102
+                self.siif_ri102_handler = Ri102(siif=connect_siif)
+                await self.siif_ri102_handler.go_to_reports()
+                partial_schema = await self.siif_ri102_handler.download_and_sync_validated_to_repository(
+                    ejercicio=int(params.ejercicio)
+                )
+                return_schema.append(partial_schema)
 
                 # # 🔹 Rfp_p605b
+                self.siif_rfp_p605b_handler = RfpP605b(siif=connect_siif)
+                await self.siif_rfp_p605b_handler.go_to_reports()
+                partial_schema = await self.siif_rfp_p605b_handler.download_and_sync_validated_to_repository(
+                    ejercicio=int(params.ejercicio) + 1
+                )
+                return_schema.append(partial_schema)
 
                 # 🔹 Icaro
                 path = os.path.join(get_r_icaro_path(), "ICARO.sqlite")
@@ -178,16 +177,12 @@ class ReporteEjecucionObrasService:
         """
         return_schema = []
         try:
-            # 🔹 Control Anual
-            partial_schema = await self.compute_control_anual(params=params)
+            # 🔹 SIIF Presupuesto con Descripción
+            partial_schema = await self.generate_siif_pres_with_desc(params=params)
             return_schema.append(partial_schema)
 
-            # 🔹 Control Comprobantes
-            partial_schema = await self.compute_control_comprobantes(params=params)
-            return_schema.append(partial_schema)
-
-            # 🔹 Control PA6
-            partial_schema = await self.compute_control_pa6(params=params)
+            # 🔹 SIIF Comprobantes Recursos
+            partial_schema = await self.generate_siif_comprobantes_recursos()
             return_schema.append(partial_schema)
 
         except ValidationError as e:
@@ -216,12 +211,14 @@ class ReporteEjecucionObrasService:
 
         siif_pres_with_desc_docs = await self.siif_pres_with_desc_repo.get_all()
         siif_comprobantes_gtos_docs = await self.control_comprobantes_repo.get_all()
-        siif_recursos_gtos_docs = await self.control_pa6_repo.get_all()
+        siif_comprobantes_recursos_docs = (
+            await self.siif_comprobantes_recursos_repo.get_all()
+        )
 
         if (
             not siif_pres_with_desc_docs
             and not siif_comprobantes_gtos_docs
-            and not siif_recursos_gtos_docs
+            and not siif_comprobantes_recursos_docs
         ):
             raise HTTPException(status_code=404, detail="No se encontraron registros")
 
@@ -229,7 +226,7 @@ class ReporteEjecucionObrasService:
             df_sheet_pairs=[
                 (pd.DataFrame(siif_pres_with_desc_docs), "siif_ejec_gastos"),
                 (pd.DataFrame(siif_comprobantes_gtos_docs), "siif_carga_form_gtos"),
-                (pd.DataFrame(siif_recursos_gtos_docs), "siif_recursos_cod"),
+                (pd.DataFrame(siif_comprobantes_recursos_docs), "siif_recursos_cod"),
             ],
             filename="reportes_formulacion_presupuesto.xlsx",
             spreadsheet_key="1hJyBOkA8sj5otGjYGVOzYViqSpmv_b4L8dXNju_GJ5Q",
@@ -325,8 +322,37 @@ class ReporteEjecucionObrasService:
 
         return export_dataframe_as_excel_response(
             df,
-            filename="siif_pres_with_desc_from_db.xlsx",
+            filename="siif_pres_with_desc.xlsx",
             sheet_name="siif_ejec_gastos",
+            upload_to_google_sheets=upload_to_google_sheets,
+            google_sheet_key="1hJyBOkA8sj5otGjYGVOzYViqSpmv_b4L8dXNju_GJ5Q",
+        )
+
+    # --------------------------------------------------
+    async def generate_siif_comprobantes_recursos(self) -> RouteReturnSchema:
+        return RouteReturnSchema(
+            title="Reporte de Comprobantes de Recursos SIIF (ri102)"
+        )
+
+    # -------------------------------------------------
+    async def get_siif_comprobantes_recursos_from_db(
+        self, params: BaseFilterParams
+    ) -> List[ReporteSIIFPresWithDescDocument]:
+        return await self.siif_comprobantes_recursos_repo.safe_find_with_filter_params(
+            params=params,
+            error_title="Error retrieving Reporte de Comprobantes de Recursos SIIF (ri102) from the database",
+        )
+
+    # -------------------------------------------------
+    async def export_siif_comprobantes_recursos_from_db(
+        self, upload_to_google_sheets: bool = True
+    ) -> StreamingResponse:
+        df = pd.DataFrame(await self.siif_comprobantes_recursos_repo.get_all())
+
+        return export_dataframe_as_excel_response(
+            df,
+            filename="siif_comprobantes_recursos.xlsx",
+            sheet_name="siif_recursos_cod",
             upload_to_google_sheets=upload_to_google_sheets,
             google_sheet_key="1hJyBOkA8sj5otGjYGVOzYViqSpmv_b4L8dXNju_GJ5Q",
         )
