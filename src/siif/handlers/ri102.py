@@ -140,7 +140,7 @@ class Ri102(SIIFReportManager):
                 repository=Ri102Repository(),
                 validation=validate_and_errors,
                 delete_filter={"ejercicio": ejercicio},
-                title=f"SIIF RF610 Report del {ejercicio}",
+                title=f"SIIF Ri102 Report del {ejercicio}",
                 logger=logger,
                 label=f"Ejercicio {ejercicio} del ri102",
             )
