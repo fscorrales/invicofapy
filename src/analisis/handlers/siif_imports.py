@@ -1,4 +1,9 @@
-__all__ = ["get_siif_rfondo07tp", "get_siif_rf602", "get_siif_desc_pres"]
+__all__ = [
+    "get_siif_rfondo07tp",
+    "get_siif_rf602",
+    "get_siif_desc_pres",
+    "get_siif_ri102",
+]
 
 import datetime as dt
 from typing import List, Union
@@ -7,7 +12,12 @@ import pandas as pd
 from fastapi import HTTPException
 
 from ...config import logger
-from ...siif.repositories import Rf602Repository, Rf610Repository, Rfondo07tpRepository
+from ...siif.repositories import (
+    Rf602Repository,
+    Rf610Repository,
+    Rfondo07tpRepository,
+    Ri102Repository,
+)
 
 
 # --------------------------------------------------
@@ -32,9 +42,7 @@ async def get_siif_rfondo07tp(
 
 
 # --------------------------------------------------
-async def get_siif_rf602(
-    ejercicio: int = None, filters: dict = {}
-) -> pd.DataFrame:
+async def get_siif_rf602(ejercicio: int = None, filters: dict = {}) -> pd.DataFrame:
     """
     Get the rf602 data from the repository.
     """
@@ -54,7 +62,7 @@ async def get_siif_rf602(
 
 # --------------------------------------------------
 async def get_siif_desc_pres(
-    ejercicio_to: Union[int, List] = int(dt.datetime.now().year)
+    ejercicio_to: Union[int, List] = int(dt.datetime.now().year),
 ) -> pd.DataFrame:
     """
     Get the rf610 data from the repository.
@@ -120,4 +128,16 @@ async def get_siif_desc_pres(
         axis=1,
         inplace=True,
     )
+    return df
+
+
+# --------------------------------------------------
+async def get_siif_ri102(ejercicio: int = None, filters: dict = {}) -> pd.DataFrame:
+    """
+    Get the ri102 data from the repository.
+    """
+    if ejercicio is not None:
+        filters["ejercicio"] = ejercicio
+    docs = await Ri102Repository().safe_find_by_filter(filters=filters)
+    df = pd.DataFrame(docs)
     return df
