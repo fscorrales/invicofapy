@@ -29,7 +29,7 @@ from fastapi.responses import StreamingResponse
 from playwright.async_api import async_playwright
 from pydantic import ValidationError
 
-from siif.repositories import Ri102RepositoryDependency
+from siif.repositories import RfpP605bRepositoryDependency, Ri102RepositoryDependency
 
 from ...config import logger
 from ...icaro.handlers import IcaroMongoMigrator
@@ -59,7 +59,6 @@ from ..handlers import (
     get_icaro_proveedores,
     get_siif_desc_pres,
     get_siif_rf602,
-    get_siif_ri102,
 )
 from ..repositories.reporte_formulacion_presupuesto import (
     ReporteSIIFPresWithDescRepositoryDependency,
@@ -76,6 +75,7 @@ from ..schemas.reporte_formulacion_presupuesto import (
 class ReporteEjecucionObrasService:
     siif_pres_with_desc_repo: ReporteSIIFPresWithDescRepositoryDependency
     siif_comprobantes_recursos_repo: Ri102RepositoryDependency
+    siif_carga_form_gtos_repo: RfpP605bRepositoryDependency
     siif_rf602_handler: Rf602 = field(init=False)  # No se pasa como argumento
     siif_rf610_handler: Rf610 = field(init=False)  # No se pasa como argumento
     siif_ri102_handler: Ri102 = field(init=False)  # No se pasa como argumento
@@ -205,19 +205,16 @@ class ReporteEjecucionObrasService:
         self, upload_to_google_sheets: bool = True
     ) -> StreamingResponse:
         # ejecucion_obras.reporte_planillometro_contabilidad (planillometro_contabilidad)
-        # ejecucion_gastos.import_siif_gtos_desc() (siif_ejec_gastos)
-        # ejecucion_gastos.import_siif_rfp_p605b() (siif_carga_form_gtos)
-        # control_recursos.import_siif_ri102() (siif_recursos_cod)
 
         siif_pres_with_desc_docs = await self.siif_pres_with_desc_repo.get_all()
-        siif_comprobantes_gtos_docs = await self.control_comprobantes_repo.get_all()
+        siif_carga_form_gtos_docs = await self.siif_carga_form_gtos_repo.get_all()
         siif_comprobantes_recursos_docs = (
             await self.siif_comprobantes_recursos_repo.get_all()
         )
 
         if (
             not siif_pres_with_desc_docs
-            and not siif_comprobantes_gtos_docs
+            and not siif_carga_form_gtos_docs
             and not siif_comprobantes_recursos_docs
         ):
             raise HTTPException(status_code=404, detail="No se encontraron registros")
@@ -225,7 +222,7 @@ class ReporteEjecucionObrasService:
         return export_multiple_dataframes_to_excel(
             df_sheet_pairs=[
                 (pd.DataFrame(siif_pres_with_desc_docs), "siif_ejec_gastos"),
-                (pd.DataFrame(siif_comprobantes_gtos_docs), "siif_carga_form_gtos"),
+                (pd.DataFrame(siif_carga_form_gtos_docs), "siif_carga_form_gtos"),
                 (pd.DataFrame(siif_comprobantes_recursos_docs), "siif_recursos_cod"),
             ],
             filename="reportes_formulacion_presupuesto.xlsx",
@@ -353,6 +350,35 @@ class ReporteEjecucionObrasService:
             df,
             filename="siif_comprobantes_recursos.xlsx",
             sheet_name="siif_recursos_cod",
+            upload_to_google_sheets=upload_to_google_sheets,
+            google_sheet_key="1hJyBOkA8sj5otGjYGVOzYViqSpmv_b4L8dXNju_GJ5Q",
+        )
+
+    # --------------------------------------------------
+    async def generate_siif_carga_form_gtos(self) -> RouteReturnSchema:
+        return RouteReturnSchema(
+            title="Reporte de Carga Formulación de Gastos (rfp_p605b)"
+        )
+
+    # -------------------------------------------------
+    async def get_siif_carga_form_gtos_from_db(
+        self, params: BaseFilterParams
+    ) -> List[ReporteSIIFPresWithDescDocument]:
+        return await self.siif_carga_form_gtos_repo.safe_find_with_filter_params(
+            params=params,
+            error_title="Error retrieving Carga Formulación de Gastos (rfp_p605b) from the database",
+        )
+
+    # -------------------------------------------------
+    async def export_siif_carga_form_gtos_from_db(
+        self, upload_to_google_sheets: bool = True
+    ) -> StreamingResponse:
+        df = pd.DataFrame(await self.siif_carga_form_gtos_repo.get_all())
+
+        return export_dataframe_as_excel_response(
+            df,
+            filename="siif_carga_form_gtos.xlsx",
+            sheet_name="siif_carga_form_gtos",
             upload_to_google_sheets=upload_to_google_sheets,
             google_sheet_key="1hJyBOkA8sj5otGjYGVOzYViqSpmv_b4L8dXNju_GJ5Q",
         )
@@ -629,141 +655,6 @@ class ReporteEjecucionObrasService:
             )
         finally:
             return return_schema
-
-    # --------------------------------------------------
-    async def compute_control_anual(
-        self, params: ControlCompletoParams
-    ) -> RouteReturnSchema:
-        # return_schema = RouteReturnSchema()
-        try:
-            group_by = ["ejercicio", "estructura", "fuente"]
-            icaro = await get_icaro_carga(
-                ejercicio=params.ejercicio, filters={"tipo__ne": "PA6"}
-            )
-            icaro["estructura"] = icaro.actividad + "-" + icaro.partida
-            icaro = icaro.groupby(group_by)["importe"].sum()
-            icaro = icaro.reset_index(drop=False)
-            icaro = icaro.rename(columns={"importe": "ejecucion_icaro"})
-            siif = await get_siif_rf602(
-                ejercicio=params.ejercicio,
-                filters={
-                    "$or": [
-                        {"partida": {"$in": ["421", "422"]}},
-                        {"estructura": "01-00-00-03-354"},
-                    ]
-                },
-            )
-            siif = siif.loc[:, group_by + ["ordenado"]]
-            siif = siif.rename(columns={"ordenado": "ejecucion_siif"})
-            df = pd.merge(siif, icaro, how="outer", on=group_by, copy=False)
-            df = df.fillna(0)
-            df["diferencia"] = df["ejecucion_siif"] - df["ejecucion_icaro"]
-            logger.info(df.head())
-            df = df.merge(
-                await get_siif_desc_pres(ejercicio_to=params.ejercicio),
-                how="left",
-                on="estructura",
-                copy=False,
-            )
-            df = df.loc[(df["diferencia"] < -0.1) | (df["diferencia"] > 0.1)]
-            df = df.reset_index(drop=True)
-            df["fuente"] = pd.to_numeric(df["fuente"], errors="coerce")
-            df["ejercicio"] = pd.to_numeric(df["ejercicio"], errors="coerce")
-            logger.info(df.head())
-            # 🔹 Validar datos usando Pydantic
-            validate_and_errors = validate_and_extract_data_from_df(
-                dataframe=df, model=ControlAnualReport, field_id="estructura"
-            )
-
-            partial_schema = await sync_validated_to_repository(
-                repository=self.control_anual_repo,
-                validation=validate_and_errors,
-                delete_filter={"ejercicio": params.ejercicio},
-                title="Control de Ejecución Anual ICARO vs SIIF",
-                logger=logger,
-                label=f"Control de Ejecución Anual ICARO vs SIIF ejercicio {params.ejercicio}",
-            )
-            # return_schema.append(partial_schema)
-
-        except ValidationError as e:
-            logger.error(f"Validation Error: {e}")
-            raise HTTPException(
-                status_code=400,
-                detail="Invalid response format from Control Anual ICARO vs SIIF",
-            )
-        except Exception as e:
-            logger.error(f"Error in compute_control_anual: {e}")
-            raise HTTPException(
-                status_code=500,
-                detail="Error in compute_control_anual",
-            )
-        finally:
-            return partial_schema
-
-    # -------------------------------------------------
-    async def get_control_anual_from_db(
-        self, params: BaseFilterParams
-    ) -> List[ControlAnualDocument]:
-        try:
-            return await self.control_anual_repo.find_with_filter_params(params=params)
-        except Exception as e:
-            logger.error(
-                f"Error retrieving Icaro's Control de Ejecución Anual from database: {e}"
-            )
-            raise HTTPException(
-                status_code=500,
-                detail="Error retrieving Icaro's Control de Ejecución Anual from the database",
-            )
-
-    # -------------------------------------------------
-    async def export_control_anual_from_db(
-        self, upload_to_google_sheets: bool = True
-    ) -> StreamingResponse:
-        try:
-            # 1️⃣ Obtenemos los documentos
-            docs = await self.control_anual_repo.get_all()
-
-            if not docs:
-                raise HTTPException(
-                    status_code=404, detail="No se encontraron registros"
-                )
-
-            # 2️⃣ Convertimos a DataFrame
-            df = sanitize_dataframe_for_json(pd.DataFrame(docs))
-            df = df.drop(columns=["_id"])
-
-            # 3️⃣ Subimos a Google Sheets si se solicita
-            if upload_to_google_sheets:
-                gs_service = GoogleSheets()
-                gs_service.to_google_sheets(
-                    df=df,
-                    spreadsheet_key="1KKeeoop_v_Nf21s7eFp4sS6SmpxRZQ9DPa1A5wVqnZ0",
-                    wks_name="control_ejecucion_anual_db",
-                )
-
-            # 4️⃣ Escribimos a un buffer Excel en memoria
-            buffer = BytesIO()
-            with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
-                df.to_excel(writer, index=False, sheet_name="control_ejecucion_anual")
-
-            buffer.seek(0)
-
-            # 5️⃣ Devolvemos StreamingResponse
-            file_name = "icaro_vs_siif_control_anual.xlsx"
-            headers = {"Content-Disposition": f'attachment; filename="{file_name}"'}
-            return StreamingResponse(
-                buffer,
-                media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                headers=headers,
-            )
-        except Exception as e:
-            logger.error(
-                f"Error retrieving Icaro's Control de Ejecución Anual from database: {e}"
-            )
-            raise HTTPException(
-                status_code=500,
-                detail="Error retrieving Icaro's Control de Ejecución Anual from the database",
-            )
 
     # # --------------------------------------------------
     # def reporte_siif_ejec_obras_actual(self):
