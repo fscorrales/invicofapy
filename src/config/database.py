@@ -263,3 +263,31 @@ class BaseRepository(Generic[ModelType]):
         docs = await cursor.to_list(length=limit)
         # return [self.model(**doc) for doc in docs]
         return docs
+
+    # -------------------------------------------------
+    async def safe_find_by_filter(
+        self,
+        filters: dict,
+        skip: int = 0,
+        limit: Optional[int] = None,
+        sort_by: Optional[str] = None,
+        sort_dir: str = "asc",
+        error_title: Optional[str] = None,
+    ) -> List[ModelType]:
+        """
+        Igual que find_by_filter pero con manejo de errores y logging estándar.
+        """
+        try:
+            return await self.find_by_filter(
+                filters=filters,
+                skip=skip,
+                limit=limit,
+                sort_by=sort_by,
+                sort_dir=sort_dir,
+            )
+        except Exception as e:
+            message = (
+                error_title or f"Error retrieving data from {self.collection_name}"
+            )
+            logger.error(f"{message}: {e}")
+            raise HTTPException(status_code=500, detail=message)
