@@ -135,7 +135,7 @@ class RfpP605b(SIIFReportManager):
             validate_and_errors = validate_and_extract_data_from_df(
                 dataframe=await self.download_and_process_report(ejercicio=ejercicio),
                 model=RfpP605bReport,
-                field_id="cod_recurso",
+                field_id="estructura",
             )
             return await sync_validated_to_repository(
                 repository=RfpP605bRepository(),

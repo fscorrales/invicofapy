@@ -167,7 +167,7 @@ class Ri102(SIIFReportManager):
             validate_and_errors = validate_and_extract_data_from_df(
                 dataframe=df,
                 model=Ri102Report,
-                field_id="estructura",
+                field_id="cod_recurso",
             )
 
             return await sync_validated_to_repository(
