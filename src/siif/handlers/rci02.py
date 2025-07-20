@@ -157,13 +157,13 @@ class Rci02(SIIFReportManager):
             df = get_df_from_sql_table(sqlite_path, table="comprobantes_rec_rci02")
             df.drop(columns=["id"], inplace=True)
             df["ejercicio"] = pd.to_numeric(df["ejercicio"], errors="coerce")
-            df.rename(
-                columns={
-                    "cod_rec": "cod_recurso",
-                    "desc_rec": "desc_recurso",
-                },
-                inplace=True,
-            )
+            # df.rename(
+            #     columns={
+            #         "cod_rec": "cod_recurso",
+            #         "desc_rec": "desc_recurso",
+            #     },
+            #     inplace=True,
+            # )
 
             validate_and_errors = validate_and_extract_data_from_df(
                 dataframe=df,
