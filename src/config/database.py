@@ -20,6 +20,8 @@ COLLECTIONS = [
     "siif_rcg01_uejp",
     "siif_rpa03g",
     "siif_rfondo07tp",
+    "siif_ri102",
+    "siif_rci02",
     "siif_rfp_p605b",
     "sgf_resumen_rend_prov",
     "icaro_programas",
