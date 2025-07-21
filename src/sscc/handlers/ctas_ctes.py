@@ -14,8 +14,15 @@ import os
 
 import pandas as pd
 
-from ...utils.handling_files import read_xls
+from ...config import logger
+from ...utils import (
+    RouteReturnSchema,
+    read_xls,
+    sync_validated_to_repository,
+    validate_and_extract_data_from_df,
+)
 from ..repositories import CtasCtesRepository
+from ..schemas import CtasCtesReport
 
 
 def validate_excel_file(path):
@@ -77,6 +84,29 @@ class CtasCtesMongoMigrator:
         df = self.from_excel()
         await self.ctas_ctes_repo.delete_all()
         await self.ctas_ctes_repo.save_all(df.to_dict(orient="records"))
+
+    # --------------------------------------------------
+    async def sync_validated_excel_to_repository(self) -> RouteReturnSchema:
+        """Download, process and sync the rci02 report to the repository."""
+        try:
+            df = self.from_excel()
+
+            validate_and_errors = validate_and_extract_data_from_df(
+                dataframe=df,
+                model=CtasCtesReport,
+                field_id="map_to",
+            )
+
+            return await sync_validated_to_repository(
+                repository=CtasCtesRepository(),
+                validation=validate_and_errors,
+                delete_filter=None,
+                title="Sync Cuentas Corrientes from Excel",
+                logger=logger,
+                label="Sync Cuentas Corrientes from Excel",
+            )
+        except Exception as e:
+            print(f"Error migrar y sincronizar el reporte: {e}")
 
 
 # --------------------------------------------------

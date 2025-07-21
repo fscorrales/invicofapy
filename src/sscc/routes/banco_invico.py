@@ -12,7 +12,7 @@ from ..schemas import (
 )
 from ..services import BancoINVICOServiceDependency
 
-banco_invico_router = APIRouter(prefix="/banco_invico", tags=["SSCC - Banco INVICO"])
+banco_invico_router = APIRouter(prefix="/banco_invico")
 
 
 @banco_invico_router.post("/sync_from_sscc", response_model=RouteReturnSchema)
