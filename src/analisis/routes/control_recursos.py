@@ -1,10 +1,11 @@
+import os
 from typing import Annotated, List
 
 from fastapi import APIRouter, Depends, Query
 
 from ...auth.services import OptionalAuthorizationDependency
 from ...config import settings
-from ...utils import RouteReturnSchema
+from ...utils import RouteReturnSchema, get_sqlite_path
 from ..schemas.control_recursos import ControlRecursosParams, ControlRecursosSyncParams
 from ..services import ControlRecursosServiceDependency
 
@@ -26,9 +27,7 @@ async def sync_icaro_vs_siif_from_source(
         params.sscc_username = settings.SSCC_USERNAME
         params.sscc_password = settings.SSCC_PASSWORD
 
-    return await service.sync_recursos_from_source(
-        params=params,
-    )
+    return await service.sync_recursos_from_source(params=params)
 
 
 # -------------------------------------------------

@@ -31,7 +31,7 @@ from ...siif.handlers import (
     logout,
 )
 from ...siif.repositories import Rci02RepositoryDependency
-from ...sscc.services import BancoINVICOServiceDependency
+from ...sscc.services import BancoINVICOServiceDependency, CtasCtesServiceDependency
 from ...utils import (
     BaseFilterParams,
     RouteReturnSchema,
@@ -56,6 +56,7 @@ class ControlRecursosService:
     control_recursos_repo: ControlRecursosRepositoryDependency
     siif_comprobantes_recursos_repo: Rci02RepositoryDependency
     banco_invico_service: BancoINVICOServiceDependency
+    ctas_ctes_service: CtasCtesServiceDependency
     siif_rf602_handler: Rci02 = field(init=False)  # No se pasa como argumento
 
     # -------------------------------------------------
@@ -109,6 +110,10 @@ class ControlRecursosService:
                 return_schema.append(partial_schema)
 
                 # 🔹Ctas Ctes
+                partial_schema = await self.ctas_ctes_service.sync_ctas_ctes_from_excel(
+                    excel_path=params.ctas_ctes_excel_path,
+                )
+                return_schema.append(partial_schema)
 
             except ValidationError as e:
                 logger.error(f"Validation Error: {e}")

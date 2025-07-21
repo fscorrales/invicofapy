@@ -6,13 +6,14 @@ __all__ = [
     "ControlRecursosFilter",
 ]
 
+import os
 from datetime import date
 from typing import Optional
 
 from pydantic import BaseModel, Field, field_validator
 from pydantic_mongo import PydanticObjectId
 
-from ...utils import BaseFilterParams, CamelModel
+from ...utils import BaseFilterParams, CamelModel, get_sqlite_path
 
 
 # --------------------------------------------------
@@ -37,6 +38,10 @@ class ControlRecursosSyncParams(ControlRecursosParams):
     siif_password: Optional[str] = None
     sscc_username: Optional[str] = None
     sscc_password: Optional[str] = None
+    ctas_ctes_excel_path: Optional[str] = Field(
+        default=os.path.join(get_sqlite_path(), "SIIF.sqlite"),
+        description="Ruta al archivo Ctas Ctes EXCEL",
+    )
 
 
 # -------------------------------------------------
