@@ -5,9 +5,7 @@ from fastapi import APIRouter, Depends, Query
 from ...auth.services import OptionalAuthorizationDependency
 from ...config import settings
 from ...utils import RouteReturnSchema
-from ..schemas.control_recursos import (
-    ControlRecursosParams,
-)
+from ..schemas.control_recursos import ControlRecursosParams, ControlRecursosSyncParams
 from ..services import ControlRecursosServiceDependency
 
 control_recursos_router = APIRouter(prefix="/recursos")
@@ -20,20 +18,16 @@ control_recursos_router = APIRouter(prefix="/recursos")
 async def sync_icaro_vs_siif_from_source(
     auth: OptionalAuthorizationDependency,
     service: ControlRecursosServiceDependency,
-    params: Annotated[ControlRecursosParams, Depends()],
-    siif_username: str = Query(None, alias="SIIFUsername"),
-    siif_password: str = Query(None, alias="SIIFPassword"),
-    sscc_username: str = Query(None, alias="SSCCUsername"),
-    sscc_password: str = Query(None, alias="SSCCPassword"),
+    params: Annotated[ControlRecursosSyncParams, Depends()],
 ):
     if auth.is_admin:
-        siif_username = settings.SIIF_USERNAME
-        siif_password = settings.SIIF_PASSWORD
-        sscc_username = settings.SSCC_USERNAME
-        sscc_password = settings.SSCC_PASSWORD
+        params.siif_username = settings.SIIF_USERNAME
+        params.siif_password = settings.SIIF_PASSWORD
+        params.sscc_username = settings.SSCC_USERNAME
+        params.sscc_password = settings.SSCC_PASSWORD
 
     return await service.sync_recursos_from_source(
-        siif_username=siif_username, siif_password=siif_password, params=params
+        params=params,
     )
 
 

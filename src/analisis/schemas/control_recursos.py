@@ -1,5 +1,6 @@
 __all__ = [
     "ControlRecursosParams",
+    "ControlRecursosSyncParams",
     "ControlRecursosReport",
     "ControlRecursosDocument",
     "ControlRecursosFilter",
@@ -11,11 +12,11 @@ from typing import Optional
 from pydantic import BaseModel, Field, field_validator
 from pydantic_mongo import PydanticObjectId
 
-from ...utils import BaseFilterParams
+from ...utils import BaseFilterParams, CamelModel
 
 
 # --------------------------------------------------
-class ControlRecursosParams(BaseModel):
+class ControlRecursosParams(CamelModel):
     ejercicio: int = date.today().year
 
     @field_validator("ejercicio")
@@ -28,6 +29,14 @@ class ControlRecursosParams(BaseModel):
 
     def __int__(self):
         return self.ejercicio
+
+
+# --------------------------------------------------
+class ControlRecursosSyncParams(ControlRecursosParams):
+    siif_username: Optional[str] = None
+    siif_password: Optional[str] = None
+    sscc_username: Optional[str] = None
+    sscc_password: Optional[str] = None
 
 
 # -------------------------------------------------

@@ -46,6 +46,7 @@ from ..schemas.control_recursos import (
     ControlRecursosDocument,
     ControlRecursosParams,
     ControlRecursosReport,
+    ControlRecursosSyncParams,
 )
 
 
@@ -60,9 +61,7 @@ class ControlRecursosService:
     # -------------------------------------------------
     async def sync_recursos_from_source(
         self,
-        siif_username: str,
-        siif_password: str,
-        params: ControlRecursosParams = None,
+        params: ControlRecursosSyncParams = None,
     ) -> List[RouteReturnSchema]:
         """Downloads a report from SIIF, processes it, validates the data,
         and stores it in MongoDB if valid.
@@ -73,7 +72,12 @@ class ControlRecursosService:
         Returns:
             RouteReturnSchema
         """
-        if siif_username is None or siif_password is None:
+        if (
+            params.siif_username is None
+            or params.siif_password is None
+            or params.sscc_username is None
+            or params.sscc_password is None
+        ):
             raise HTTPException(
                 status_code=401,
                 detail="Missing username or password",
@@ -81,8 +85,8 @@ class ControlRecursosService:
         return_schema = []
         async with async_playwright() as p:
             connect_siif = await login(
-                username=siif_username,
-                password=siif_password,
+                username=params.siif_username,
+                password=params.siif_password,
                 playwright=p,
                 headless=False,
             )
@@ -97,8 +101,8 @@ class ControlRecursosService:
                 # 🔹Banco INVICO
                 partial_schema = (
                     await self.banco_invico_service.sync_banco_invico_from_sscc(
-                        username=siif_username,
-                        password=siif_password,
+                        username=params.sscc_username,
+                        password=params.sscc_password,
                         params=params,
                     )
                 )
