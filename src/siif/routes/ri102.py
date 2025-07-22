@@ -39,7 +39,7 @@ async def sync_ri102_from_sqlite(
         alias="path",
     ),
 ):
-    return await service.sync_rf602_from_sqlite(sqlite_path)
+    return await service.sync_ri102_from_sqlite(sqlite_path)
 
 
 @ri102_router.get("/get_from_db", response_model=List[Ri102Document])
