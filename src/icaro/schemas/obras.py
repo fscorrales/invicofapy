@@ -41,8 +41,8 @@ class ObrasDocument(ObrasReport):
 
 # -------------------------------------------------
 class ObrasFilter(BaseFilterParams):
-    nro_subprog: Optional[str] = None
-    desc_subprog: Optional[str] = None
+    desc_obra: Optional[str] = None
+    activadad: Optional[str] = None
 
 
 # -------------------------------------------------

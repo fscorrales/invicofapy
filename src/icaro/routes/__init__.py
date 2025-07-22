@@ -1,1 +1,1 @@
-from .migrate_icaro import *
+from .icaro import *

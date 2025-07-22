@@ -1,4 +1,4 @@
-__all__ = ["CtasCtesService", "CtasCtesServiceDependency"]
+__all__ = ["IcaroService", "IcaroServiceDependency"]
 
 import os
 from dataclasses import dataclass
@@ -29,12 +29,23 @@ from ..repositories import (
     ResumenRendObrasRepositoryDependency,
     RetencionesRepositoryDependency,
 )
-from ..schemas import CtasCtesDocument
+from ..schemas import (
+    CargaDocument,
+    CertificadosDocument,
+    CtasCtesDocument,
+    EstructurasDocument,
+    FuentesDocument,
+    ObrasDocument,
+    PartidasDocument,
+    ProveedoresDocument,
+    ResumenRendObrasDocument,
+    RetencionesDocument,
+)
 
 
 # -------------------------------------------------
 @dataclass
-class CtasCtesService:
+class IcaroService:
     obras_repo: ObrasRepositoryDependency
     carga_repo: CargaRepositoryDependency
     certificados_repo: CertificadosRepositoryDependency
@@ -47,12 +58,89 @@ class CtasCtesService:
     retenciones_repo: RetencionesRepositoryDependency
 
     # -------------------------------------------------
-    async def get_obras_from_db(
-        self, params: BaseFilterParams
-    ) -> List[CtasCtesDocument]:
+    async def get_obras_from_db(self, params: BaseFilterParams) -> List[ObrasDocument]:
         return await self.obras_repo.safe_find_with_filter_params(
             params=params,
             error_title="Error retrieving Obras from the database",
+        )
+
+    # -------------------------------------------------
+    async def get_carga_from_db(self, params: BaseFilterParams) -> List[CargaDocument]:
+        return await self.carga_repo.safe_find_with_filter_params(
+            params=params,
+            error_title="Error retrieving Carga from the database",
+        )
+
+    # -------------------------------------------------
+    async def get_certificados_from_db(
+        self, params: BaseFilterParams
+    ) -> List[CertificadosDocument]:
+        return await self.certificados_repo.safe_find_with_filter_params(
+            params=params,
+            error_title="Error retrieving Certificados from the database",
+        )
+
+    # -------------------------------------------------
+    async def get_ctas_ctes_from_db(
+        self, params: BaseFilterParams
+    ) -> List[CtasCtesDocument]:
+        return await self.ctas_ctes_repo.safe_find_with_filter_params(
+            params=params,
+            error_title="Error retrieving CtasCtes from the database",
+        )
+
+    # -------------------------------------------------
+    async def get_estructuras_from_db(
+        self, params: BaseFilterParams
+    ) -> List[EstructurasDocument]:
+        return await self.estructuras_repo.safe_find_with_filter_params(
+            params=params,
+            error_title="Error retrieving Estructuras from the database",
+        )
+
+    # -------------------------------------------------
+    async def get_fuentes_from_db(
+        self, params: BaseFilterParams
+    ) -> List[FuentesDocument]:
+        return await self.fuentes_repo.safe_find_with_filter_params(
+            params=params,
+            error_title="Error retrieving Fuentes from the database",
+        )
+
+    # -------------------------------------------------
+    async def get_partidas_from_db(
+        self, params: BaseFilterParams
+    ) -> List[PartidasDocument]:
+        return await self.partidas_repo.safe_find_with_filter_params(
+            params=params,
+            error_title="Error retrieving Partidas from the database",
+        )
+
+    # -------------------------------------------------
+    async def get_proveedores_from_db(
+        self, params: BaseFilterParams
+    ) -> List[ProveedoresDocument]:
+        return await self.proveedores_repo.safe_find_with_filter_params(
+            params=params,
+            error_title="Error retrieving Proveedores from the database",
+        )
+
+    # -------------------------------------------------
+    async def get_resumen_rend_obras_from_db(
+        self, params: BaseFilterParams
+    ) -> List[ResumenRendObrasDocument]:
+        return await self.resumen_rend_obras_repo.safe_find_with_filter_params(
+            params=params,
+            error_title="Error retrieving ResumenRendObras from the database",
+        )
+
+    # -------------------------------------------------
+    async def get_retenciones_from_db(
+        self, params: BaseFilterParams
+    ) -> List[RetencionesDocument]:
+        return await self.retenciones_repo.safe_find_with_filter_params(
+            params=params,
+            error_title="Error retrieving Retenciones from the database",
         )
 
     # -------------------------------------------------
@@ -160,4 +248,4 @@ class CtasCtesService:
         )
 
 
-CtasCtesServiceDependency = Annotated[CtasCtesService, Depends()]
+IcaroServiceDependency = Annotated[IcaroService, Depends()]

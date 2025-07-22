@@ -37,8 +37,8 @@ class ProveedoresDocument(ProveedoresReport):
 
 # -------------------------------------------------
 class ProveedoresFilter(BaseFilterParams):
-    nro_subprog: Optional[str] = None
-    desc_subprog: Optional[str] = None
+    cuit: Optional[str] = None
+    desc_proveedor: Optional[str] = None
 
 
 # -------------------------------------------------

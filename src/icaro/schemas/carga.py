@@ -48,8 +48,10 @@ class CargaDocument(CargaReport):
 
 # -------------------------------------------------
 class CargaFilter(BaseFilterParams):
-    nro_subprog: Optional[str] = None
-    desc_subprog: Optional[str] = None
+    nro_comprobante: Optional[str] = None
+    cuit: Optional[str] = None
+    actividad: Optional[str] = None
+    desc_obra: Optional[str] = None
 
 
 # -------------------------------------------------
