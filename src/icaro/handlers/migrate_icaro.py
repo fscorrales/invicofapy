@@ -12,6 +12,7 @@ import asyncio
 import inspect
 import os
 import sqlite3
+from typing import List
 
 import pandas as pd
 
@@ -37,7 +38,22 @@ from ..repositories import (
     RetencionesRepository,
     SubprogramasRepository,
 )
-from ..schemas import CargaReport, EstructurasReport, ObrasReport, ProveedoresReport
+from ..schemas import (
+    ActividadesReport,
+    CargaReport,
+    CertificadosReport,
+    CtasCtesReport,
+    EstructurasReport,
+    FuentesReport,
+    ObrasReport,
+    PartidasReport,
+    ProgramasReport,
+    ProveedoresReport,
+    ProyectosReport,
+    ResumenRendObrasReport,
+    RetencionesReport,
+    SubprogramasReport,
+)
 
 
 def validate_sqlite_file(path):
@@ -111,16 +127,29 @@ class IcaroMongoMigrator:
             return pd.read_sql_query(f"SELECT * FROM {table}", conn)
 
     # --------------------------------------------------
-    async def migrate_programas(self):
+    async def migrate_programas(self) -> RouteReturnSchema:
         df = self.from_sql("PROGRAMAS")
         df.rename(
             columns={"Programa": "programa", "DescProg": "desc_programa"}, inplace=True
         )
-        await self.programas_repo.delete_all()
-        await self.programas_repo.save_all(df.to_dict(orient="records"))
+
+        # Validar datos usando Pydantic
+        validate_and_errors = validate_and_extract_data_from_df(
+            dataframe=df, model=ProgramasReport, field_id="programa"
+        )
+        # await self.programas_repo.delete_all()
+        # await self.programas_repo.save_all(df.to_dict(orient="records"))
+        return await sync_validated_to_repository(
+            repository=self.programas_repo,
+            validation=validate_and_errors,
+            delete_filter=None,
+            title="ICARO Programas Migration",
+            logger=logger,
+            label="Tabla Programas de ICARO",
+        )
 
     # --------------------------------------------------
-    async def migrate_subprogramas(self):
+    async def migrate_subprogramas(self) -> RouteReturnSchema:
         df = self.from_sql("SUBPROGRAMAS")
         df.rename(
             columns={
@@ -130,11 +159,24 @@ class IcaroMongoMigrator:
             },
             inplace=True,
         )
-        await self.subprogramas_repo.delete_all()
-        await self.subprogramas_repo.save_all(df.to_dict(orient="records"))
+
+        # Validar datos usando Pydantic
+        validate_and_errors = validate_and_extract_data_from_df(
+            dataframe=df, model=SubprogramasReport, field_id="subprograma"
+        )
+        # await self.subprogramas_repo.delete_all()
+        # await self.subprogramas_repo.save_all(df.to_dict(orient="records"))
+        return await sync_validated_to_repository(
+            repository=self.subprogramas_repo,
+            validation=validate_and_errors,
+            delete_filter=None,
+            title="ICARO Subprogramas Migration",
+            logger=logger,
+            label="Tabla Subprogramas de ICARO",
+        )
 
     # --------------------------------------------------
-    async def migrate_proyectos(self):
+    async def migrate_proyectos(self) -> RouteReturnSchema:
         df = self.from_sql("PROYECTOS")
         df.rename(
             columns={
@@ -144,11 +186,24 @@ class IcaroMongoMigrator:
             },
             inplace=True,
         )
-        await self.proyectos_repo.delete_all()
-        await self.proyectos_repo.save_all(df.to_dict(orient="records"))
+
+        # Validar datos usando Pydantic
+        validate_and_errors = validate_and_extract_data_from_df(
+            dataframe=df, model=ProyectosReport, field_id="proyecto"
+        )
+        # await self.proyectos_repo.delete_all()
+        # await self.proyectos_repo.save_all(df.to_dict(orient="records"))
+        return await sync_validated_to_repository(
+            repository=self.proyectos_repo,
+            validation=validate_and_errors,
+            delete_filter=None,
+            title="ICARO Proyectos Migration",
+            logger=logger,
+            label="Tabla Proyectos de ICARO",
+        )
 
     # --------------------------------------------------
-    async def migrate_actividades(self):
+    async def migrate_actividades(self) -> RouteReturnSchema:
         df = self.from_sql("ACTIVIDADES")
         df.rename(
             columns={
@@ -158,8 +213,21 @@ class IcaroMongoMigrator:
             },
             inplace=True,
         )
-        await self.actividades_repo.delete_all()
-        await self.actividades_repo.save_all(df.to_dict(orient="records"))
+
+        # Validar datos usando Pydantic
+        validate_and_errors = validate_and_extract_data_from_df(
+            dataframe=df, model=ActividadesReport, field_id="actividad"
+        )
+        # await self.actividades_repo.delete_all()
+        # await self.actividades_repo.save_all(df.to_dict(orient="records"))
+        return await sync_validated_to_repository(
+            repository=self.actividades_repo,
+            validation=validate_and_errors,
+            delete_filter=None,
+            title="ICARO Actividades Migration",
+            logger=logger,
+            label="Tabla Actividades de ICARO",
+        )
 
     # --------------------------------------------------
     async def migrate_estructuras(self) -> RouteReturnSchema:
@@ -224,7 +292,7 @@ class IcaroMongoMigrator:
         # await self.estructuras_repo.save_all(df.to_dict(orient="records"))
 
     # --------------------------------------------------
-    async def migrate_ctas_ctes(self):
+    async def migrate_ctas_ctes(self) -> RouteReturnSchema:
         df = self.from_sql("CUENTASBANCARIAS")
         df.rename(
             columns={
@@ -235,11 +303,24 @@ class IcaroMongoMigrator:
             },
             inplace=True,
         )
-        await self.ctas_ctes_repo.delete_all()
-        await self.ctas_ctes_repo.save_all(df.to_dict(orient="records"))
+
+        # Validar datos usando Pydantic
+        validate_and_errors = validate_and_extract_data_from_df(
+            dataframe=df, model=CtasCtesReport, field_id="cta_cte"
+        )
+        # await self.ctas_ctes_repo.delete_all()
+        # await self.ctas_ctes_repo.save_all(df.to_dict(orient="records"))
+        return await sync_validated_to_repository(
+            repository=self.ctas_ctes_repo,
+            validation=validate_and_errors,
+            delete_filter=None,
+            title="ICARO Ctas Ctes Migration",
+            logger=logger,
+            label="Tabla Ctas Ctes de ICARO",
+        )
 
     # --------------------------------------------------
-    async def migrate_fuentes(self):
+    async def migrate_fuentes(self) -> RouteReturnSchema:
         df = self.from_sql("FUENTES")
         df.rename(
             columns={
@@ -249,11 +330,24 @@ class IcaroMongoMigrator:
             },
             inplace=True,
         )
-        await self.fuentes_repo.delete_all()
-        await self.fuentes_repo.save_all(df.to_dict(orient="records"))
+
+        # Validar datos usando Pydantic
+        validate_and_errors = validate_and_extract_data_from_df(
+            dataframe=df, model=FuentesReport, field_id="fuente"
+        )
+        # await self.fuentes_repo.delete_all()
+        # await self.fuentes_repo.save_all(df.to_dict(orient="records"))
+        return await sync_validated_to_repository(
+            repository=self.fuentes_repo,
+            validation=validate_and_errors,
+            delete_filter=None,
+            title="ICARO Fuentes Migration",
+            logger=logger,
+            label="Tabla Fuentes de ICARO",
+        )
 
     # --------------------------------------------------
-    async def migrate_partidas(self):
+    async def migrate_partidas(self) -> RouteReturnSchema:
         df = self.from_sql("PARTIDAS")
         df.rename(
             columns={
@@ -266,8 +360,21 @@ class IcaroMongoMigrator:
             },
             inplace=True,
         )
-        await self.partidas_repo.delete_all()
-        await self.partidas_repo.save_all(df.to_dict(orient="records"))
+
+        # Validar datos usando Pydantic
+        validate_and_errors = validate_and_extract_data_from_df(
+            dataframe=df, model=PartidasReport, field_id="partida"
+        )
+        # await self.partidas_repo.delete_all()
+        # await self.partidas_repo.save_all(df.to_dict(orient="records"))
+        return await sync_validated_to_repository(
+            repository=self.partidas_repo,
+            validation=validate_and_errors,
+            delete_filter=None,
+            title="ICARO Partidas Migration",
+            logger=logger,
+            label="Tabla Partidas de ICARO",
+        )
 
     # --------------------------------------------------
     async def migrate_proveedores(self) -> RouteReturnSchema:
@@ -383,7 +490,7 @@ class IcaroMongoMigrator:
         )
 
     # --------------------------------------------------
-    async def migrate_retenciones(self):
+    async def migrate_retenciones(self) -> RouteReturnSchema:
         df = self.from_sql("RETENCIONES")
         df.rename(
             columns={
@@ -397,11 +504,24 @@ class IcaroMongoMigrator:
         df["id_carga"] = df["nro_comprobante"] + "C"
         df.loc[df["tipo"] == "PA6", "id_carga"] = df["nro_comprobante"] + "F"
         df.drop(["nro_comprobante", "tipo"], axis=1, inplace=True)
-        await self.retenciones_repo.delete_all()
-        await self.retenciones_repo.save_all(df.to_dict(orient="records"))
+
+        # Validar datos usando Pydantic
+        validate_and_errors = validate_and_extract_data_from_df(
+            dataframe=df, model=RetencionesReport, field_id="id_carga"
+        )
+        # await self.retenciones_repo.delete_all()
+        # await self.retenciones_repo.save_all(df.to_dict(orient="records"))
+        return await sync_validated_to_repository(
+            repository=self.retenciones_repo,
+            validation=validate_and_errors,
+            delete_filter=None,
+            title="ICARO Retenciones Migration",
+            logger=logger,
+            label="Tabla Retenciones de ICARO",
+        )
 
     # --------------------------------------------------
-    async def migrate_certificados(self):
+    async def migrate_certificados(self) -> RouteReturnSchema:
         df = self.from_sql("CERTIFICADOS")
         df.rename(
             columns={
@@ -430,11 +550,24 @@ class IcaroMongoMigrator:
         df.loc[df["nro_comprobante"] != "", "id_carga"] = df["nro_comprobante"] + "C"
         df.loc[df["tipo"] == "PA6", "id_carga"] = df["nro_comprobante"] + "F"
         df.drop(["nro_comprobante", "tipo"], axis=1, inplace=True)
-        await self.certificados_repo.delete_all()
-        await self.certificados_repo.save_all(df.to_dict(orient="records"))
+
+        # Validar datos usando Pydantic
+        validate_and_errors = validate_and_extract_data_from_df(
+            dataframe=df, model=CertificadosReport, field_id="id_carga"
+        )
+        # await self.certificados_repo.delete_all()
+        # await self.certificados_repo.save_all(df.to_dict(orient="records"))
+        return await sync_validated_to_repository(
+            repository=self.certificados_repo,
+            validation=validate_and_errors,
+            delete_filter=None,
+            title="ICARO Certificados Migration",
+            logger=logger,
+            label="Tabla Certificados de ICARO",
+        )
 
     # --------------------------------------------------
-    async def migrate_resumen_rend_obras(self):
+    async def migrate_resumen_rend_obras(self) -> RouteReturnSchema:
         df = self.from_sql("EPAM")
         df.rename(
             columns={
@@ -474,25 +607,40 @@ class IcaroMongoMigrator:
         df.loc[df["nro_comprobante"] != "", "id_carga"] = df["nro_comprobante"] + "C"
         df.loc[df["tipo"] == "PA6", "id_carga"] = df["nro_comprobante"] + "F"
         df.drop(["nro_comprobante", "tipo"], axis=1, inplace=True)
-        await self.resumen_rend_obras_repo.delete_all()
-        await self.resumen_rend_obras_repo.save_all(df.to_dict(orient="records"))
+
+        # Validar datos usando Pydantic
+        validate_and_errors = validate_and_extract_data_from_df(
+            dataframe=df, model=ResumenRendObrasReport, field_id="id_carga"
+        )
+        # await self.resumen_rend_obras_repo.delete_all()
+        # await self.resumen_rend_obras_repo.save_all(df.to_dict(orient="records"))
+        return await sync_validated_to_repository(
+            repository=self.resumen_rend_obras_repo,
+            validation=validate_and_errors,
+            delete_filter=None,
+            title="ICARO Resumen Rend Obras Migration",
+            logger=logger,
+            label="Tabla Resumen Rend Obras de ICARO",
+        )
 
     # --------------------------------------------------
-    async def migrate_all(self):
-        await self.migrate_programas()
-        await self.migrate_subprogramas()
-        await self.migrate_proyectos()
-        await self.migrate_actividades()
-        await self.migrate_estructuras()
-        await self.migrate_ctas_ctes()
-        await self.migrate_fuentes()
-        await self.migrate_partidas()
-        await self.migrate_proveedores()
-        await self.migrate_obras()
-        await self.migrate_carga()
-        await self.migrate_retenciones()
-        await self.migrate_certificados()
-        await self.migrate_resumen_rend_obras()
+    async def migrate_all(self) -> List[RouteReturnSchema]:
+        return_schema = []
+        return_schema.append(await self.migrate_programas())
+        return_schema.append(await self.migrate_subprogramas())
+        return_schema.append(await self.migrate_proyectos())
+        return_schema.append(await self.migrate_actividades())
+        return_schema.append(await self.migrate_estructuras())
+        return_schema.append(await self.migrate_ctas_ctes())
+        return_schema.append(await self.migrate_fuentes())
+        return_schema.append(await self.migrate_partidas())
+        return_schema.append(await self.migrate_proveedores())
+        return_schema.append(await self.migrate_obras())
+        return_schema.append(await self.migrate_carga())
+        return_schema.append(await self.migrate_retenciones())
+        return_schema.append(await self.migrate_certificados())
+        return_schema.append(await self.migrate_resumen_rend_obras())
+        return return_schema
 
 
 # --------------------------------------------------
