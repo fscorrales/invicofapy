@@ -1,4 +1,4 @@
-__all__ = ["ResumenRendProvRepositoryDependency"]
+__all__ = ["ResumenRendProvRepositoryDependency", "ResumenRendProvRepository"]
 
 from typing import Annotated
 
