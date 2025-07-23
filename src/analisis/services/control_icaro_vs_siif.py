@@ -31,7 +31,6 @@ from ...icaro.handlers import IcaroMongoMigrator
 
 # from ...icaro.repositories import CargaRepositoryDependency
 from ...siif.handlers import (
-    JoinComprobantesGtosGpoPart,
     Rcg01Uejp,
     Rf602,
     Rf610,
@@ -58,6 +57,7 @@ from ...utils import (
 )
 from ..handlers import (
     get_icaro_carga,
+    get_siif_comprobantes_gtos_joined,
     get_siif_desc_pres,
     get_siif_rf602,
     get_siif_rfondo07tp,
@@ -315,7 +315,7 @@ class ControlIcaroVsSIIFService:
 
     # --------------------------------------------------
     async def get_siif_comprobantes(self):
-        df = await JoinComprobantesGtosGpoPart().from_mongo()
+        df = await get_siif_comprobantes_gtos_joined()
         df = df.loc[
             (df["partida"].isin(["421", "422"]))
             | (

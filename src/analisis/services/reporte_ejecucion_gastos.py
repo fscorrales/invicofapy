@@ -30,7 +30,6 @@ from pydantic import ValidationError
 from ...config import logger
 from ...icaro.handlers import IcaroMongoMigrator
 from ...siif.handlers import (
-    JoinComprobantesGtosGpoPart,
     Rcg01Uejp,
     Rf602,
     Rf610,

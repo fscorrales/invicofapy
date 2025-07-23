@@ -4,6 +4,7 @@ __all__ = [
     "get_siif_desc_pres",
     "get_siif_ri102",
     "get_siif_rci02_unified_cta_cte",
+    "get_siif_comprobantes_gtos_joined",
 ]
 
 import datetime as dt
@@ -14,11 +15,13 @@ from fastapi import HTTPException
 
 from ...config import logger
 from ...siif.repositories import (
+    Rcg01UejpRepository,
     Rci02Repository,
     Rf602Repository,
     Rf610Repository,
     Rfondo07tpRepository,
     Ri102Repository,
+    Rpa03gRepository,
 )
 from ...sscc.repositories import CtasCtesRepository
 
@@ -132,6 +135,47 @@ async def get_siif_desc_pres(
         inplace=True,
     )
     return df
+
+
+# --------------------------------------------------
+async def get_siif_comprobantes_gtos_joined() -> pd.DataFrame:
+    """
+    Join gto_rpa03g (gtos_gpo_part) with rcg01_uejp (gtos)
+    """
+    try:
+        df_gtos_gpo_part = pd.DataFrame(await Rpa03gRepository().get_all())
+        df_gtos = pd.DataFrame(await Rcg01UejpRepository().get_all())
+        df_gtos_filtered = df_gtos[
+            [
+                "nro_comprobante",
+                "nro_fondo",
+                "fuente",
+                "cta_cte",
+                "cuit",
+                "clase_reg",
+                "clase_mod",
+                "clase_gto",
+                "es_comprometido",
+                "es_verificado",
+                "es_aprobado",
+                "es_pagado",
+            ]
+        ]
+        df = pd.merge(
+            left=df_gtos_gpo_part,
+            right=df_gtos_filtered,
+            on=["nro_comprobante"],
+            how="left",
+        )
+        # self.df.drop(["grupo"], axis=1, inplace=True)
+        # self.df = pd.merge(left=self.df, right=self.df_part, on=["partida"], how="left")
+        return df
+    except Exception as e:
+        logger.error(f"Error retrieving SIIF's rf602 from database: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="Error retrieving SIIF's rf602 from the database",
+        )
 
 
 # --------------------------------------------------
