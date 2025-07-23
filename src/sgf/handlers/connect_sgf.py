@@ -89,14 +89,20 @@ class ConnectSGF:
     app: Application
     main: WindowSpecification
 
+    # --------------------------------------------------
     def __enter__(self):
         return self  # Devuelve el objeto para ser usado en el bloque with
 
+    # --------------------------------------------------
     def __exit__(self, exc_type, exc_val, exc_tb):
         try:
             logout(window=self.main)
         except Exception as e:
             print(f"Error al cerrar sesión: {e}")
+
+    # --------------------------------------------------
+    def quit(self):
+        self.__exit__(None, None, None)
 
 
 # --------------------------------------------------
