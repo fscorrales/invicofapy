@@ -6,6 +6,7 @@ __all__ = [
     "RouteReturnSchema",
     "sync_validated_to_repository",
     "validate_excel_file",
+    "ValidationResultSchema",
 ]
 
 import argparse
@@ -17,7 +18,9 @@ from bson import ObjectId
 from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel, GetCoreSchemaHandler, ValidationError
 from pydantic_core import core_schema
+
 from .safe_get import sanitize_dataframe_for_json
+
 
 # -------------------------------------------------
 class ErrorsDetails(BaseModel):
