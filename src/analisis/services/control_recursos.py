@@ -60,7 +60,7 @@ class ControlRecursosService:
     siif_rf602_handler: Rci02 = field(init=False)  # No se pasa como argumento
 
     # -------------------------------------------------
-    async def sync_recursos_from_source(
+    async def sync_control_recursos_from_source(
         self,
         params: ControlRecursosSyncParams = None,
     ) -> List[RouteReturnSchema]:

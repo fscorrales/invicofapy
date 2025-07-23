@@ -74,7 +74,7 @@ from ..schemas.reporte_formulacion_presupuesto import (
 @dataclass
 class ReporteEjecucionObrasService:
     siif_pres_with_desc_repo: ReporteSIIFPresWithDescRepositoryDependency
-    siif_comprobantes_recursos_repo: Ri102RepositoryDependency
+    siif_pres_recursos_repo: Ri102RepositoryDependency
     siif_carga_form_gtos_repo: RfpP605bRepositoryDependency
     siif_rf602_handler: Rf602 = field(init=False)  # No se pasa como argumento
     siif_rf610_handler: Rf610 = field(init=False)  # No se pasa como argumento
@@ -182,7 +182,7 @@ class ReporteEjecucionObrasService:
             return_schema.append(partial_schema)
 
             # 🔹 SIIF Comprobantes Recursos
-            partial_schema = await self.generate_siif_comprobantes_recursos()
+            partial_schema = await self.generate_siif_pres_recursos()
             return_schema.append(partial_schema)
 
         except ValidationError as e:
@@ -208,14 +208,12 @@ class ReporteEjecucionObrasService:
 
         siif_pres_with_desc_docs = await self.siif_pres_with_desc_repo.get_all()
         siif_carga_form_gtos_docs = await self.siif_carga_form_gtos_repo.get_all()
-        siif_comprobantes_recursos_docs = (
-            await self.siif_comprobantes_recursos_repo.get_all()
-        )
+        siif_pres_recursos_docs = await self.siif_pres_recursos_repo.get_all()
 
         if (
             not siif_pres_with_desc_docs
             and not siif_carga_form_gtos_docs
-            and not siif_comprobantes_recursos_docs
+            and not siif_pres_recursos_docs
         ):
             raise HTTPException(status_code=404, detail="No se encontraron registros")
 
@@ -223,7 +221,7 @@ class ReporteEjecucionObrasService:
             df_sheet_pairs=[
                 (pd.DataFrame(siif_pres_with_desc_docs), "siif_ejec_gastos"),
                 (pd.DataFrame(siif_carga_form_gtos_docs), "siif_carga_form_gtos"),
-                (pd.DataFrame(siif_comprobantes_recursos_docs), "siif_recursos_cod"),
+                (pd.DataFrame(siif_pres_recursos_docs), "siif_recursos_cod"),
             ],
             filename="reportes_formulacion_presupuesto.xlsx",
             spreadsheet_key="1hJyBOkA8sj5otGjYGVOzYViqSpmv_b4L8dXNju_GJ5Q",
@@ -326,29 +324,29 @@ class ReporteEjecucionObrasService:
         )
 
     # --------------------------------------------------
-    async def generate_siif_comprobantes_recursos(self) -> RouteReturnSchema:
+    async def generate_siif_pres_recursos(self) -> RouteReturnSchema:
         return RouteReturnSchema(
             title="Reporte de Comprobantes de Recursos SIIF (ri102)"
         )
 
     # -------------------------------------------------
-    async def get_siif_comprobantes_recursos_from_db(
+    async def get_siif_pres_recursos_from_db(
         self, params: BaseFilterParams
     ) -> List[ReporteSIIFPresWithDescDocument]:
-        return await self.siif_comprobantes_recursos_repo.safe_find_with_filter_params(
+        return await self.siif_pres_recursos_repo.safe_find_with_filter_params(
             params=params,
-            error_title="Error retrieving Reporte de Comprobantes de Recursos SIIF (ri102) from the database",
+            error_title="Error retrieving Reporte de Presupuesto de Recursos SIIF (ri102) from the database",
         )
 
     # -------------------------------------------------
-    async def export_siif_comprobantes_recursos_from_db(
+    async def export_siif_pres_recursos_from_db(
         self, upload_to_google_sheets: bool = True
     ) -> StreamingResponse:
-        df = pd.DataFrame(await self.siif_comprobantes_recursos_repo.get_all())
+        df = pd.DataFrame(await self.siif_pres_recursos_repo.get_all())
 
         return export_dataframe_as_excel_response(
             df,
-            filename="siif_comprobantes_recursos.xlsx",
+            filename="siif_pres_recursos.xlsx",
             sheet_name="siif_recursos_cod",
             upload_to_google_sheets=upload_to_google_sheets,
             google_sheet_key="1hJyBOkA8sj5otGjYGVOzYViqSpmv_b4L8dXNju_GJ5Q",
