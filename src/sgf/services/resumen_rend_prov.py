@@ -179,9 +179,9 @@ class ResumenRendProvService:
         conn = login(username, password)
 
         try:
+            resumen_rend_prov = ResumenRendProv(sgf=conn)
             for origen in origenes:
                 try:
-                    resumen_rend_prov = ResumenRendProv(sgf=conn)
                     resumen_rend_prov.download_report(
                         dir_path=Path(
                             os.path.join(

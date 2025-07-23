@@ -30,6 +30,7 @@ from pydantic import ValidationError
 from ...config import logger
 from ...icaro.handlers import IcaroMongoMigrator
 from ...icaro.repositories import ObrasRepositoryDependency
+from ...sgf.schemas import Origen
 from ...sgf.services import ResumenRendProvServiceDependency
 from ...siif.handlers import (
     Rci02,
@@ -130,12 +131,13 @@ class ControlObrasService:
                 return_schema.append(partial_schema)
 
                 # 🔹Resumen Rendicion Proveedores
+                params.origenes = [Origen.epam.value, Origen.obras.value]
                 partial_schema = await self.sgf_resumend_rend_prov_service.sync_resumen_rend_prov_from_sgf(
                     username=params.sgf_username,
                     password=params.sgf_password,
                     params=params,
                 )
-                return_schema.append(partial_schema)
+                return_schema.extend(partial_schema)
 
                 # 🔹 Icaro
                 path = os.path.join(get_r_icaro_path(), "ICARO.sqlite")
