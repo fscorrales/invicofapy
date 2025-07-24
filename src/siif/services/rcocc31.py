@@ -14,7 +14,7 @@ from ...config import logger
 from ...utils import (
     BaseFilterParams,
     RouteReturnSchema,
-    export_dataframe_as_excel_response,
+    export_multiple_dataframes_to_excel,
 )
 from ..handlers import Rcocc31
 from ..repositories import Rcocc31RepositoryDependency
@@ -127,10 +127,21 @@ class Rcocc31Service:
             raise HTTPException(status_code=404, detail="No se encontraron registros")
         df = pd.DataFrame(docs)
 
-        return export_dataframe_as_excel_response(
-            df,
+        df = df.sort_values(by=["cta_contable", "ejercicio", "fecha", "nro_entrada"])
+
+        # Agrupar por cta_contable
+        df_sheet_pairs = [
+            (
+                group_df,
+                f"cta_{cta.replace('-', '_')[:31]}",
+            )  # limitar nombre hoja a 31 caracteres
+            for cta, group_df in df.groupby("cta_contable")
+        ]
+
+        return export_multiple_dataframes_to_excel(
+            df_sheet_pairs=df_sheet_pairs,
             filename=f"rccocc31_{ejercicio or 'all'}.xlsx",
-            sheet_name="rcocc31",
+            upload_to_google_sheets=False,
         )
 
 
