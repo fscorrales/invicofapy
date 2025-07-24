@@ -12,6 +12,7 @@ from .rfondo07tp import rfondo07tp_router
 from .rfp_p605b import rfp_p605b_router
 from .ri102 import ri102_router
 from .rpa03g import rpa03g_router
+from .rvicon03 import rvicon03_router
 
 siif_router = APIRouter(prefix="/siif", tags=["SIIF"])
 
@@ -24,4 +25,5 @@ siif_router.include_router(rpa03g_router)
 siif_router.include_router(rdeu012_router)
 siif_router.include_router(rfondo07tp_router)
 siif_router.include_router(rfp_p605b_router)
+siif_router.include_router(rvicon03_router)
 siif_router.include_router(rcocc31_router)

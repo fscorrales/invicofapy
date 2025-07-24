@@ -25,6 +25,7 @@ COLLECTIONS = [
     "siif_rfp_p605b",
     "siif_rdeu012",
     "siif_rcocc31",
+    "siif_rvicon03",
     "sgf_resumen_rend_prov",
     "icaro_programas",
     "icaro_subprogramas",
