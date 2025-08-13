@@ -7,7 +7,6 @@ from typing import Annotated, List
 
 import pandas as pd
 from fastapi import Depends, HTTPException
-from fastapi.encoders import jsonable_encoder
 from fastapi.responses import StreamingResponse
 from playwright.async_api import async_playwright
 from pydantic import ValidationError
@@ -17,11 +16,10 @@ from ...utils import (
     BaseFilterParams,
     RouteReturnSchema,
     sanitize_dataframe_for_json,
-    validate_and_extract_data_from_df,
 )
 from ..handlers import Rf602
 from ..repositories import Rf602RepositoryDependency
-from ..schemas import Rf602Document, Rf602Params, Rf602Report
+from ..schemas import Rf602Document, Rf602Params
 
 
 # -------------------------------------------------
@@ -109,7 +107,9 @@ class Rf602Service:
 
         return_schema = RouteReturnSchema()
         try:
-            return_schema = await self.rf602.sync_validated_sqlite_to_repository(sqlite_path=sqlite_path)
+            return_schema = await self.rf602.sync_validated_sqlite_to_repository(
+                sqlite_path=sqlite_path
+            )
         except ValidationError as e:
             logger.error(f"Validation Error: {e}")
             raise HTTPException(

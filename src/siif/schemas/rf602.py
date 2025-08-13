@@ -9,7 +9,13 @@ __all__ = [
 from datetime import date
 from typing import List, Optional
 
-from pydantic import BaseModel, Field, NonNegativeFloat, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    Field,
+    NonNegativeFloat,
+    field_validator,
+    model_validator,
+)
 from pydantic_mongo import PydanticObjectId
 
 from ...utils import BaseFilterParams, ErrorsWithDocId
