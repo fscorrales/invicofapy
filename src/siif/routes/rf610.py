@@ -12,7 +12,7 @@ from ..services import Rf610ServiceDependency
 rf610_router = APIRouter(prefix="/rf610")
 
 
-@rf610_router.post("/sync_from_siif", response_model=RouteReturnSchema)
+@rf610_router.post("/sync_from_siif", response_model=List[RouteReturnSchema])
 async def sync_rf610_from_siif(
     auth: OptionalAuthorizationDependency,
     service: Rf610ServiceDependency,

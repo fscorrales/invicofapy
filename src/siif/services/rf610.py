@@ -7,7 +7,6 @@ from typing import Annotated, List
 
 import pandas as pd
 from fastapi import Depends, HTTPException
-from fastapi.encoders import jsonable_encoder
 from fastapi.responses import StreamingResponse
 from playwright.async_api import async_playwright
 from pydantic import ValidationError
@@ -17,11 +16,10 @@ from ...utils import (
     BaseFilterParams,
     RouteReturnSchema,
     sanitize_dataframe_for_json,
-    validate_and_extract_data_from_df,
 )
 from ..handlers import Rf610
 from ..repositories import Rf610RepositoryDependency
-from ..schemas import Rf610Document, Rf610Params, Rf610Report
+from ..schemas import Rf610Document, Rf610Params
 
 
 # -------------------------------------------------
@@ -40,7 +38,7 @@ class Rf610Service:
         username: str,
         password: str,
         params: Rf610Params = None,
-    ) -> RouteReturnSchema:
+    ) -> List[RouteReturnSchema]:
         """Downloads a report from SIIF, processes it, validates the data,
         and stores it in MongoDB if valid.
 
@@ -52,7 +50,7 @@ class Rf610Service:
                 status_code=401,
                 detail="Missing username or password",
             )
-        return_schema = RouteReturnSchema()
+        return_schema = []
         ejercicios = list(range(params.ejercicio_from, params.ejercicio_to + 1))
         async with async_playwright() as p:
             try:
@@ -64,37 +62,12 @@ class Rf610Service:
                 )
                 await self.rf610.go_to_reports()
                 for ejercicio in ejercicios:
-                    await self.rf610.go_to_specific_report()
-                    await self.rf610.download_report(ejercicio=str(ejercicio))
-                    await self.rf610.read_xls_file()
-                    df = await self.rf610.process_dataframe()
-
-                    # 🔹 Validar datos usando Pydantic
-                    validate_and_errors = validate_and_extract_data_from_df(
-                        dataframe=df, model=Rf610Report, field_id="estructura"
+                    partial_schema = (
+                        await self.rf610.download_and_sync_validated_to_repository(
+                            ejercicio=int(ejercicio)
+                        )
                     )
-
-                    # 🔹 Si hay registros validados, eliminar los antiguos e insertar los nuevos
-                    if validate_and_errors.validated:
-                        logger.info(
-                            f"Procesado ejercicio {ejercicio}. Errores: {len(validate_and_errors.errors)}"
-                        )
-                        delete_dict = {"ejercicio": ejercicio}
-                        # Contar los documentos existentes antes de eliminarlos
-                        deleted_count = await self.repository.count_by_fields(
-                            delete_dict
-                        )
-                        await self.repository.delete_by_fields(delete_dict)
-                        logger.info(f"Eliminated {deleted_count} records from MongoDB.")
-                        # await self.collection.delete_many({"ejercicio": ejercicio})
-                        data_to_store = jsonable_encoder(validate_and_errors.validated)
-                        inserted_records = await self.repository.save_all(data_to_store)
-                        logger.info(
-                            f"Inserted {len(inserted_records.inserted_ids)} records into MongoDB."
-                        )
-                        return_schema.deleted += deleted_count
-                        return_schema.added += len(data_to_store)
-                        return_schema.errors += validate_and_errors.errors
+                    return_schema.append(partial_schema)
 
             except ValidationError as e:
                 logger.error(f"Validation Error: {e}")
@@ -117,10 +90,10 @@ class Rf610Service:
         try:
             return await self.repository.find_with_filter_params(params=params)
         except Exception as e:
-            logger.error(f"Error retrieving SIIF's rf602 from database: {e}")
+            logger.error(f"Error retrieving SIIF's rf610 from database: {e}")
             raise HTTPException(
                 status_code=500,
-                detail="Error retrieving SIIF's rf602 from the database",
+                detail="Error retrieving SIIF's rf610 from the database",
             )
 
     # -------------------------------------------------
@@ -131,7 +104,9 @@ class Rf610Service:
 
         return_schema = RouteReturnSchema()
         try:
-            self.rf610.sync_validated_sqlite_to_repository(sqlite_path=sqlite_path)
+            return_schema = await self.rf610.sync_validated_sqlite_to_repository(
+                sqlite_path=sqlite_path
+            )
         except ValidationError as e:
             logger.error(f"Validation Error: {e}")
             raise HTTPException(
