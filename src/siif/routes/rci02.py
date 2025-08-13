@@ -12,7 +12,7 @@ from ..services import Rci02ServiceDependency
 rci02_router = APIRouter(prefix="/rci02")
 
 
-@rci02_router.post("/sync_from_siif", response_model=RouteReturnSchema)
+@rci02_router.post("/sync_from_siif", response_model=List[RouteReturnSchema])
 async def sync_rci02_from_siif(
     auth: OptionalAuthorizationDependency,
     service: Rci02ServiceDependency,
@@ -24,7 +24,7 @@ async def sync_rci02_from_siif(
         username = settings.SIIF_USERNAME
         password = settings.SIIF_PASSWORD
 
-    return await service.sync_ri102_from_siif(
+    return await service.sync_rci02_from_siif(
         username=username, password=password, params=params
     )
 

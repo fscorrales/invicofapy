@@ -157,13 +157,7 @@ class Rci02(SIIFReportManager):
             df = get_df_from_sql_table(sqlite_path, table="comprobantes_rec_rci02")
             df.drop(columns=["id"], inplace=True)
             df["ejercicio"] = pd.to_numeric(df["ejercicio"], errors="coerce")
-            # df.rename(
-            #     columns={
-            #         "cod_rec": "cod_recurso",
-            #         "desc_rec": "desc_recurso",
-            #     },
-            #     inplace=True,
-            # )
+            df = df.loc[df["ejercicio"] < 2024]
 
             validate_and_errors = validate_and_extract_data_from_df(
                 dataframe=df,
@@ -277,7 +271,7 @@ class Rci02(SIIFReportManager):
         df["es_verificado"] = np.where(df["es_verificado"] == "S", True, False)
         df["importe"] = df["importe"].apply(pd.to_numeric).astype(np.float64)
 
-        df["fecha"] = pd.to_datetime(df["fecha"], format="%Y-%m-%d")
+        df["fecha"] = pd.to_datetime(df["fecha"], format="%Y-%m-%d %H:%M:%S")
         df = df.loc[
             :,
             [

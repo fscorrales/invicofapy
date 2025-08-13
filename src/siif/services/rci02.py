@@ -37,7 +37,7 @@ class Rci02Service:
         username: str,
         password: str,
         params: Rci02Params = None,
-    ) -> RouteReturnSchema:
+    ) -> List[RouteReturnSchema]:
         """Downloads a report from SIIF, processes it, validates the data,
         and stores it in MongoDB if valid.
 
@@ -49,7 +49,7 @@ class Rci02Service:
                 status_code=401,
                 detail="Missing username or password",
             )
-        return_schema = RouteReturnSchema()
+        return_schema = []
         ejercicios = list(range(params.ejercicio_from, params.ejercicio_to + 1))
         async with async_playwright() as p:
             try:
@@ -99,7 +99,7 @@ class Rci02Service:
 
         return_schema = RouteReturnSchema()
         try:
-            self.rci02.sync_validated_sqlite_to_repository(sqlite_path=sqlite_path)
+            return_schema = await self.rci02.sync_validated_sqlite_to_repository(sqlite_path=sqlite_path)
         except ValidationError as e:
             logger.error(f"Validation Error: {e}")
             raise HTTPException(
