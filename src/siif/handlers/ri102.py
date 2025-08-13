@@ -136,6 +136,7 @@ class Ri102(SIIFReportManager):
                 model=Ri102Report,
                 field_id="cod_recurso",
             )
+            logger.info(validate_and_errors)
             return await sync_validated_to_repository(
                 repository=Ri102Repository(),
                 validation=validate_and_errors,
@@ -163,6 +164,7 @@ class Ri102(SIIFReportManager):
                 },
                 inplace=True,
             )
+            df = df.loc[df["ejercicio"] < 2024]
 
             validate_and_errors = validate_and_extract_data_from_df(
                 dataframe=df,
@@ -234,7 +236,7 @@ class Ri102(SIIFReportManager):
         else:
             df = dataframe.copy()
 
-        df["ejercicio"] = pd.to_numeric(df.iloc[5, 17], errors="coerce")
+        df["ejercicio"] = pd.to_numeric(df.iloc[5, 19], errors="coerce")
         df["tipo"] = df["2"].str[0:2] + "000"
         df["clase"] = df["2"].str[0:3] + "00"
         df = df.replace(to_replace="", value=None)
@@ -248,11 +250,11 @@ class Ri102(SIIFReportManager):
                 "4",
                 "11",
                 "12",
-                "14",
                 "15",
-                "19",
-                "22",
+                "17",
+                "21",
                 "25",
+                "29",
             ],
         ]
         df = df.dropna(subset=["4"])
@@ -262,11 +264,11 @@ class Ri102(SIIFReportManager):
                 "4": "desc_recurso",
                 "11": "fuente",
                 "12": "org_fin",
-                "14": "ppto_inicial",
-                "15": "ppto_modif",
-                "19": "ppto_vigente",
-                "22": "ingreso",
-                "25": "saldo",
+                "15": "ppto_inicial",
+                "17": "ppto_modif",
+                "21": "ppto_vigente",
+                "25": "ingreso",
+                "29": "saldo",
             }
         )
 

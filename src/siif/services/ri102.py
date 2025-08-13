@@ -99,7 +99,7 @@ class Ri102Service:
 
         return_schema = RouteReturnSchema()
         try:
-            self.ri102.sync_validated_sqlite_to_repository(sqlite_path=sqlite_path)
+            return_schema = await self.ri102.sync_validated_sqlite_to_repository(sqlite_path=sqlite_path)
         except ValidationError as e:
             logger.error(f"Validation Error: {e}")
             raise HTTPException(
