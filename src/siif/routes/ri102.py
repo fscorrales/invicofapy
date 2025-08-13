@@ -12,7 +12,7 @@ from ..services import Ri102ServiceDependency
 ri102_router = APIRouter(prefix="/ri102")
 
 
-@ri102_router.post("/sync_from_siif", response_model=RouteReturnSchema)
+@ri102_router.post("/sync_from_siif", response_model=List[RouteReturnSchema])
 async def sync_ri102_from_siif(
     auth: OptionalAuthorizationDependency,
     service: Ri102ServiceDependency,
