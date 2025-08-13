@@ -40,7 +40,7 @@ class Rf602Service:
         username: str,
         password: str,
         params: Rf602Params = None,
-    ) -> RouteReturnSchema:
+    ) -> List[RouteReturnSchema]:
         """Downloads a report from SIIF, processes it, validates the data,
         and stores it in MongoDB if valid.
 
@@ -55,7 +55,8 @@ class Rf602Service:
                 status_code=401,
                 detail="Missing username or password",
             )
-        return_schema = RouteReturnSchema()
+        return_schema = []
+        ejercicios = list(range(params.ejercicio_from, params.ejercicio_to + 1))
         async with async_playwright() as p:
             try:
                 await self.rf602.login(
@@ -65,34 +66,13 @@ class Rf602Service:
                     headless=False,
                 )
                 await self.rf602.go_to_reports()
-                await self.rf602.go_to_specific_report()
-                await self.rf602.download_report(ejercicio=str(params.ejercicio))
-                await self.rf602.read_xls_file()
-                df = await self.rf602.process_dataframe()
-
-                # 🔹 Validar datos usando Pydantic
-                validate_and_errors = validate_and_extract_data_from_df(
-                    dataframe=df, model=Rf602Report, field_id="estructura"
-                )
-
-                # 🔹 Si hay registros validados, eliminar los antiguos e insertar los nuevos
-                if validate_and_errors.validated:
-                    logger.info(
-                        f"Procesado ejercicio {str(params.ejercicio)}. Errores: {len(validate_and_errors.errors)}"
+                for ejercicio in ejercicios:
+                    partial_schema = (
+                        await self.rf602.download_and_sync_validated_to_repository(
+                            ejercicio=int(ejercicio)
+                        )
                     )
-                    delete_dict = {"ejercicio": str(params.ejercicio)}
-                    # Contar los documentos existentes antes de eliminarlos
-                    deleted_count = await self.repository.count_by_fields(delete_dict)
-                    await self.repository.delete_by_fields(delete_dict)
-                    # await self.collection.delete_many({"ejercicio": ejercicio})
-                    data_to_store = jsonable_encoder(validate_and_errors.validated)
-                    inserted_records = await self.repository.save_all(data_to_store)
-                    logger.info(
-                        f"Inserted {len(inserted_records.inserted_ids)} records into MongoDB."
-                    )
-                    return_schema.deleted = deleted_count
-                    return_schema.added = len(data_to_store)
-                    return_schema.errors = validate_and_errors.errors
+                    return_schema.append(partial_schema)
 
             except ValidationError as e:
                 logger.error(f"Validation Error: {e}")
@@ -129,7 +109,7 @@ class Rf602Service:
 
         return_schema = RouteReturnSchema()
         try:
-            self.rf602.sync_validated_sqlite_to_repository(sqlite_path=sqlite_path)
+            return_schema = await self.rf602.sync_validated_sqlite_to_repository(sqlite_path=sqlite_path)
         except ValidationError as e:
             logger.error(f"Validation Error: {e}")
             raise HTTPException(

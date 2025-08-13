@@ -13,7 +13,7 @@ rf602_router = APIRouter(prefix="/rf602")
 
 
 # -------------------------------------------------
-@rf602_router.post("/sync_from_siif", response_model=RouteReturnSchema)
+@rf602_router.post("/sync_from_siif", response_model=List[RouteReturnSchema])
 async def sync_rf602_from_siif(
     auth: OptionalAuthorizationDependency,
     service: Rf602ServiceDependency,
