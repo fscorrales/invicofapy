@@ -15,7 +15,7 @@ ctas_ctes_router = APIRouter(prefix="/ctas_ctes")
 async def sync_ctas_ctes_from_excel(
     service: CtasCtesServiceDependency,
     excel_path: str = Query(
-        default=os.path.join(get_sqlite_path(), "SIIF.sqlite"),
+        default=os.path.join(get_sqlite_path(), "siif.sqlite"),
         description="Ruta al archivo Ctas Ctes EXCEL",
         alias="path",
     ),

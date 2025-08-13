@@ -41,7 +41,7 @@ class ControlObrasSyncParams(ControlObrasParams):
     sgf_username: Optional[str] = None
     sgf_password: Optional[str] = None
     ctas_ctes_excel_path: Optional[str] = Field(
-        default=os.path.join(get_sqlite_path(), "SIIF.sqlite"),
+        default=os.path.join(get_sqlite_path(), "siif.sqlite"),
         description="Ruta al archivo Ctas Ctes EXCEL",
     )
 

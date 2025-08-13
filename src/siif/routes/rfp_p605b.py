@@ -34,7 +34,7 @@ async def sync_rfp_p605b_from_siif(
 async def sync_rfp_p605b_from_sqlite(
     service: RfpP605bServiceDependency,
     sqlite_path: str = Query(
-        default=os.path.join(get_sqlite_path(), "SIIF.sqlite"),
+        default=os.path.join(get_sqlite_path(), "siif.sqlite"),
         description="Ruta al archivo SIIF SQLite",
         alias="path",
     ),

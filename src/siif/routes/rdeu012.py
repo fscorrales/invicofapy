@@ -34,7 +34,7 @@ async def sync_rdeu012_from_siif(
 async def sync_ri102_from_sqlite(
     service: Rdeu012ServiceDependency,
     sqlite_path: str = Query(
-        default=os.path.join(get_sqlite_path(), "SIIF.sqlite"),
+        default=os.path.join(get_sqlite_path(), "siif.sqlite"),
         description="Ruta al archivo SIIF SQLite",
         alias="path",
     ),
