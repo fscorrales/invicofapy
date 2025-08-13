@@ -1,10 +1,12 @@
 __all__ = ["Rcg01UejpService", "Rcg01UejpServiceDependency"]
 
+import os
 from dataclasses import dataclass, field
 from typing import Annotated, List
 
+import pandas as pd
 from fastapi import Depends, HTTPException
-from fastapi.encoders import jsonable_encoder
+from fastapi.responses import StreamingResponse
 from playwright.async_api import async_playwright
 from pydantic import ValidationError
 
@@ -12,11 +14,11 @@ from ...config import logger
 from ...utils import (
     BaseFilterParams,
     RouteReturnSchema,
-    validate_and_extract_data_from_df,
+    export_dataframe_as_excel_response,
 )
 from ..handlers import Rcg01Uejp
 from ..repositories import Rcg01UejpRepositoryDependency
-from ..schemas import Rcg01UejpDocument, Rcg01UejpParams, Rcg01UejpReport
+from ..schemas import Rcg01UejpDocument, Rcg01UejpParams
 
 
 # -------------------------------------------------
@@ -35,7 +37,7 @@ class Rcg01UejpService:
         username: str,
         password: str,
         params: Rcg01UejpParams = None,
-    ) -> RouteReturnSchema:
+    ) -> List[RouteReturnSchema]:
         """Downloads a report from SIIF, processes it, validates the data,
         and stores it in MongoDB if valid.
 
@@ -50,7 +52,8 @@ class Rcg01UejpService:
                 status_code=401,
                 detail="Missing username or password",
             )
-        return_schema = RouteReturnSchema()
+        return_schema = []
+        ejercicios = list(range(params.ejercicio_from, params.ejercicio_to + 1))
         async with async_playwright() as p:
             try:
                 await self.rcg01_uejp.login(
@@ -60,34 +63,13 @@ class Rcg01UejpService:
                     headless=False,
                 )
                 await self.rcg01_uejp.go_to_reports()
-                await self.rcg01_uejp.go_to_specific_report()
-                await self.rcg01_uejp.download_report(ejercicio=str(params.ejercicio))
-                await self.rcg01_uejp.read_xls_file()
-                df = await self.rcg01_uejp.process_dataframe()
-
-                # 🔹 Validar datos usando Pydantic
-                validate_and_errors = validate_and_extract_data_from_df(
-                    dataframe=df, model=Rcg01UejpReport, field_id="nro_comprobante"
-                )
-
-                # 🔹 Si hay registros validados, eliminar los antiguos e insertar los nuevos
-                if validate_and_errors.validated:
-                    logger.info(
-                        f"Procesado ejercicio {str(params.ejercicio)}. Errores: {len(validate_and_errors.errors)}"
+                for ejercicio in ejercicios:
+                    partial_schema = (
+                        await self.rcg01_uejp.download_and_sync_validated_to_repository(
+                            ejercicio=int(ejercicio)
+                        )
                     )
-                    delete_dict = {"ejercicio": params.ejercicio}
-                    # Contar los documentos existentes antes de eliminarlos
-                    deleted_count = await self.repository.count_by_fields(delete_dict)
-                    await self.repository.delete_by_fields(delete_dict)
-                    # await self.collection.delete_many({"ejercicio": ejercicio})
-                    data_to_store = jsonable_encoder(validate_and_errors.validated)
-                    inserted_records = await self.repository.save_all(data_to_store)
-                    logger.info(
-                        f"Inserted {len(inserted_records.inserted_ids)} records into MongoDB."
-                    )
-                    return_schema.deleted = deleted_count
-                    return_schema.added = len(data_to_store)
-                    return_schema.errors = validate_and_errors.errors
+                    return_schema.append(partial_schema)
 
             except ValidationError as e:
                 logger.error(f"Validation Error: {e}")
@@ -117,6 +99,50 @@ class Rcg01UejpService:
                 status_code=500,
                 detail="Error retrieving SIIF's rcg01_uejp from the database",
             )
+
+    # -------------------------------------------------
+    async def sync_rcg01_uejp_from_sqlite(self, sqlite_path: str) -> RouteReturnSchema:
+        # ✅ Validación temprana
+        if not os.path.exists(sqlite_path):
+            raise HTTPException(status_code=404, detail="Archivo SQLite no encontrado")
+
+        return_schema = RouteReturnSchema()
+        try:
+            return_schema = await self.rcg01_uejp.sync_validated_sqlite_to_repository(
+                sqlite_path=sqlite_path
+            )
+        except ValidationError as e:
+            logger.error(f"Validation Error: {e}")
+            raise HTTPException(
+                status_code=400, detail="Invalid response format from SIIF"
+            )
+        except Exception as e:
+            logger.error(f"Error during report processing: {e}")
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid credentials or unable to authenticate",
+            )
+        finally:
+            return return_schema
+
+    # -------------------------------------------------
+    async def export_rcg01_uejp_from_db(
+        self, ejercicio: int = None
+    ) -> StreamingResponse:
+        if ejercicio is not None:
+            docs = await self.repository.get_by_fields({"ejercicio": ejercicio})
+        else:
+            docs = await self.repository.get_all()
+
+        if not docs:
+            raise HTTPException(status_code=404, detail="No se encontraron registros")
+        df = pd.DataFrame(docs)
+
+        return export_dataframe_as_excel_response(
+            df,
+            filename=f"rcg01_uejp_{ejercicio or 'all'}.xlsx",
+            sheet_name="rcg01_uejp",
+        )
 
 
 Rcg01UejpServiceDependency = Annotated[Rcg01UejpService, Depends()]
