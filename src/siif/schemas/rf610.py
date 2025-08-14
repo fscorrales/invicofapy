@@ -9,7 +9,13 @@ __all__ = [
 from datetime import date
 from typing import List, Optional
 
-from pydantic import BaseModel, Field, NonNegativeFloat, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    Field,
+    NonNegativeFloat,
+    field_validator,
+    model_validator,
+)
 from pydantic_mongo import PydanticObjectId
 
 from ...utils import BaseFilterParams, ErrorsWithDocId
@@ -42,13 +48,13 @@ class Rf610Report(BaseModel):
     ejercicio: int
     estructura: str
     programa: str
-    desc_programa: str
+    desc_programa: Optional[str] = None
     subprograma: str
-    desc_subprograma: str
+    desc_subprograma: Optional[str] = None
     proyecto: str
-    desc_proyecto: str
+    desc_proyecto: Optional[str] = None
     actividad: str
-    desc_actividad: str
+    desc_actividad: Optional[str] = None
     grupo: str
     desc_grupo: str
     partida: str
