@@ -31,7 +31,7 @@ async def sync_rf610_from_siif(
 
 # -------------------------------------------------
 @rf610_router.post("/sync_from_sqlite", response_model=RouteReturnSchema)
-async def sync_rf602_from_sqlite(
+async def sync_rf610_from_sqlite(
     service: Rf610ServiceDependency,
     sqlite_path: str = Query(
         default=os.path.join(get_sqlite_path(), "siif.sqlite"),
@@ -39,7 +39,7 @@ async def sync_rf602_from_sqlite(
         alias="path",
     ),
 ):
-    return await service.sync_rf602_from_sqlite(sqlite_path)
+    return await service.sync_rf610_from_sqlite(sqlite_path)
 
 
 @rf610_router.get("/get_from_db", response_model=List[Rf610Document])

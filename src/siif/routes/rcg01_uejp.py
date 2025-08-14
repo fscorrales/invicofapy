@@ -32,7 +32,7 @@ async def sync_rcg01_uejp_from_siif(
 
 # -------------------------------------------------
 @rcg01_uejp_router.post("/sync_from_sqlite", response_model=RouteReturnSchema)
-async def sync_rf602_from_sqlite(
+async def sync_rcg01_uejp_from_sqlite(
     service: Rcg01UejpServiceDependency,
     sqlite_path: str = Query(
         default=os.path.join(get_sqlite_path(), "siif.sqlite"),
