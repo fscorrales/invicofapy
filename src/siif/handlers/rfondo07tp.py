@@ -18,8 +18,9 @@ import pandas as pd
 from playwright.async_api import Download, async_playwright
 
 from ...config import logger
-from ...utils.validate import (
+from ...utils import (
     RouteReturnSchema,
+    get_df_from_sql_table,
     sync_validated_to_repository,
     validate_and_extract_data_from_df,
 )
@@ -163,6 +164,34 @@ class Rfondo07tp(SIIFReportManager):
             )
         except Exception as e:
             print(f"Error al descargar y sincronizar el reporte: {e}")
+
+    # --------------------------------------------------
+    async def sync_validated_sqlite_to_repository(
+        self, sqlite_path: str
+    ) -> RouteReturnSchema:
+        """Download, process and sync the Rfondo07tp report to the repository."""
+        try:
+            df = get_df_from_sql_table(sqlite_path, table="resumen_fdos_rfondo07tp")
+            df.drop(columns=["id"], inplace=True)
+            df["ejercicio"] = pd.to_numeric(df["ejercicio"], errors="coerce")
+            df = df.loc[df["ejercicio"] < 2024]
+
+            validate_and_errors = validate_and_extract_data_from_df(
+                dataframe=df,
+                model=Rfondo07tpReport,
+                field_id="cod_recurso",
+            )
+
+            return await sync_validated_to_repository(
+                repository=Rfondo07tpRepository(),
+                validation=validate_and_errors,
+                delete_filter={"ejercicio": {"$lt": 2024}},
+                title="Sync SIIF Rfondo07tp Report from SQLite",
+                logger=logger,
+                label="Sync SIIF Rfondo07tp Report from SQLite",
+            )
+        except Exception as e:
+            print(f"Error migrar y sincronizar el reporte: {e}")
 
     # --------------------------------------------------
     async def go_to_specific_report(self) -> None:

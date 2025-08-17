@@ -1,10 +1,12 @@
 __all__ = ["Rfondo07tpService", "Rfondo07tpServiceDependency"]
 
+import os
 from dataclasses import dataclass, field
 from typing import Annotated, List
 
+import pandas as pd
 from fastapi import Depends, HTTPException
-from fastapi.encoders import jsonable_encoder
+from fastapi.responses import StreamingResponse
 from playwright.async_api import async_playwright
 from pydantic import ValidationError
 
@@ -12,11 +14,11 @@ from ...config import logger
 from ...utils import (
     BaseFilterParams,
     RouteReturnSchema,
-    validate_and_extract_data_from_df,
+    export_dataframe_as_excel_response,
 )
 from ..handlers import Rfondo07tp
 from ..repositories import Rfondo07tpRepositoryDependency
-from ..schemas import Rfondo07tpDocument, Rfondo07tpParams, Rfondo07tpReport
+from ..schemas import Rfondo07tpDocument, Rfondo07tpParams
 
 
 # -------------------------------------------------
@@ -35,7 +37,7 @@ class Rfondo07tpService:
         username: str,
         password: str,
         params: Rfondo07tpParams = None,
-    ) -> RouteReturnSchema:
+    ) -> List[RouteReturnSchema]:
         """Downloads a report from SIIF, processes it, validates the data,
         and stores it in MongoDB if valid.
 
@@ -50,7 +52,8 @@ class Rfondo07tpService:
                 status_code=401,
                 detail="Missing username or password",
             )
-        return_schema = RouteReturnSchema()
+        return_schema = []
+        ejercicios = list(range(params.ejercicio_desde, params.ejercicio_hasta + 1))
         async with async_playwright() as p:
             try:
                 await self.rfondo07tp.login(
@@ -60,42 +63,14 @@ class Rfondo07tpService:
                     headless=False,
                 )
                 await self.rfondo07tp.go_to_reports()
-                await self.rfondo07tp.go_to_specific_report()
-                await self.rfondo07tp.download_report(
-                    ejercicio=str(params.ejercicio),
-                    tipo_comprobante=str(params.tipo_comprobante.value),
-                )
-                await self.rfondo07tp.read_xls_file()
-                df = await self.rfondo07tp.process_dataframe(
-                    tipo_comprobante=params.tipo_comprobante.value
-                )
-
-                # 🔹 Validar datos usando Pydantic
-                validate_and_errors = validate_and_extract_data_from_df(
-                    dataframe=df, model=Rfondo07tpReport, field_id="nro_comprobante"
-                )
-
-                # 🔹 Si hay registros validados, eliminar los antiguos e insertar los nuevos
-                if validate_and_errors.validated:
-                    logger.info(
-                        f"Procesado ejercicio {str(params.ejercicio)}. Errores: {len(validate_and_errors.errors)}"
+                for ejercicio in ejercicios:
+                    partial_schema = (
+                        await self.rfondo07tp.download_and_sync_validated_to_repository(
+                            ejercicio=int(ejercicio),
+                            tipo_comprobante=params.tipo_comprobante,
+                        )
                     )
-                    delete_dict = {
-                        "ejercicio": params.ejercicio,
-                        "tipo_comprobante": params.tipo_comprobante.value,
-                    }
-                    # Contar los documentos existentes antes de eliminarlos
-                    deleted_count = await self.repository.count_by_fields(delete_dict)
-                    await self.repository.delete_by_fields(delete_dict)
-                    # await self.collection.delete_many({"ejercicio": ejercicio})
-                    data_to_store = jsonable_encoder(validate_and_errors.validated)
-                    inserted_records = await self.repository.save_all(data_to_store)
-                    logger.info(
-                        f"Inserted {len(inserted_records.inserted_ids)} records into MongoDB."
-                    )
-                    return_schema.deleted = deleted_count
-                    return_schema.added = len(data_to_store)
-                    return_schema.errors = validate_and_errors.errors
+                    return_schema.append(partial_schema)
 
             except ValidationError as e:
                 logger.error(f"Validation Error: {e}")
@@ -125,6 +100,50 @@ class Rfondo07tpService:
                 status_code=500,
                 detail="Error retrieving SIIF's rfondo07tp from the database",
             )
+
+    # -------------------------------------------------
+    async def sync_rfondo07tp_from_sqlite(self, sqlite_path: str) -> RouteReturnSchema:
+        # ✅ Validación temprana
+        if not os.path.exists(sqlite_path):
+            raise HTTPException(status_code=404, detail="Archivo SQLite no encontrado")
+
+        return_schema = RouteReturnSchema()
+        try:
+            return_schema = await self.rfondo07tp.sync_validated_sqlite_to_repository(
+                sqlite_path=sqlite_path
+            )
+        except ValidationError as e:
+            logger.error(f"Validation Error: {e}")
+            raise HTTPException(
+                status_code=400, detail="Invalid response format from SIIF"
+            )
+        except Exception as e:
+            logger.error(f"Error during report processing: {e}")
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid credentials or unable to authenticate",
+            )
+        finally:
+            return return_schema
+
+    # -------------------------------------------------
+    async def export_rfondo07tp_from_db(
+        self, ejercicio: int = None
+    ) -> StreamingResponse:
+        if ejercicio is not None:
+            docs = await self.repository.get_by_fields({"ejercicio": ejercicio})
+        else:
+            docs = await self.repository.get_all()
+
+        if not docs:
+            raise HTTPException(status_code=404, detail="No se encontraron registros")
+        df = pd.DataFrame(docs)
+
+        return export_dataframe_as_excel_response(
+            df,
+            filename=f"rfondo07tp_{ejercicio or 'all'}.xlsx",
+            sheet_name="rfondo07tp",
+        )
 
 
 Rfondo07tpServiceDependency = Annotated[Rfondo07tpService, Depends()]
