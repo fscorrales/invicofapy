@@ -157,6 +157,7 @@ class RfpP605b(SIIFReportManager):
             df = get_df_from_sql_table(sqlite_path, table="form_gto_rfp_p605b")
             df.drop(columns=["id"], inplace=True)
             df["ejercicio"] = pd.to_numeric(df["ejercicio"], errors="coerce")
+            df = df.loc[df["ejercicio"] < 2024]
             df.rename(
                 columns={
                     "desc_prog": "desc_programa",

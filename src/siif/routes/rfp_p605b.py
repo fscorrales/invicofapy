@@ -12,7 +12,7 @@ from ..services import RfpP605bServiceDependency
 rfp_p605b_router = APIRouter(prefix="/rfp_p605b")
 
 
-@rfp_p605b_router.post("/sync_from_siif", response_model=RouteReturnSchema)
+@rfp_p605b_router.post("/sync_from_siif", response_model=List[RouteReturnSchema])
 async def sync_rfp_p605b_from_siif(
     auth: OptionalAuthorizationDependency,
     service: RfpP605bServiceDependency,
