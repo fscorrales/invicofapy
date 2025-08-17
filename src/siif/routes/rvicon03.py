@@ -30,7 +30,7 @@ async def sync_rvicon03_from_siif(
 
 
 # -------------------------------------------------
-@rvicon03_router.post("/sync_from_sqlite", response_model=RouteReturnSchema)
+@rvicon03_router.post("/sync_from_sqlite", response_model=List[RouteReturnSchema])
 async def sync_rvicon03_from_sqlite(
     service: Rvicon03ServiceDependency,
     sqlite_path: str = Query(

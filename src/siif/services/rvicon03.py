@@ -37,7 +37,7 @@ class Rvicon03Service:
         username: str,
         password: str,
         params: Rvicon03Params = None,
-    ) -> RouteReturnSchema:
+    ) -> List[RouteReturnSchema]:
         """Downloads a report from SIIF, processes it, validates the data,
         and stores it in MongoDB if valid.
 
@@ -49,7 +49,7 @@ class Rvicon03Service:
                 status_code=401,
                 detail="Missing username or password",
             )
-        return_schema = RouteReturnSchema()
+        return_schema = []
         ejercicios = list(range(params.ejercicio_from, params.ejercicio_to + 1))
         async with async_playwright() as p:
             try:
@@ -101,7 +101,9 @@ class Rvicon03Service:
 
         return_schema = RouteReturnSchema()
         try:
-            self.rvicon03.sync_validated_sqlite_to_repository(sqlite_path=sqlite_path)
+            return_schema = await self.rvicon03.sync_validated_sqlite_to_repository(
+                sqlite_path=sqlite_path
+            )
         except ValidationError as e:
             logger.error(f"Validation Error: {e}")
             raise HTTPException(

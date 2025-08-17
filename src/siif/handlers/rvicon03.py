@@ -159,6 +159,7 @@ class Rvicon03(SIIFReportManager):
             )
             df.drop(columns=["id"], inplace=True)
             df["ejercicio"] = pd.to_numeric(df["ejercicio"], errors="coerce")
+            df = df.loc[df["ejercicio"] < 2024]
             df.rename(
                 columns={
                     "nivel_desc": "desc_nivel",
