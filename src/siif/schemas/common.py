@@ -50,15 +50,15 @@ class PartidaPrincipalSIIF(str, Enum):
 
 
 # -------------------------------------------------
-class GrupoPartidaSIIF(str, Enum):
+class GrupoPartidaSIIF(int, Enum):
     """
     Enum para representar los grupos de partidas del SIIF.
     """
 
-    sueldos = "1"
-    bienes_consumo = "2"
-    servicios = "3"
-    bienes_capital = "4"
+    sueldos = 1
+    bienes_consumo = 2
+    servicios = 3
+    bienes_capital = 4
 
 
 # -------------------------------------------------

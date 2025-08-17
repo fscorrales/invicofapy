@@ -1,10 +1,12 @@
 __all__ = ["Rpa03gService", "Rpa03gServiceDependency"]
 
+import os
 from dataclasses import dataclass, field
 from typing import Annotated, List
 
+import pandas as pd
 from fastapi import Depends, HTTPException
-from fastapi.encoders import jsonable_encoder
+from fastapi.responses import StreamingResponse
 from playwright.async_api import async_playwright
 from pydantic import ValidationError
 
@@ -12,11 +14,11 @@ from ...config import logger
 from ...utils import (
     BaseFilterParams,
     RouteReturnSchema,
-    validate_and_extract_data_from_df,
+    export_dataframe_as_excel_response,
 )
 from ..handlers import Rpa03g
 from ..repositories import Rpa03gRepositoryDependency
-from ..schemas import Rpa03gDocument, Rpa03gParams, Rpa03gReport
+from ..schemas import Rpa03gDocument, Rpa03gParams
 
 
 # -------------------------------------------------
@@ -35,7 +37,7 @@ class Rpa03gService:
         username: str,
         password: str,
         params: Rpa03gParams = None,
-    ) -> RouteReturnSchema:
+    ) -> List[RouteReturnSchema]:
         """Downloads a report from SIIF, processes it, validates the data,
         and stores it in MongoDB if valid.
 
@@ -50,7 +52,11 @@ class Rpa03gService:
                 status_code=401,
                 detail="Missing username or password",
             )
-        return_schema = RouteReturnSchema()
+        return_schema = []
+        ejercicios = list(range(params.ejercicio_desde, params.ejercicio_hasta + 1))
+        grupos_partidas = list(
+            range(params.grupo_partida_desde, params.grupo_partida_hasta + 1)
+        )
         async with async_playwright() as p:
             try:
                 await self.rpa03g.login(
@@ -60,40 +66,15 @@ class Rpa03gService:
                     headless=False,
                 )
                 await self.rpa03g.go_to_reports()
-                await self.rpa03g.go_to_specific_report()
-                await self.rpa03g.download_report(
-                    ejercicio=str(params.ejercicio),
-                    grupo_partida=str(params.grupo_partida.value),
-                )
-                await self.rpa03g.read_xls_file()
-                df = await self.rpa03g.process_dataframe()
-
-                # 🔹 Validar datos usando Pydantic
-                validate_and_errors = validate_and_extract_data_from_df(
-                    dataframe=df, model=Rpa03gReport, field_id="nro_comprobante"
-                )
-
-                # 🔹 Si hay registros validados, eliminar los antiguos e insertar los nuevos
-                if validate_and_errors.validated:
-                    logger.info(
-                        f"Procesado ejercicio {str(params.ejercicio)}. Errores: {len(validate_and_errors.errors)}"
-                    )
-                    delete_dict = {
-                        "ejercicio": params.ejercicio,
-                        "grupo": params.grupo_partida.value + "00",
-                    }
-                    # Contar los documentos existentes antes de eliminarlos
-                    deleted_count = await self.repository.count_by_fields(delete_dict)
-                    await self.repository.delete_by_fields(delete_dict)
-                    # await self.collection.delete_many({"ejercicio": ejercicio})
-                    data_to_store = jsonable_encoder(validate_and_errors.validated)
-                    inserted_records = await self.repository.save_all(data_to_store)
-                    logger.info(
-                        f"Inserted {len(inserted_records.inserted_ids)} records into MongoDB."
-                    )
-                    return_schema.deleted = deleted_count
-                    return_schema.added = len(data_to_store)
-                    return_schema.errors = validate_and_errors.errors
+                for ejercicio in ejercicios:
+                    for grupo_partida in grupos_partidas:
+                        partial_schema = (
+                            await self.rpa03g.download_and_sync_validated_to_repository(
+                                ejercicio=int(ejercicio),
+                                grupo_partidas=grupo_partida,
+                            )
+                        )
+                        return_schema.append(partial_schema)
 
             except ValidationError as e:
                 logger.error(f"Validation Error: {e}")
@@ -123,6 +104,48 @@ class Rpa03gService:
                 status_code=500,
                 detail="Error retrieving SIIF's rpa03g from the database",
             )
+
+    # -------------------------------------------------
+    async def sync_rpa03g_from_sqlite(self, sqlite_path: str) -> RouteReturnSchema:
+        # ✅ Validación temprana
+        if not os.path.exists(sqlite_path):
+            raise HTTPException(status_code=404, detail="Archivo SQLite no encontrado")
+
+        return_schema = RouteReturnSchema()
+        try:
+            return_schema = await self.rpa03g.sync_validated_sqlite_to_repository(
+                sqlite_path=sqlite_path
+            )
+        except ValidationError as e:
+            logger.error(f"Validation Error: {e}")
+            raise HTTPException(
+                status_code=400, detail="Invalid response format from SIIF"
+            )
+        except Exception as e:
+            logger.error(f"Error during report processing: {e}")
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid credentials or unable to authenticate",
+            )
+        finally:
+            return return_schema
+
+    # -------------------------------------------------
+    async def export_rpa03g_from_db(self, ejercicio: int = None) -> StreamingResponse:
+        if ejercicio is not None:
+            docs = await self.repository.get_by_fields({"ejercicio": ejercicio})
+        else:
+            docs = await self.repository.get_all()
+
+        if not docs:
+            raise HTTPException(status_code=404, detail="No se encontraron registros")
+        df = pd.DataFrame(docs)
+
+        return export_dataframe_as_excel_response(
+            df,
+            filename=f"rpa03g_{ejercicio or 'all'}.xlsx",
+            sheet_name="rpa03g",
+        )
 
 
 Rpa03gServiceDependency = Annotated[Rpa03gService, Depends()]

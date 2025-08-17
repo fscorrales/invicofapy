@@ -18,8 +18,9 @@ import pandas as pd
 from playwright.async_api import Download, async_playwright
 
 from ...config import logger
-from ...utils.validate import (
+from ...utils import (
     RouteReturnSchema,
+    get_df_from_sql_table,
     sync_validated_to_repository,
     validate_and_extract_data_from_df,
 )
@@ -120,7 +121,7 @@ class Rpa03g(SIIFReportManager):
     async def download_and_process_report(
         self,
         ejercicio: int = dt.datetime.now().year,
-        grupo_partida: GrupoPartidaSIIF = "4",
+        grupo_partida: GrupoPartidaSIIF = GrupoPartidaSIIF.bienes_capital.value,
     ) -> pd.DataFrame:
         """Download and process the rpa03g report for a specific year."""
         try:
@@ -139,7 +140,7 @@ class Rpa03g(SIIFReportManager):
     async def download_and_sync_validated_to_repository(
         self,
         ejercicio: int = dt.datetime.now().year,
-        grupo_partida: GrupoPartidaSIIF = "4",
+        grupo_partida: GrupoPartidaSIIF = GrupoPartidaSIIF.bienes_capital.value,
     ) -> RouteReturnSchema:
         """Download, process and sync the rpa03g report to the repository."""
         try:
@@ -165,6 +166,36 @@ class Rpa03g(SIIFReportManager):
             print(f"Error al descargar y sincronizar el reporte: {e}")
 
     # --------------------------------------------------
+    async def sync_validated_sqlite_to_repository(
+        self, sqlite_path: str
+    ) -> RouteReturnSchema:
+        """Download, process and sync the Rpa03g report to the repository."""
+        try:
+            df = get_df_from_sql_table(
+                sqlite_path, table="comprobantes_gtos_gpo_part_gto_rpa03g"
+            )
+            df.drop(columns=["id"], inplace=True)
+            df["ejercicio"] = pd.to_numeric(df["ejercicio"], errors="coerce")
+            df = df.loc[df["ejercicio"] < 2024]
+
+            validate_and_errors = validate_and_extract_data_from_df(
+                dataframe=df,
+                model=Rpa03gReport,
+                field_id="cod_recurso",
+            )
+
+            return await sync_validated_to_repository(
+                repository=Rpa03gRepository(),
+                validation=validate_and_errors,
+                delete_filter={"ejercicio": {"$lt": 2024}},
+                title="Sync SIIF Rpa03g Report from SQLite",
+                logger=logger,
+                label="Sync SIIF Rpa03g Report from SQLite",
+            )
+        except Exception as e:
+            print(f"Error migrar y sincronizar el reporte: {e}")
+
+    # --------------------------------------------------
     async def go_to_specific_report(self) -> None:
         await self.select_report_module(module=ReportCategory.Gastos)
         await self.select_specific_report_by_id(report_id="1175")
@@ -173,7 +204,7 @@ class Rpa03g(SIIFReportManager):
     async def download_report(
         self,
         ejercicio: str = str(dt.datetime.now().year),
-        grupo_partida: GrupoPartidaSIIF = "4",
+        grupo_partida: GrupoPartidaSIIF = GrupoPartidaSIIF.bienes_capital.value,
     ) -> Download:
         try:
             self.download = None
