@@ -172,6 +172,7 @@ class Rcocc31(SIIFReportManager):
             df = get_df_from_sql_table(sqlite_path, table="mayor_contable_rcocc31")
             df.drop(columns=["id"], inplace=True)
             df["ejercicio"] = pd.to_numeric(df["ejercicio"], errors="coerce")
+            df = df.loc[df["ejercicio"] < 2024]
 
             validate_and_errors = validate_and_extract_data_from_df(
                 dataframe=df,

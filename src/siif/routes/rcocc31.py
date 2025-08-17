@@ -12,7 +12,7 @@ from ..services import Rcocc31ServiceDependency
 rcocc31_router = APIRouter(prefix="/rcocc31")
 
 
-@rcocc31_router.post("/sync_from_siif", response_model=RouteReturnSchema)
+@rcocc31_router.post("/sync_from_siif", response_model=List[RouteReturnSchema])
 async def sync_rcocc31_from_siif(
     auth: OptionalAuthorizationDependency,
     service: Rcocc31ServiceDependency,
