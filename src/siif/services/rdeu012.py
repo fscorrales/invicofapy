@@ -39,7 +39,7 @@ class Rdeu012Service:
         username: str,
         password: str,
         params: Rdeu012Params = None,
-    ) -> RouteReturnSchema:
+    ) -> List[RouteReturnSchema]:
         """Downloads a report from SIIF, processes it, validates the data,
         and stores it in MongoDB if valid.
 
@@ -51,7 +51,7 @@ class Rdeu012Service:
                 status_code=401,
                 detail="Missing username or password",
             )
-        return_schema = RouteReturnSchema()
+        return_schema = []
 
         # Convertimos a datetime
         start = datetime.strptime(params.mes_from, "%Y%m")
@@ -116,7 +116,9 @@ class Rdeu012Service:
 
         return_schema = RouteReturnSchema()
         try:
-            self.rdeu012.sync_validated_sqlite_to_repository(sqlite_path=sqlite_path)
+            return_schema = await self.rdeu012.sync_validated_sqlite_to_repository(
+                sqlite_path=sqlite_path
+            )
         except ValidationError as e:
             logger.error(f"Validation Error: {e}")
             raise HTTPException(

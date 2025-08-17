@@ -12,7 +12,7 @@ from ..services import Rdeu012ServiceDependency
 rdeu012_router = APIRouter(prefix="/rdeu012")
 
 
-@rdeu012_router.post("/sync_from_siif", response_model=RouteReturnSchema)
+@rdeu012_router.post("/sync_from_siif", response_model=List[RouteReturnSchema])
 async def sync_rdeu012_from_siif(
     auth: OptionalAuthorizationDependency,
     service: Rdeu012ServiceDependency,
