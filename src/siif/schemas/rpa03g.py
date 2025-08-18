@@ -15,8 +15,6 @@ from pydantic_mongo import PydanticObjectId
 from ...utils import BaseFilterParams, CamelModel, ErrorsWithDocId
 from .common import GrupoPartidaSIIF
 
-grupo_partida: GrupoPartidaSIIF = GrupoPartidaSIIF.bienes_capital
-
 
 # --------------------------------------------------
 class Rpa03gParams(CamelModel):
@@ -56,17 +54,17 @@ class Rpa03gParams(CamelModel):
 # -------------------------------------------------
 class Rpa03gReport(BaseModel):
     ejercicio: int
-    mes: str
+    mes: Optional[str] = None
     fecha: date
-    nro_comprobante: str
+    nro_comprobante: Optional[str] = None
     importe: float
-    grupo: str
-    partida: str
+    grupo: Optional[str] = None
+    partida: Optional[str] = None
     nro_entrada: Optional[str] = None
     nro_origen: Optional[str] = None
-    nro_expte: str
-    glosa: str
-    beneficiario: str
+    nro_expte: Optional[str] = None
+    glosa: Optional[str] = None
+    beneficiario: Optional[str] = None
 
 
 # -------------------------------------------------
