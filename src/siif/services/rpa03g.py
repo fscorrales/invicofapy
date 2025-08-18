@@ -71,7 +71,7 @@ class Rpa03gService:
                         partial_schema = (
                             await self.rpa03g.download_and_sync_validated_to_repository(
                                 ejercicio=int(ejercicio),
-                                grupo_partidas=grupo_partida,
+                                grupo_partida=grupo_partida,
                             )
                         )
                         return_schema.append(partial_schema)
