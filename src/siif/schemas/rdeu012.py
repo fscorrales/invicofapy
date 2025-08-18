@@ -68,10 +68,10 @@ class Rdeu012Report(BaseModel):
     cuit: str
     beneficiario: str
     glosa: str
-    nro_expte: str
+    nro_expte: Optional[str] = None
     nro_entrada: str
     nro_origen: str
-    fecha_aprobado: str
+    fecha_aprobado: date
     fecha_desde: date
     fecha_hasta: date
     org_fin: str
@@ -84,4 +84,4 @@ class Rdeu012Document(Rdeu012Report):
 
 # -------------------------------------------------
 class Rdeu012Filter(BaseFilterParams):
-    mes: Optional[str] = Field(alias="añoMes", default=date.today().strftime("%Y%m"))
+    mes_hasta: Optional[str] = Field(alias="mesAño", default=date.today().strftime("%m/%Y"))

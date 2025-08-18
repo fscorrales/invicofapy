@@ -265,7 +265,7 @@ class Rdeu012(SIIFReportManager):
         df = df.tail(-13)
         df["fuente"] = df["fuente"].ffill()
         df = df.dropna(subset=["2"])
-        df = df.dropna(subset=["18"])
+        df = df.dropna(subset=["23"])
         df = df.rename(
             columns={
                 "2": "nro_entrada",
@@ -273,19 +273,19 @@ class Rdeu012(SIIFReportManager):
                 "7": "fecha_aprobado",
                 "9": "org_fin",
                 "10": "importe",
-                "13": "saldo",
-                "14": "nro_expte",
-                "15": "cta_cte",
-                "17": "glosa",
-                "18": "cuit",
-                "19": "beneficiario",
+                "15": "saldo",
+                "17": "nro_expte",
+                "18": "cta_cte",
+                "21": "glosa",
+                "23": "cuit",
+                "24": "beneficiario",
             }
         )
 
         to_numeric = ["importe", "saldo"]
         df[to_numeric] = df[to_numeric].apply(pd.to_numeric).astype(np.float64)
 
-        df["fecha_aprobado"] = pd.to_datetime(df["fecha_aprobado"], format="%Y-%m-%d")
+        df["fecha_aprobado"] = pd.to_datetime(df["fecha_aprobado"], format="%Y-%m-%d %H:%M:%S")
         df["mes_aprobado"] = df["fecha_aprobado"].dt.strftime("%m/%Y")
 
         df["fecha"] = np.where(
@@ -293,11 +293,6 @@ class Rdeu012(SIIFReportManager):
             df["fecha_hasta"],
             df["fecha_aprobado"],
         )
-        # df = df >> \
-        #     dplyr.mutate(
-        #         fecha = dplyr.if_else(f.fecha_aprobado > f.fecha_hasta,
-        #                                 f.fecha_hasta, f.fecha_aprobado)
-        #     )
 
         # CYO aprobados en enero correspodientes al ejercicio anterior
         df["fecha"] = pd.to_datetime(df["fecha"], errors="coerce")
