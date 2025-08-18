@@ -156,7 +156,7 @@ class Rpa03g(SIIFReportManager):
                 validation=validate_and_errors,
                 delete_filter={
                     "ejercicio": ejercicio,
-                    "grupo": grupo_partida + "00",
+                    "grupo": str(grupo_partida) + "00",
                 },
                 title=f"SIIF rpa03g Report {ejercicio} (Gpo {grupo_partida}00)",
                 logger=logger,
