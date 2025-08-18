@@ -13,7 +13,7 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 from pydantic_mongo import PydanticObjectId
 
 from ...utils import BaseFilterParams, CamelModel, ErrorsWithDocId
-from .common import GrupoPartidaSIIF
+from .common import GrupoPartidaSIIF, PartidaPrincipalSIIF
 
 
 # --------------------------------------------------
@@ -75,7 +75,7 @@ class Rpa03gDocument(Rpa03gReport):
 # -------------------------------------------------
 class Rpa03gFilter(BaseFilterParams):
     ejercicio: Optional[int] = None
-    grupo_partida: GrupoPartidaSIIF = None
+    grupo: PartidaPrincipalSIIF = None
 
 
 # -------------------------------------------------
