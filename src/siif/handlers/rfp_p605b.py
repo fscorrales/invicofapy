@@ -245,7 +245,7 @@ class RfpP605b(SIIFReportManager):
         df["programa"] = np.where(
             df["3"].str[0:8] == "Programa", df["3"].str[22:], None
         )
-        df["programa"] = df["programa"].fillna(method="ffill")
+        df["programa"] = df["programa"].ffill()
         df["prog"] = df["programa"].str[:2]
         df["prog"] = df["prog"].str.strip()
         df["desc_prog"] = df["programa"].str[3:]
@@ -260,7 +260,7 @@ class RfpP605b(SIIFReportManager):
             df["3"].str[0:9] == "Actividad", df["3"].str[20:], None
         )
         df["grupo"] = np.where(df["10"] != "", df["10"].str[0:3], None)
-        df["grupo"] = df["grupo"].fillna(method="ffill")
+        df["grupo"] = df["grupo"].ffill()
         df["partida"] = np.where(df["9"] != "", df["9"], None)
         df["fuente_11"] = df["22"]
         df["fuente_10"] = df["19"]
@@ -282,11 +282,11 @@ class RfpP605b(SIIFReportManager):
         df = df.dropna(
             subset=["subprograma", "proyecto", "actividad", "partida"], how="all"
         )
-        df["subprograma"] = df["subprograma"].fillna(method="ffill")
+        df["subprograma"] = df["subprograma"].ffill()
         df = df.dropna(subset=["proyecto", "actividad", "partida"], how="all")
-        df["proyecto"] = df["proyecto"].fillna(method="ffill")
+        df["proyecto"] = df["proyecto"].ffill()
         df = df.dropna(subset=["actividad", "partida"], how="all")
-        df["actividad"] = df["actividad"].fillna(method="ffill")
+        df["actividad"] = df["actividad"].ffill()
         df = df[df["partida"].str.len() == 3]
         df["sub"] = df["subprograma"].str[:2]
         df["sub"] = df["sub"].str.strip()

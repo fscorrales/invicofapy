@@ -67,7 +67,7 @@ class Rfondo07tpService:
                     partial_schema = (
                         await self.rfondo07tp.download_and_sync_validated_to_repository(
                             ejercicio=int(ejercicio),
-                            tipo_comprobante=params.tipo_comprobante,
+                            tipo_comprobante=params.tipo_comprobante.value,
                         )
                     )
                     return_schema.append(partial_schema)
