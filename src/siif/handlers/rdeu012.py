@@ -66,7 +66,7 @@ def get_args():
         "-m",
         "--meses",
         metavar="Año y mes",
-        default=["202212"],
+        default=["202507"],
         type=str,
         nargs="+",
         help="Lista de año y mes en formato yyyymm",
@@ -198,7 +198,7 @@ class Rdeu012(SIIFReportManager):
                 "//input[@id='pt1:idFechaHasta::content']"
             )
             btn_get_reporte = self.siif.reports_page.locator(
-                "//div[@id='pt1:btnEjecutarReporte']"
+                "//div[@id='pt1:btnVerReporte']"
             )
             btn_xls = self.siif.reports_page.locator(
                 "//input[@id='pt1:rbtnXLS::content']"
@@ -210,7 +210,7 @@ class Rdeu012(SIIFReportManager):
             await input_cod_fuente.fill("0")
             # Fecha desde
             await input_fecha_desde.clear()
-            await input_cod_fuente.fill("01/01/2010")
+            await input_fecha_desde.fill("01/01/2010")
             # Fecha hasta
             int_ejercicio = int(mes[0:4])
             if int_ejercicio > 2010 and int_ejercicio <= dt.datetime.now().year:
@@ -221,8 +221,8 @@ class Rdeu012(SIIFReportManager):
                 fecha_hasta = next_month - timedelta(days=next_month.day)
                 fecha_hasta = min(fecha_hasta.date(), dt.date.today())
                 fecha_hasta = dt.datetime.strftime(fecha_hasta, "%d/%m/%Y")
-                await input_fecha_desde.clear()
-                input_fecha_hasta.fill(fecha_hasta)
+                await input_fecha_hasta.clear()
+                await input_fecha_hasta.fill(fecha_hasta)
             async with self.siif.context.expect_page() as popup_info:
                 async with self.siif.reports_page.expect_download() as download_info:
                     await btn_get_reporte.click()  # Se abre el popup aquí
@@ -263,7 +263,7 @@ class Rdeu012(SIIFReportManager):
         )
         df = df.replace(to_replace="", value=None)
         df = df.tail(-13)
-        df["fuente"] = df["fuente"].fillna(method="ffill")
+        df["fuente"] = df["fuente"].ffill()
         df = df.dropna(subset=["2"])
         df = df.dropna(subset=["18"])
         df = df.rename(
@@ -395,4 +395,4 @@ if __name__ == "__main__":
     # From /invicofapy
 
     # poetry run python -m src.siif.handlers.rdeu012 -d
-    # poetry run python -m src.siif.handlers.rdeu012 -f 202412-rdeu012.xls
+    # poetry run python -m src.siif.handlers.rdeu012 -f 202507-rdeu012.xls
