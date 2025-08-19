@@ -260,10 +260,10 @@ class Rvicon03(SIIFReportManager):
             df["saldo_inicial"].isnull(), df["nivel_descripcion"].str[0:4], None
         )
         df["nivel"] = df["nivel"].ffill()
-        df["nivel_desc"] = np.where(
+        df["desc_nivel"] = np.where(
             df["saldo_inicial"].isnull(), df["nivel_descripcion"].str[8:], None
         )
-        df["nivel_desc"] = df["nivel_desc"].ffill()
+        df["desc_nivel"] = df["desc_nivel"].ffill()
         df = df.dropna(subset=["saldo_inicial"])
 
         df["cta_contable"] = (
@@ -272,7 +272,7 @@ class Rvicon03(SIIFReportManager):
             .iloc[:, :3]
             .agg("-".join, axis=1)
         )
-        df["cta_contable_desc"] = df["nivel_descripcion"].apply(
+        df["desc_cta_contable"] = df["nivel_descripcion"].apply(
             lambda x: "-".join(filter(None, x.split("-")[3:]))
             if x is not None
             else None
@@ -282,9 +282,9 @@ class Rvicon03(SIIFReportManager):
             [
                 "ejercicio",
                 "nivel",
-                "nivel_desc",
+                "desc_nivel",
                 "cta_contable",
-                "cta_contable_desc",
+                "desc_cta_contable",
                 "saldo_inicial",
                 "debe",
                 "haber",

@@ -43,9 +43,9 @@ class Rvicon03Params(BaseModel):
 class Rvicon03Report(BaseModel):
     ejercicio: int
     nivel: str
-    desc_nivel: str
+    desc_nivel: Optional[str] = None
     cta_contable: str
-    desc_cta_contable: str
+    desc_cta_contable: Optional[str] = None
     saldo_inicial: float
     debe: float
     haber: float
