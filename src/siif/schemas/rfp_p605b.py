@@ -45,6 +45,7 @@ class RfpP605bParams(BaseModel):
 class RfpP605bReport(BaseModel):
     ejercicio: int
     estructura: str
+    fuente: str
     programa: str
     desc_programa: str
     subprograma: str

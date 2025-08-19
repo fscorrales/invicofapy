@@ -53,19 +53,41 @@ def get_filter_query(f):
     return {k.strip(): {op_map[op]: format_value(v)}}
 
 
+# # -------------------------------------------------
+# def format_value(v):
+#     return (
+#         int(v)
+#         if v.strip().isdigit()
+#         else (
+#             float(v)
+#             if v.strip().isdecimal()
+#             else ObjectId(v.strip())
+#             if len(v.strip()) == 24
+#             else v.strip()
+#         )
+#     )
+
 # -------------------------------------------------
-def format_value(v):
-    return (
-        int(v)
-        if v.strip().isdigit()
-        else (
-            float(v)
-            if v.strip().isdecimal()
-            else ObjectId(v.strip())
-            if len(v.strip()) == 24
-            else v.strip()
-        )
-    )
+def format_value(v: str):
+    v = v.strip()
+
+    # Forzar string con prefijo "str:", por ejemplo fuente=str:10
+    if v.startswith("str:"):
+        return v[4:]
+
+    # Forzar número con prefijo "num:"
+    if v.startswith("num:"):
+        return int(v[4:]) if v[4:].isdigit() else float(v[4:])
+
+    # Intento automático
+    if v.isdigit():
+        return int(v)
+    if len(v) == 24:
+        try:
+            return ObjectId(v)
+        except Exception:
+            pass
+    return v
 
 
 # -------------------------------------------------
