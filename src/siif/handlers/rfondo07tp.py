@@ -297,9 +297,13 @@ class Rfondo07tp(SIIFReportManager):
         df["mes"] = df["fecha"].str[5:7] + "/" + df["ejercicio"].astype(str)
         df["nro_comprobante"] = df["nro_fondo"].str.zfill(5) + "/" + df["mes"].str[-2:]
 
+        # 👇 conversión a datetime64[ns]
         df["fecha"] = pd.to_datetime(
             df["fecha"], format="%Y-%m-%d %H:%M:%S", errors="coerce"
         )
+
+        # 👇 conversión explícita a datetime.datetime de Python
+        df["fecha"] = df["fecha"].dt.to_pydatetime()
 
         df = df.loc[
             :,
@@ -355,7 +359,7 @@ async def main():
                         file_name=str(ejercicio)
                         + "-rfondo07tp ("
                         + str(args.tipo_comprobante)
-                        + ".xls",
+                        + ").xls",
                     )
                 await rfondo07tp.read_xls_file(args.file)
                 print(rfondo07tp.df)
@@ -375,3 +379,4 @@ if __name__ == "__main__":
     # From /invicofapy
 
     # poetry run python -m src.siif.handlers.rfondo07tp -d
+    # poetry run python -m src.siif.handlers.rfondo07tp -f 2025-rfondo07tp (PA6).xls

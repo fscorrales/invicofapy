@@ -131,7 +131,8 @@ async def sync_validated_to_repository(
             deleted_count = await repository.count_by_fields(delete_filter)
             await repository.delete_by_fields(delete_filter)
 
-        docs = jsonable_encoder(validation.validated)
+        # docs = jsonable_encoder(validation.validated)
+        docs = [doc.dict() for doc in validation.validated]  # si son Pydantic models
         inserted = await repository.save_all(docs)
 
         if logger:
