@@ -291,6 +291,7 @@ class Rcg01Uejp(SIIFReportManager):
         df["nro_comprobante"] = (
             df["nro_entrada"].str.zfill(5) + "/" + df["mes"].str[-2:]
         )
+        df["fecha"] = df["fecha"].apply(lambda x: x.to_pydatetime() if pd.notnull(x) else None)
 
         df = df.loc[
             :,

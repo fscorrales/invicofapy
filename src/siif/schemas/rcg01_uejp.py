@@ -6,7 +6,7 @@ __all__ = [
     "Rcg01UejpFilter",
 ]
 
-from datetime import date
+from datetime import date, datetime
 from typing import List, Optional
 
 from pydantic import BaseModel, Field, field_validator, model_validator
@@ -42,7 +42,7 @@ class Rcg01UejpParams(BaseModel):
 class Rcg01UejpReport(BaseModel):
     ejercicio: int
     mes: str
-    fecha: date
+    fecha: datetime
     nro_comprobante: str
     importe: float
     fuente: FuenteFinanciamientoSIIF
