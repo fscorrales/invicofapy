@@ -5,7 +5,7 @@ __all__ = [
     "Rci02Filter",
 ]
 
-from datetime import date
+from datetime import date, datetime
 from typing import Optional
 
 from pydantic import (
@@ -45,7 +45,7 @@ class Rci02Params(BaseModel):
 class Rci02Report(BaseModel):
     ejercicio: int
     mes: str
-    fecha: date
+    fecha: datetime
     fuente: str
     cta_cte: str
     nro_entrada: str

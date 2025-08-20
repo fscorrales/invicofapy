@@ -272,6 +272,7 @@ class Rci02(SIIFReportManager):
         df["importe"] = df["importe"].apply(pd.to_numeric).astype(np.float64)
 
         df["fecha"] = pd.to_datetime(df["fecha"], format="%Y-%m-%d %H:%M:%S")
+        df["fecha"] = df["fecha"].apply(lambda x: x.to_pydatetime() if pd.notnull(x) else None)
         df = df.loc[
             :,
             [
