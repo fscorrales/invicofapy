@@ -175,6 +175,7 @@ class Rfondo07tp(SIIFReportManager):
             df.drop(columns=["id"], inplace=True)
             df["ejercicio"] = pd.to_numeric(df["ejercicio"], errors="coerce")
             df = df.loc[df["ejercicio"] < 2024]
+            df["tipo_comprobante"] = "PA6" #Asumo que todo son PA6
 
             validate_and_errors = validate_and_extract_data_from_df(
                 dataframe=df,

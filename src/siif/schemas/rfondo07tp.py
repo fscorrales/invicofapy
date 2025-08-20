@@ -59,7 +59,7 @@ class Rfondo07tpDocument(Rfondo07tpReport):
 # -------------------------------------------------
 class Rfondo07tpFilter(BaseFilterParams):
     ejercicio: Optional[int] = None
-    tipo_comprobante: TipoComprobanteSIIF = None
+    # tipo_comprobante: TipoComprobanteSIIF = None
 
 
 # -------------------------------------------------
