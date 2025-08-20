@@ -1,10 +1,11 @@
+import os
 from typing import Annotated, List
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 
 from ...auth.services import OptionalAuthorizationDependency
 from ...config import settings
-from ...utils import RouteReturnSchema, apply_auto_filter
+from ...utils import RouteReturnSchema, apply_auto_filter, get_sqlite_path
 from ..schemas import (
     ResumenRendProvDocument,
     ResumenRendProvFilter,
@@ -17,6 +18,7 @@ resumen_rend_prov_router = APIRouter(
 )
 
 
+# -------------------------------------------------
 @resumen_rend_prov_router.post("/sync_from_sgf", response_model=RouteReturnSchema)
 async def sync_resumen_rend_prov_from_sgf(
     auth: OptionalAuthorizationDependency,
@@ -34,6 +36,20 @@ async def sync_resumen_rend_prov_from_sgf(
     )
 
 
+# -------------------------------------------------
+@resumen_rend_prov_router.post("/sync_from_sqlite", response_model=RouteReturnSchema)
+async def sync_resumen_rend_prov_from_sqlite(
+    service: ResumenRendProvServiceDependency,
+    sqlite_path: str = Query(
+        default=os.path.join(get_sqlite_path(), "sgf.sqlite"),
+        description="Ruta al archivo SGF SQLite",
+        alias="path",
+    ),
+):
+    return await service.sync_resumen_rend_prov_from_sqlite(sqlite_path)
+
+
+# -------------------------------------------------
 @resumen_rend_prov_router.get(
     "/get_from_db", response_model=List[ResumenRendProvDocument]
 )
@@ -45,9 +61,14 @@ async def get_resumen_rend_prov_from_db(
     return await service.get_resumen_rend_prov_from_db(params=params)
 
 
-# @rf602_router.post("/download_and_update/")
-# async def siif_download(
-#     ejercicio: str,
-#     service: Rf602ServiceDependency,
-# ) -> Rf602ValidationOutput:
-#     return await service.download_and_update(ejercicio=ejercicio)
+# -------------------------------------------------
+@resumen_rend_prov_router.get(
+    "/export",
+    summary="Descarga los registros Resumen Rend. Prov. como archivo .xlsx",
+    response_description="Archivo Excel con los registros solicitados",
+)
+async def export_resumen_rend_prov_from_db(
+    service: ResumenRendProvServiceDependency,
+    ejercicio: int = None,
+):
+    return await service.export_resumen_rend_prov_from_db(ejercicio)

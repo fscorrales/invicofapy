@@ -7,8 +7,9 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Annotated, List
 
+import pandas as pd
 from fastapi import Depends, HTTPException
-from fastapi.encoders import jsonable_encoder
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, ValidationError
 
 from ...config import logger
@@ -16,6 +17,7 @@ from ...utils import (
     BaseFilterParams,
     RouteReturnSchema,
     ValidationResultSchema,
+    export_dataframe_as_excel_response,
     get_download_sgf_path,
     sync_validated_to_repository,
     validate_and_extract_data_from_df,
@@ -221,16 +223,58 @@ class ResumenRendProvService:
     async def get_resumen_rend_prov_from_db(
         self, params: BaseFilterParams
     ) -> List[ResumenRendProvDocument]:
+        return await self.repository.safe_find_with_filter_params(
+            params=params,
+            error_title="Error retrieving SGF's Resumen Rend Prov. from database",
+        )
+
+    # -------------------------------------------------
+    async def sync_resumen_rend_prov_from_sqlite(
+        self, sqlite_path: str
+    ) -> RouteReturnSchema:
+        # ✅ Validación temprana
+        if not os.path.exists(sqlite_path):
+            raise HTTPException(status_code=404, detail="Archivo SQLite no encontrado")
+
+        return_schema = RouteReturnSchema()
         try:
-            return await self.repository.find_with_filter_params(params=params)
-        except Exception as e:
-            logger.error(
-                f"Error retrieving SGF's Resumen Rend Prov. from database: {e}"
+            return_schema = (
+                await self.resumen_rend_prov.sync_validated_sqlite_to_repository(
+                    sqlite_path=sqlite_path
+                )
             )
+        except ValidationError as e:
+            logger.error(f"Validation Error: {e}")
             raise HTTPException(
-                status_code=500,
-                detail="Error retrieving SGF's Resumen Rend Prov. from the database",
+                status_code=400, detail="Invalid response format from SGF"
             )
+        except Exception as e:
+            logger.error(f"Error during report processing: {e}")
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid credentials or unable to authenticate",
+            )
+        finally:
+            return return_schema
+
+    # -------------------------------------------------
+    async def export_resumen_rend_prov_from_db(
+        self, ejercicio: int = None
+    ) -> StreamingResponse:
+        if ejercicio is not None:
+            docs = await self.repository.get_by_fields({"ejercicio": ejercicio})
+        else:
+            docs = await self.repository.get_all()
+
+        if not docs:
+            raise HTTPException(status_code=404, detail="No se encontraron registros")
+        df = pd.DataFrame(docs)
+
+        return export_dataframe_as_excel_response(
+            df,
+            filename=f"sgf_resumen_rend_prov_{ejercicio or 'all'}.xlsx",
+            sheet_name="resumen_rend_prov",
+        )
 
 
 ResumenRendProvServiceDependency = Annotated[ResumenRendProvService, Depends()]

@@ -21,8 +21,6 @@ from pydantic_mongo import PydanticObjectId
 from ...utils import BaseFilterParams, CamelModel, ErrorsWithDocId
 from .common import Origen
 
-origen: Origen
-
 
 # --------------------------------------------------
 class ResumenRendProvParams(CamelModel):

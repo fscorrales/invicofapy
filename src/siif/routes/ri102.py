@@ -42,6 +42,7 @@ async def sync_ri102_from_sqlite(
     return await service.sync_ri102_from_sqlite(sqlite_path)
 
 
+# -------------------------------------------------
 @ri102_router.get("/get_from_db", response_model=List[Ri102Document])
 async def get_ri102_from_db(
     service: Ri102ServiceDependency,

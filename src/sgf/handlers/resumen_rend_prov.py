@@ -19,7 +19,15 @@ import numpy as np
 import pandas as pd
 from pywinauto import findwindows, keyboard, mouse
 
-from ..schemas.common import Origen
+from ...config import logger
+from ...utils import (
+    RouteReturnSchema,
+    get_df_from_sql_table,
+    sync_validated_to_repository,
+    validate_and_extract_data_from_df,
+)
+from ..repositories import ResumenRendProvRepository
+from ..schemas import Origen, ResumenRendProvReport
 from .connect_sgf import (
     SGFReportManager,
     login,
@@ -110,6 +118,34 @@ class ResumenRendProv(SGFReportManager):
     # async def go_to_specific_report(self) -> None:
     #     await self.select_report_module(module=ReportCategory.Gastos)
     #     await self.select_specific_report_by_id(report_id="38")
+
+    # --------------------------------------------------
+    async def sync_validated_sqlite_to_repository(
+        self, sqlite_path: str
+    ) -> RouteReturnSchema:
+        """Download, process and sync the SGFs Resumen de Rendiciones report to the repository."""
+        try:
+            df = get_df_from_sql_table(sqlite_path, table="resumen_rend_prov")
+            df.drop(columns=["id"], inplace=True)
+            df["ejercicio"] = pd.to_numeric(df["ejercicio"], errors="coerce")
+            df = df.loc[df["ejercicio"] < 2024]
+
+            validate_and_errors = validate_and_extract_data_from_df(
+                dataframe=df,
+                model=ResumenRendProvReport,
+                field_id="libramiento_sgf",
+            )
+
+            return await sync_validated_to_repository(
+                repository=ResumenRendProvRepository(),
+                validation=validate_and_errors,
+                delete_filter={"ejercicio": {"$lt": 2024}},
+                title="Sync SGF Resumen de Rendiciones Report from SQLite",
+                logger=logger,
+                label="Sync SGF Resumen de Rendiciones Report from SQLite",
+            )
+        except Exception as e:
+            print(f"Error migrar y sincronizar el reporte: {e}")
 
     # --------------------------------------------------
     def download_report(
