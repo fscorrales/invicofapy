@@ -6,7 +6,7 @@ __all__ = [
 ]
 
 
-from datetime import date
+from datetime import date, datetime
 from typing import List, Optional
 
 from pydantic import BaseModel, Field, field_validator
@@ -35,7 +35,7 @@ class BancoINVICOParams(BaseModel):
 class BancoINVICOReport(BaseModel):
     ejercicio: int
     mes: str
-    fecha: date
+    fecha: datetime
     cta_cte: str
     movimiento: Optional[str] = None
     es_cheque: bool

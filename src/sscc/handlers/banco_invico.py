@@ -264,6 +264,9 @@ class BancoINVICO(SSCCReportManager):
         ]
 
         df["fecha"] = pd.to_datetime(df["fecha"], format="%d/%m/%Y")
+        df["fecha"] = df["fecha"].apply(
+            lambda x: x.to_pydatetime() if pd.notnull(x) else None
+        )
 
         self.clean_df = df
         return self.clean_df
