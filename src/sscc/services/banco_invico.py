@@ -7,14 +7,17 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Annotated, List
 
+import pandas as pd
 from fastapi import Depends, HTTPException
 from fastapi.encoders import jsonable_encoder
+from fastapi.responses import StreamingResponse
 from pydantic import ValidationError
 
 from ...config import logger
 from ...utils import (
     BaseFilterParams,
     RouteReturnSchema,
+    export_dataframe_as_excel_response,
     get_download_sgf_path,
     validate_and_extract_data_from_df,
 )
@@ -31,7 +34,7 @@ from ..schemas import (
 @dataclass
 class BancoINVICOService:
     repository: BancoINVICORepositoryDependency
-    resumen_rend_prov: BancoINVICO = field(init=False)  # No se pasa como argumento
+    banco_invico: BancoINVICO = field(init=False)  # No se pasa como argumento
 
     # -------------------------------------------------
     async def sync_banco_invico_from_sscc(
@@ -140,14 +143,56 @@ class BancoINVICOService:
     async def get_banco_invico_from_db(
         self, params: BaseFilterParams
     ) -> List[BancoINVICODocument]:
+        return await self.repository.safe_find_with_filter_params(
+            params=params,
+            error_title="Error retrieving SSCC's Banco INVICO from the database",
+        )
+
+    # -------------------------------------------------
+    async def sync_banco_invico_from_sqlite(
+        self, sqlite_path: str
+    ) -> RouteReturnSchema:
+        # ✅ Validación temprana
+        if not os.path.exists(sqlite_path):
+            raise HTTPException(status_code=404, detail="Archivo SQLite no encontrado")
+
+        return_schema = RouteReturnSchema()
         try:
-            return await self.repository.find_with_filter_params(params=params)
-        except Exception as e:
-            logger.error(f"Error retrieving SSCC's Banco INVICO. from database: {e}")
-            raise HTTPException(
-                status_code=500,
-                detail="Error retrieving SSCC's Banco INVICO from the database",
+            return_schema = await self.banco_invico.sync_validated_sqlite_to_repository(
+                sqlite_path=sqlite_path
             )
+        except ValidationError as e:
+            logger.error(f"Validation Error: {e}")
+            raise HTTPException(
+                status_code=400, detail="Invalid response format from SSCC"
+            )
+        except Exception as e:
+            logger.error(f"Error during report processing: {e}")
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid credentials or unable to authenticate",
+            )
+        finally:
+            return return_schema
+
+    # -------------------------------------------------
+    async def export_banco_invico_from_db(
+        self, ejercicio: int = None
+    ) -> StreamingResponse:
+        if ejercicio is not None:
+            docs = await self.repository.get_by_fields({"ejercicio": ejercicio})
+        else:
+            docs = await self.repository.get_all()
+
+        if not docs:
+            raise HTTPException(status_code=404, detail="No se encontraron registros")
+        df = pd.DataFrame(docs)
+
+        return export_dataframe_as_excel_response(
+            df,
+            filename=f"banco_invico_{ejercicio or 'all'}.xlsx",
+            sheet_name="banco_invico",
+        )
 
 
 BancoINVICOServiceDependency = Annotated[BancoINVICOService, Depends()]

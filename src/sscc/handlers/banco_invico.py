@@ -19,6 +19,15 @@ import numpy as np
 import pandas as pd
 from pywinauto import findwindows, keyboard, mouse
 
+from ...config import logger
+from ...utils import (
+    RouteReturnSchema,
+    get_df_from_sql_table,
+    sync_validated_to_repository,
+    validate_and_extract_data_from_df,
+)
+from ..repositories.banco_invico import BancoINVICORepository
+from ..schemas.banco_invico import BancoINVICOReport
 from .connect_sscc import (
     SSCCReportManager,
     login,
@@ -98,6 +107,34 @@ class BancoINVICO(SSCCReportManager):
     # async def go_to_specific_report(self) -> None:
     #     await self.select_report_module(module=ReportCategory.Gastos)
     #     await self.select_specific_report_by_id(report_id="38")
+
+    # --------------------------------------------------
+    async def sync_validated_sqlite_to_repository(
+        self, sqlite_path: str
+    ) -> RouteReturnSchema:
+        """Download, process and sync the SSCC Banco INVICO report to the repository."""
+        try:
+            df = get_df_from_sql_table(sqlite_path, table="banco_invico")
+            df.drop(columns=["id"], inplace=True)
+            df["ejercicio"] = pd.to_numeric(df["ejercicio"], errors="coerce")
+            df = df.loc[df["ejercicio"] < 2024]
+
+            validate_and_errors = validate_and_extract_data_from_df(
+                dataframe=df,
+                model=BancoINVICOReport,
+                field_id="cod_imputacion",
+            )
+
+            return await sync_validated_to_repository(
+                repository=BancoINVICORepository(),
+                validation=validate_and_errors,
+                delete_filter={"ejercicio": {"$lt": 2024}},
+                title="Sync SSCC Banco INVICO Report from SQLite",
+                logger=logger,
+                label="Sync SSCC Banco INVICO Report from SQLite",
+            )
+        except Exception as e:
+            print(f"Error migrar y sincronizar el reporte: {e}")
 
     # --------------------------------------------------
     def download_report(
