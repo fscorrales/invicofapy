@@ -100,13 +100,29 @@ class BaseRepository(Generic[ModelType]):
         # return self.model(**doc)  # devolvés el modelo reconstruido con _id incluido
         return result
 
-    # -------------------------------------------------
+    # # -------------------------------------------------
+    # async def save_all(self, data: List[ModelType]) -> List[ModelType]:
+    #     if isinstance(data, list):
+    #         data = [jsonable_encoder(doc, by_alias=True) for doc in data]
+    #     else:
+    #         data = jsonable_encoder(data, by_alias=True)
+    #     return await self.collection.insert_many(data)
+
+    # --------------------------------------------------
     async def save_all(self, data: List[ModelType]) -> List[ModelType]:
         if isinstance(data, list):
-            data = [jsonable_encoder(doc, by_alias=True) for doc in data]
+            docs = [
+                doc.dict(by_alias=True) if hasattr(doc, "dict") else dict(doc)
+                for doc in data
+            ]
         else:
-            data = jsonable_encoder(data, by_alias=True)
-        return await self.collection.insert_many(data)
+            docs = data.dict(by_alias=True) if hasattr(data, "dict") else dict(data)
+
+        # insert_many espera siempre una lista
+        if isinstance(docs, list):
+            return await self.collection.insert_many(docs)
+        else:
+            return await self.collection.insert_many([docs])
 
     # -------------------------------------------------
     async def get_all(self, limit: Optional[int] = None) -> List[ModelType]:

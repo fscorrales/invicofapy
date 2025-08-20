@@ -132,8 +132,9 @@ async def sync_validated_to_repository(
             await repository.delete_by_fields(delete_filter)
 
         # docs = jsonable_encoder(validation.validated)
-        docs = [doc.dict() for doc in validation.validated]  # si son Pydantic models
-        inserted = await repository.save_all(docs)
+        # docs = [doc.dict() for doc in validation.validated]  # si son Pydantic models
+        # 👇 No hay conversión aquí, save_all se encarga
+        inserted = await repository.save_all(validation.validated)
 
         if logger:
             logger.info(
@@ -142,7 +143,7 @@ async def sync_validated_to_repository(
 
         schema.title = title
         schema.deleted += deleted_count
-        schema.added += len(docs)
+        schema.added += len(validation.validated)
         schema.errors += validation.errors
 
     return schema
