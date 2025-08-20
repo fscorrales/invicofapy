@@ -303,7 +303,7 @@ class Rcocc31(SIIFReportManager):
             axis="columns",
         )
         df = df.dropna(subset=["nro_entrada"])
-        df["fecha_aprobado"] = pd.to_datetime(df["fecha_aprobado"], format="%Y-%m-%d")
+        df["fecha_aprobado"] = pd.to_datetime(df["fecha_aprobado"], format="%Y-%m-%d %H:%M:%S")
         df["fecha"] = df["fecha_aprobado"]
         # df.loc[df['fecha_aprobado'].dt.year.astype(str) == df['ejercicio'], 'fecha'] = df['fecha_aprobado']
         df.loc[df["fecha_aprobado"].dt.year.astype(str) != df["ejercicio"], "fecha"] = (
@@ -392,4 +392,4 @@ if __name__ == "__main__":
     # From /invicofapy
 
     # poetry run python -m src.siif.handlers.rcocc31 -d
-    # poetry run python -m src.siif.handlers.rcocc31 -f 2025-rcocc31 (1112-2-6).xls
+    # poetry run python -m src.siif.handlers.rcocc31 -f '2025-rcocc31 (1112-2-6).xls'

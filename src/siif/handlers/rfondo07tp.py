@@ -379,4 +379,4 @@ if __name__ == "__main__":
     # From /invicofapy
 
     # poetry run python -m src.siif.handlers.rfondo07tp -d
-    # poetry run python -m src.siif.handlers.rfondo07tp -f 2025-rfondo07tp (PA6).xls
+    # poetry run python -m src.siif.handlers.rfondo07tp -f '2025-rfondo07tp (PA6).xls'
