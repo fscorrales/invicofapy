@@ -6,7 +6,7 @@ __all__ = [
     "ResumenRendObrasFilter",
 ]
 
-from datetime import date
+from datetime import datetime
 from typing import List, Optional
 
 from pydantic import BaseModel, Field
@@ -25,7 +25,7 @@ class ResumenRendObrasReport(BaseModel):
     id_carga: str
     ejercicio: int
     mes: str
-    fecha: date
+    fecha: datetime
     origen: str
     cod_obra: str
     desc_obra: str

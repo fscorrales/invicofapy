@@ -6,7 +6,7 @@ __all__ = [
     "CargaFilter",
 ]
 
-from datetime import date
+from datetime import datetime
 from typing import List, Optional
 
 from pydantic import BaseModel, Field
@@ -22,7 +22,7 @@ class CargaParams(BaseModel):
 
 # -------------------------------------------------
 class CargaReport(BaseModel):
-    fecha: date
+    fecha: datetime
     fuente: str
     cuit: str
     importe: float

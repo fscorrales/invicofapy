@@ -474,6 +474,10 @@ class IcaroMongoMigrator:
             + "/"
             + df["ejercicio"].astype(str)
         )
+        # df["fecha"] = df["fecha"].apply(
+        #     lambda x: x.to_pydatetime() if pd.notnull(x) else None
+        # )
+
         # Validar datos usando Pydantic
         validate_and_errors = validate_and_extract_data_from_df(
             dataframe=df, model=CargaReport, field_id="id_carga"
@@ -607,6 +611,9 @@ class IcaroMongoMigrator:
         df.loc[df["nro_comprobante"] != "", "id_carga"] = df["nro_comprobante"] + "C"
         df.loc[df["tipo"] == "PA6", "id_carga"] = df["nro_comprobante"] + "F"
         df.drop(["nro_comprobante", "tipo"], axis=1, inplace=True)
+        # df["fecha"] = df["fecha"].apply(
+        #     lambda x: x.to_pydatetime() if pd.notnull(x) else None
+        # )
 
         # Validar datos usando Pydantic
         validate_and_errors = validate_and_extract_data_from_df(
