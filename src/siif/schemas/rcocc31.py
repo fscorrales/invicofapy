@@ -5,7 +5,7 @@ __all__ = [
     "Rcocc31Filter",
 ]
 
-from datetime import date
+from datetime import date, datetime
 from typing import Optional
 
 from pydantic import (
@@ -62,8 +62,8 @@ class Rcocc31Params(BaseModel):
 class Rcocc31Report(BaseModel):
     ejercicio: int
     mes: str
-    fecha: date
-    fecha_aprobado: date
+    fecha: datetime
+    fecha_aprobado: datetime
     cta_contable: str
     nro_entrada: str
     nro_original: str

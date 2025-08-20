@@ -295,6 +295,9 @@ class Rpa03g(SIIFReportManager):
         df["fecha"] = pd.to_datetime(
             df["fecha"], format="%Y-%m-%d %H:%M:%S", errors="coerce"
         )
+        df["fecha"] = df["fecha"].apply(
+            lambda x: x.to_pydatetime() if pd.notnull(x) else None
+        )
 
         df = df.loc[
             :,

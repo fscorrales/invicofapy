@@ -303,7 +303,9 @@ class Rcocc31(SIIFReportManager):
             axis="columns",
         )
         df = df.dropna(subset=["nro_entrada"])
-        df["fecha_aprobado"] = pd.to_datetime(df["fecha_aprobado"], format="%Y-%m-%d %H:%M:%S")
+        df["fecha_aprobado"] = pd.to_datetime(
+            df["fecha_aprobado"], format="%Y-%m-%d %H:%M:%S"
+        )
         df["fecha"] = df["fecha_aprobado"]
         # df.loc[df['fecha_aprobado'].dt.year.astype(str) == df['ejercicio'], 'fecha'] = df['fecha_aprobado']
         df.loc[df["fecha_aprobado"].dt.year.astype(str) != df["ejercicio"], "fecha"] = (
@@ -332,6 +334,12 @@ class Rcocc31(SIIFReportManager):
             ],
         ]
         df["ejercicio"] = pd.to_numeric(df["ejercicio"], errors="coerce")
+        df["fecha"] = df["fecha"].apply(
+            lambda x: x.to_pydatetime() if pd.notnull(x) else None
+        )
+        df["fecha_aprobado"] = df["fecha_aprobado"].apply(
+            lambda x: x.to_pydatetime() if pd.notnull(x) else None
+        )
         to_numeric_cols = ["debitos", "creditos", "saldo"]
         df[to_numeric_cols] = df[to_numeric_cols].apply(pd.to_numeric)
 

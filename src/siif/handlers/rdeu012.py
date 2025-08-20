@@ -285,7 +285,9 @@ class Rdeu012(SIIFReportManager):
         to_numeric = ["importe", "saldo"]
         df[to_numeric] = df[to_numeric].apply(pd.to_numeric).astype(np.float64)
 
-        df["fecha_aprobado"] = pd.to_datetime(df["fecha_aprobado"], format="%Y-%m-%d %H:%M:%S")
+        df["fecha_aprobado"] = pd.to_datetime(
+            df["fecha_aprobado"], format="%Y-%m-%d %H:%M:%S"
+        )
         df["mes_aprobado"] = df["fecha_aprobado"].dt.strftime("%m/%Y")
 
         df["fecha"] = np.where(
@@ -336,6 +338,18 @@ class Rdeu012(SIIFReportManager):
                 "org_fin",
             ],
         ]
+        df["fecha"] = df["fecha"].apply(
+            lambda x: x.to_pydatetime() if pd.notnull(x) else None
+        )
+        df["fecha_aprobado"] = df["fecha_aprobado"].apply(
+            lambda x: x.to_pydatetime() if pd.notnull(x) else None
+        )
+        df["fecha_desde"] = df["fecha_desde"].apply(
+            lambda x: x.to_pydatetime() if pd.notnull(x) else None
+        )
+        df["fecha_hasta"] = df["fecha_hasta"].apply(
+            lambda x: x.to_pydatetime() if pd.notnull(x) else None
+        )
 
         self.clean_df = df
         return self.clean_df

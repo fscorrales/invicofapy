@@ -5,7 +5,7 @@ __all__ = [
     "Rdeu012Filter",
 ]
 
-from datetime import date
+from datetime import date, datetime
 from typing import Optional
 
 from pydantic import (
@@ -58,7 +58,7 @@ class Rdeu012Params(BaseModel):
 class Rdeu012Report(BaseModel):
     ejercicio: int
     mes: str
-    fecha: date
+    fecha: datetime
     mes_hasta: str
     fuente: str
     cta_cte: str
@@ -71,9 +71,9 @@ class Rdeu012Report(BaseModel):
     nro_expte: Optional[str] = None
     nro_entrada: str
     nro_origen: str
-    fecha_aprobado: date
-    fecha_desde: date
-    fecha_hasta: date
+    fecha_aprobado: datetime
+    fecha_desde: datetime
+    fecha_hasta: datetime
     org_fin: str
 
 
@@ -84,4 +84,6 @@ class Rdeu012Document(Rdeu012Report):
 
 # -------------------------------------------------
 class Rdeu012Filter(BaseFilterParams):
-    mes_hasta: Optional[str] = Field(alias="mesAño", default=date.today().strftime("%m/%Y"))
+    mes_hasta: Optional[str] = Field(
+        alias="mesAño", default=date.today().strftime("%m/%Y")
+    )

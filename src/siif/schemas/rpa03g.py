@@ -6,7 +6,7 @@ __all__ = [
     "Rpa03gFilter",
 ]
 
-from datetime import date
+from datetime import date, datetime
 from typing import List, Optional
 
 from pydantic import BaseModel, Field, field_validator, model_validator
@@ -55,7 +55,7 @@ class Rpa03gParams(CamelModel):
 class Rpa03gReport(BaseModel):
     ejercicio: int
     mes: Optional[str] = None
-    fecha: date
+    fecha: datetime
     nro_comprobante: Optional[str] = None
     importe: float
     grupo: Optional[str] = None
