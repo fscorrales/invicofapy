@@ -6,16 +6,24 @@ __all__ = [
 ]
 
 
-from datetime import date
+from datetime import date, datetime
 from typing import List, Optional
 
-from pydantic import BaseModel, Field, NonNegativeFloat, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    Field,
+    NonNegativeFloat,
+    field_validator,
+    model_validator,
+)
 from pydantic_mongo import PydanticObjectId
 
-from ...utils import BaseFilterParams, ErrorsWithDocId, CamelModel
+from ...utils import BaseFilterParams, CamelModel, ErrorsWithDocId
 from .common import Origen
 
 origen: Origen
+
+
 # --------------------------------------------------
 class ResumenRendProvParams(CamelModel):
     ejercicio_desde: int = Field(default=date.today().year)
@@ -42,7 +50,7 @@ class ResumenRendProvReport(BaseModel):
     origen: Origen
     ejercicio: int
     mes: str
-    fecha: date
+    fecha: datetime
     beneficiario: str
     destino: str
     libramiento_sgf: str
