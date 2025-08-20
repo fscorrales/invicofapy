@@ -6,7 +6,7 @@ __all__ = [
     "Rfondo07tpFilter",
 ]
 
-from datetime import date
+from datetime import datetime, date
 from typing import List, Optional
 
 from pydantic import BaseModel, Field, field_validator, model_validator
@@ -41,7 +41,7 @@ class Rfondo07tpParams(CamelModel):
 class Rfondo07tpReport(BaseModel):
     ejercicio: int
     mes: str
-    fecha: date
+    fecha: datetime
     tipo_comprobante: str
     nro_comprobante: str
     nro_fondo: str

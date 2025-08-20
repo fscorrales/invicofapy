@@ -303,7 +303,8 @@ class Rfondo07tp(SIIFReportManager):
         )
 
         # 👇 conversión explícita a datetime.datetime de Python
-        df["fecha"] = df["fecha"].dt.to_pydatetime()
+        # df["fecha"] = df["fecha"].dt.to_pydatetime()
+        df["fecha"] = df["fecha"].apply(lambda x: x.to_pydatetime() if pd.notnull(x) else None)
 
         df = df.loc[
             :,
@@ -379,4 +380,4 @@ if __name__ == "__main__":
     # From /invicofapy
 
     # poetry run python -m src.siif.handlers.rfondo07tp -d
-    # poetry run python -m src.siif.handlers.rfondo07tp -f '2025-rfondo07tp (PA6).xls'
+    # poetry run python -m src.siif.handlers.rfondo07tp -f "2025-rfondo07tp (PA6).xls"
