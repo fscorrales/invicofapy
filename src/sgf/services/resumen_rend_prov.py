@@ -28,6 +28,7 @@ from ..schemas import (
     ResumenRendProvDocument,
     ResumenRendProvParams,
     ResumenRendProvReport,
+    Origen,
 )
 
 
@@ -42,6 +43,10 @@ class ValidateAndErrors(BaseModel):
 class ResumenRendProvService:
     repository: ResumenRendProvRepositoryDependency
     resumen_rend_prov: ResumenRendProv = field(init=False)  # No se pasa como argumento
+
+    # -------------------------------------------------
+    def __post_init__(self):
+        self.resumen_rend_prov = ResumenRendProv()
 
     # -------------------------------------------------
     async def sync_resumen_rend_prov_from_sgf(
@@ -67,51 +72,33 @@ class ResumenRendProvService:
         return_schema = []
         try:
             loop = asyncio.get_running_loop()
-            origenes = params.origenes or [params.origen.value]  # adaptar según schema
+            origenes = params.origen.value or [v.value for v in Origen]  # adaptar según schema
+            ejercicios = list(range(params.ejercicio_desde, params.ejercicio_hasta + 1))
             validate_list = await loop.run_in_executor(
                 None,
                 lambda: self._blocking_download_and_process_multi(
                     username,
                     password,
-                    ejercicio=params.ejercicio,
+                    ejercicios=ejercicios,
                     origenes=origenes,
                 ),
             )
 
             # 🔹 Si hay registros validados, eliminar los antiguos e insertar los nuevos
-            for origen, validate_and_errors in validate_list:
+            for ejercicio, origen, validate_and_errors in validate_list:
                 if validate_and_errors.validated:
                     partial_schema = await sync_validated_to_repository(
                         repository=self.repository,
                         validation=validate_and_errors,
                         delete_filter={
-                            "ejercicio": params.ejercicio,
+                            "ejercicio": ejercicio,
                             "origen": origen,
                         },
-                        title=f"SGF Resumen Rend Prov. del origen {origen} y ejercicio {params.ejercicio}",
+                        title=f"SGF Resumen Rend Prov. del origen {origen} y ejercicio {ejercicio}",
                         logger=logger,
-                        label=f"origin {origen} del ejercicio {params.ejercicio} del SGF Resumen Rend Prov",
+                        label=f"origin {origen} del ejercicio {ejercicio} del SGF Resumen Rend Prov",
                     )
                     return_schema.append(partial_schema)
-                    # logger.info(
-                    #     f"Procesado origen {origen} para ejercicio {params.ejercicio}. Errores: {len(validate_and_errors.errors)}"
-                    # )
-                    # delete_dict = {
-                    #     "ejercicio": params.ejercicio,
-                    #     "origen": origen,
-                    # }
-                    # # Contar los documentos existentes antes de eliminarlos
-                    # deleted_count = await self.repository.count_by_fields(delete_dict)
-                    # await self.repository.delete_by_fields(delete_dict)
-                    # # await self.collection.delete_many({"ejercicio": ejercicio})
-                    # data_to_store = jsonable_encoder(validate_and_errors.validated)
-                    # inserted_records = await self.repository.save_all(data_to_store)
-                    # logger.info(
-                    #     f"Inserted {len(inserted_records.inserted_ids)} records into MongoDB."
-                    # )
-                    # return_schema.deleted += deleted_count
-                    # return_schema.added += len(data_to_store)
-                    # return_schema.errors += validate_and_errors.errors
 
         except ValidationError as e:
             logger.error(f"Validation Error: {e}")
@@ -171,49 +158,56 @@ class ResumenRendProvService:
             return validate_and_errors
 
     # -------------------------------------------------
+    @staticmethod
     def _blocking_download_and_process_multi(
         username: str,
         password: str,
-        ejercicio: int,
+        ejercicios: List[int],
         origenes: List[str],
     ) -> List[ValidateAndErrors]:
         results = []
         conn = login(username, password)
+        if not isinstance(ejercicios, list):
+            ejercicios = [ejercicios]
+        if not isinstance(origenes, list):
+            origenes = [origenes]
 
         try:
             resumen_rend_prov = ResumenRendProv(sgf=conn)
-            for origen in origenes:
-                try:
-                    resumen_rend_prov.download_report(
-                        dir_path=Path(
-                            os.path.join(
-                                get_download_sgf_path(), "Resumen de Rendiciones SGF"
+            for ejercicio in ejercicios:
+                for origen in origenes:
+                    try:
+                        save_path = Path(
+                                os.path.join(
+                                    get_download_sgf_path(), "Resumen de Rendiciones SGF"
+                                )
                             )
-                        ),
-                        ejercicios=str(ejercicio),
-                        origenes=origen,
-                    )
+                        resumen_rend_prov.download_report(
+                            dir_path=save_path,
+                            ejercicios=str(ejercicio),
+                            origenes=origen,
+                        )
 
-                    file_path = Path(f"{ejercicio} Resumen de Rendiciones {origen}.csv")
-                    for _ in range(10):
-                        if file_path.exists():
-                            break
-                        time.sleep(0.5)
-                    else:
-                        raise FileNotFoundError(f"No se encontró archivo: {file_path}")
+                        file_path = Path(os.path.join(save_path, f"{ejercicio} Resumen de Rendiciones {origen}.csv"))
+                        for _ in range(10):
+                            if file_path.exists():
+                                break
+                            time.sleep(0.5)
+                        else:
+                            raise FileNotFoundError(f"No se encontró archivo: {file_path}")
 
-                    resumen_rend_prov.read_csv_file(file_path)
-                    resumen_rend_prov.process_dataframe()
+                        resumen_rend_prov.read_csv_file(file_path)
+                        resumen_rend_prov.process_dataframe()
 
-                    validation = validate_and_extract_data_from_df(
-                        dataframe=resumen_rend_prov.clean_df,
-                        model=ResumenRendProvReport,
-                        field_id="libramiento_sgf",
-                    )
-                    results.append((origen, validation))
+                        validation = validate_and_extract_data_from_df(
+                            dataframe=resumen_rend_prov.clean_df,
+                            model=ResumenRendProvReport,
+                            field_id="libramiento_sgf",
+                        )
+                        results.append((ejercicio, origen, validation))
 
-                except Exception as e:
-                    logger.error(f"Error procesando origen '{origen}': {e}")
+                    except Exception as e:
+                        logger.error(f"Error procesando origen '{origen}': {e}")
         finally:
             conn.quit()
 

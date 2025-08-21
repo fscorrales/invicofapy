@@ -26,7 +26,7 @@ from .common import Origen
 class ResumenRendProvParams(CamelModel):
     ejercicio_desde: int = Field(default=date.today().year)
     ejercicio_hasta: int = Field(default=date.today().year)
-    origen: Origen
+    origen: Optional[Origen] = None
 
     @field_validator("ejercicio_desde", "ejercicio_hasta")
     @classmethod
@@ -38,7 +38,7 @@ class ResumenRendProvParams(CamelModel):
 
     @model_validator(mode="after")
     def check_range(self) -> "ResumenRendProvParams":
-        if self.ejercicio_desde < self.ejercicio_hasta:
+        if self.ejercicio_hasta < self.ejercicio_desde:
             raise ValueError("Ejercicio Desde no puede ser menor que Ejercicio Hasta")
         return self
 

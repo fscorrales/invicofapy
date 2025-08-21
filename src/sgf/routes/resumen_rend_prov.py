@@ -19,7 +19,7 @@ resumen_rend_prov_router = APIRouter(
 
 
 # -------------------------------------------------
-@resumen_rend_prov_router.post("/sync_from_sgf", response_model=RouteReturnSchema)
+@resumen_rend_prov_router.post("/sync_from_sgf", response_model=List[RouteReturnSchema])
 async def sync_resumen_rend_prov_from_sgf(
     auth: OptionalAuthorizationDependency,
     service: ResumenRendProvServiceDependency,
