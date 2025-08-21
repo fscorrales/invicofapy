@@ -63,8 +63,10 @@ class Rdeu012Service:
         meses = []
         current = start
         while current <= end:
-            meses.append(int(current.strftime("%Y%m")))
+            meses.append(current.strftime("%m/%Y"))
             current += relativedelta(months=1)
+
+        # meses = [datetime.strptime(str(mes), "%Y%m").strftime("%m/%Y") for mes in meses]
 
         async with async_playwright() as p:
             try:

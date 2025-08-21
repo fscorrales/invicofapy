@@ -65,11 +65,11 @@ def get_args():
     parser.add_argument(
         "-m",
         "--meses",
-        metavar="Año y mes",
-        default=["202507"],
+        metavar="Mes y Año",
+        default=["072025"],
         type=str,
         nargs="+",
-        help="Lista de año y mes en formato yyyymm",
+        help="Lista de mes y año en formato mmyyyy (ej: 072025)",
     )
 
     parser.add_argument(
@@ -128,7 +128,7 @@ class Rdeu012(SIIFReportManager):
 
     # --------------------------------------------------
     async def download_and_sync_validated_to_repository(
-        self, mes: str = dt.datetime.strftime(dt.datetime.now(), "%Y-%m")
+        self, mes: str = dt.datetime.strftime(dt.datetime.now(), "%Y/%m")
     ) -> RouteReturnSchema:
         """Download, process and sync the rdeu012 report to the repository."""
         try:
@@ -137,6 +137,7 @@ class Rdeu012(SIIFReportManager):
                 model=Rdeu012Report,
                 field_id="nro_comprobante",
             )
+            logger.info(mes)
             return await sync_validated_to_repository(
                 repository=Rdeu012Repository(),
                 validation=validate_and_errors,
@@ -183,7 +184,7 @@ class Rdeu012(SIIFReportManager):
 
     # --------------------------------------------------
     async def download_report(
-        self, mes: str = dt.datetime.strftime(dt.datetime.now(), "%Y-%m")
+        self, mes: str = dt.datetime.strftime(dt.datetime.now(), "%m-%Y")
     ) -> Download:
         try:
             self.download = None
@@ -212,10 +213,10 @@ class Rdeu012(SIIFReportManager):
             await input_fecha_desde.clear()
             await input_fecha_desde.fill("01/01/2010")
             # Fecha hasta
-            int_ejercicio = int(mes[0:4])
+            int_ejercicio = int(mes[-4:])
             if int_ejercicio > 2010 and int_ejercicio <= dt.datetime.now().year:
                 fecha_hasta = dt.datetime(
-                    year=(int_ejercicio), month=int(mes[-2:]), day=1
+                    year=(int_ejercicio), month=int(mes[0:2]), day=1
                 )
                 next_month = fecha_hasta.replace(day=28) + timedelta(days=4)
                 fecha_hasta = next_month - timedelta(days=next_month.day)
@@ -314,6 +315,20 @@ class Rdeu012(SIIFReportManager):
         df["nro_comprobante"] = (
             df["nro_entrada"].str.zfill(5) + "/" + df["mes"].str[-2:]
         )
+
+        df["fecha"] = df["fecha"].apply(
+            lambda x: x.to_pydatetime() if pd.notnull(x) else None
+        )
+        df["fecha_aprobado"] = df["fecha_aprobado"].apply(
+            lambda x: x.to_pydatetime() if pd.notnull(x) else None
+        )
+        df["fecha_desde"] = df["fecha_desde"].apply(
+            lambda x: x.to_pydatetime() if pd.notnull(x) else None
+        )
+        df["fecha_hasta"] = df["fecha_hasta"].apply(
+            lambda x: x.to_pydatetime() if pd.notnull(x) else None
+        )
+
         df = df.loc[
             :,
             [
@@ -338,18 +353,6 @@ class Rdeu012(SIIFReportManager):
                 "org_fin",
             ],
         ]
-        df["fecha"] = df["fecha"].apply(
-            lambda x: x.to_pydatetime() if pd.notnull(x) else None
-        )
-        df["fecha_aprobado"] = df["fecha_aprobado"].apply(
-            lambda x: x.to_pydatetime() if pd.notnull(x) else None
-        )
-        df["fecha_desde"] = df["fecha_desde"].apply(
-            lambda x: x.to_pydatetime() if pd.notnull(x) else None
-        )
-        df["fecha_hasta"] = df["fecha_hasta"].apply(
-            lambda x: x.to_pydatetime() if pd.notnull(x) else None
-        )
 
         self.clean_df = df
         return self.clean_df
@@ -381,7 +384,7 @@ async def main():
                     await rdeu012.download_report(mes=str(mes))
                     await rdeu012.save_xls_file(
                         save_path=save_path,
-                        file_name=mes[0:4] + mes[-2:] + "-rdeu012.xls",
+                        file_name=mes[-4:] + mes[0:2] + "-rdeu012.xls",
                     )
                     await rdeu012.read_xls_file(args.file)
                     print(rdeu012.df)
