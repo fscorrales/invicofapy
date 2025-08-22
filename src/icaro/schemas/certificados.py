@@ -21,21 +21,21 @@ class CertificadosParams(BaseModel):
 
 # -------------------------------------------------
 class CertificadosReport(BaseModel):
-    id_carga: str
+    id_carga: Optional[str] = None
     origen: str
     ejercicio: int
     beneficiario: str
     desc_obra: str
     nro_certificado: str
     monto_certificado: float
-    fondo_reparo: float
+    fondo_reparo: Optional[float] = None
     importe_bruto: float
-    iibb: float
-    lp: float
-    suss: float
-    gcias: float
-    invico: float
-    otras_retenciones: float
+    iibb: Optional[float] = None
+    lp: Optional[float] = None
+    suss: Optional[float] = None
+    gcias: Optional[float] = None
+    invico: Optional[float] = None
+    otras_retenciones: Optional[float] = None
     importe_neto: float
 
 

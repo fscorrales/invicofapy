@@ -44,7 +44,7 @@ icaro_router = APIRouter(prefix="/icaro", tags=["ICARO"])
 
 
 # -------------------------------------------------
-@icaro_router.post("/sync_from_sqlite", response_model=RouteReturnSchema)
+@icaro_router.post("/sync_from_sqlite", response_model=List[RouteReturnSchema])
 async def sync_all_from_sqlite(
     service: IcaroServiceDependency,
     sqlite_path: str = Query(

@@ -21,13 +21,13 @@ class ProveedoresParams(BaseModel):
 
 # -------------------------------------------------
 class ProveedoresReport(BaseModel):
-    codigo: str
+    codigo: int
     desc_proveedor: str
-    domicilio: str
-    localidad: str
-    telefono: str
+    domicilio: Optional[str] = None
+    localidad: Optional[str] = None
+    telefono: Optional[str] = None
     cuit: str
-    condicion_iva: str
+    condicion_iva: Optional[str] = None
 
 
 # -------------------------------------------------

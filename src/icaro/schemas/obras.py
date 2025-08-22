@@ -26,12 +26,12 @@ class ObrasReport(BaseModel):
     actividad: str
     partida: str
     fuente: str
-    monto_contrato: float
-    monto_adicional: float
+    monto_contrato: Optional[float] = None
+    monto_adicional: Optional[float] = None
     cta_cte: str
-    norma_legal: str
+    norma_legal: Optional[str] = None
     desc_obra: str
-    info_adicional: str
+    info_adicional: Optional[str] = None
 
 
 # -------------------------------------------------

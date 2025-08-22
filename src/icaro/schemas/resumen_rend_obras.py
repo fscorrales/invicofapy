@@ -22,27 +22,27 @@ class ResumenRendObrasParams(BaseModel):
 
 # -------------------------------------------------
 class ResumenRendObrasReport(BaseModel):
-    id_carga: str
-    ejercicio: int
-    mes: str
-    fecha: datetime
-    origen: str
-    cod_obra: str
-    desc_obra: str
-    beneficiario: str
-    nro_libramiento_sgf: str
+    id_carga: Optional[str] = None
+    ejercicio: Optional[int] = None
+    mes: Optional[str] = None
+    fecha: Optional[datetime] = None
+    origen: Optional[str] = None
+    cod_obra: Optional[str] = None
+    desc_obra: Optional[str] = None
+    beneficiario: Optional[str] = None
+    nro_libramiento_sgf: Optional[str] = None
     importe_bruto: float
-    iibb: float
-    tl: float
-    sellos: float
-    suss: float
-    gcias: float
-    seguro: float
-    salud: float
-    mutual: float
-    importe_neto: float
-    destino: str
-    movimiento: str
+    iibb: Optional[float] = None
+    tl: Optional[float] = None
+    sellos: Optional[float] = None
+    suss: Optional[float] = None
+    gcias: Optional[float] = None
+    seguro: Optional[float] = None
+    salud: Optional[float] = None
+    mutual: Optional[float] = None
+    importe_neto: Optional[float] = None
+    destino: Optional[str] = None
+    movimiento: Optional[str] = None
 
 
 # -------------------------------------------------

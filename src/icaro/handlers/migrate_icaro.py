@@ -282,7 +282,7 @@ class IcaroMongoMigrator:
             dataframe=df, model=EstructurasReport, field_id="estructura"
         )
         return await sync_validated_to_repository(
-            repository=self.proveedores_repo,
+            repository=self.estructuras_repo,
             validation=validate_and_errors,
             delete_filter=None,
             title="ICARO Estructuras Migration",
@@ -395,6 +395,7 @@ class IcaroMongoMigrator:
         validate_and_errors = validate_and_extract_data_from_df(
             dataframe=df, model=ProveedoresReport, field_id="codigo"
         )
+
         # await self.proveedores_repo.delete_all()
         # await self.proveedores_repo.save_all(df.to_dict(orient="records"))
         return await sync_validated_to_repository(
@@ -619,6 +620,7 @@ class IcaroMongoMigrator:
         validate_and_errors = validate_and_extract_data_from_df(
             dataframe=df, model=ResumenRendObrasReport, field_id="id_carga"
         )
+        logger.info(validate_and_errors)
         # await self.resumen_rend_obras_repo.delete_all()
         # await self.resumen_rend_obras_repo.save_all(df.to_dict(orient="records"))
         return await sync_validated_to_repository(
@@ -669,7 +671,7 @@ async def main():
         sqlite_path=args.file,
     )
 
-    await migrator.migrate_all()
+    await migrator.migrate_proveedores()
 
 
 # --------------------------------------------------
