@@ -5,6 +5,7 @@ __all__ = [
     "get_download_path",
     "get_download_sgf_path",
     "get_download_sscc_path",
+    "get_sscc_cta_cte_path",
     "get_sqlite_path",
     "get_r_icaro_path",
     "get_slave_path",
@@ -51,6 +52,11 @@ def get_download_sscc_path():
     return dir_path
 
 # --------------------------------------------------
+def get_sscc_cta_cte_path():
+    dir_path = os.path.join(get_download_sscc_path(), "cta_cte")
+    return dir_path
+
+# --------------------------------------------------
 def get_sqlite_path():
     db_path = os.path.join(get_outside_path(), "Python Output")
     db_path = os.path.join(db_path, "SQLite Files")
@@ -81,6 +87,7 @@ def main():
     print(f"Download Path: {get_download_path()}")
     print(f"Download SGF Path: {get_download_sgf_path()}")
     print(f"Download SSCC Path: {get_download_sscc_path()}")
+    print(f"SSCC Cta Cte Path: {get_sscc_cta_cte_path()}")
     print(f"DB Path: {get_sqlite_path()}")
     print(f"R Icaro Path: {get_r_icaro_path()}")
     print(f"Slave Path: {get_slave_path()}")
