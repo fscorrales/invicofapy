@@ -11,14 +11,16 @@ import pandas as pd
 from fastapi import Depends, HTTPException
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import StreamingResponse
-from pydantic import ValidationError
+from pydantic import BaseModel, ValidationError
 
 from ...config import logger
 from ...utils import (
     BaseFilterParams,
     RouteReturnSchema,
+    ValidationResultSchema,
     export_dataframe_as_excel_response,
-    get_download_sgf_path,
+    get_download_sscc_path,
+    sync_validated_to_repository,
     validate_and_extract_data_from_df,
 )
 from ..handlers import BancoINVICO, login
@@ -31,10 +33,20 @@ from ..schemas import (
 
 
 # -------------------------------------------------
+class ValidateAndErrors(BaseModel):
+    ejercicio: int
+    validation_result: ValidationResultSchema
+
+
+# -------------------------------------------------
 @dataclass
 class BancoINVICOService:
     repository: BancoINVICORepositoryDependency
     banco_invico: BancoINVICO = field(init=False)  # No se pasa como argumento
+
+    # -------------------------------------------------
+    def __post_init__(self):
+        self.banco_invico = BancoINVICO()
 
     # -------------------------------------------------
     async def sync_banco_invico_from_sscc(
@@ -42,7 +54,7 @@ class BancoINVICOService:
         username: str,
         password: str,
         params: BancoINVICOParams = None,
-    ) -> RouteReturnSchema:
+    ) -> List[RouteReturnSchema]:
         """Downloads a report from SSCC, processes it, validates the data,
         and stores it in MongoDB if valid.
 
@@ -57,34 +69,29 @@ class BancoINVICOService:
                 status_code=401,
                 detail="Missing username or password",
             )
-        return_schema = RouteReturnSchema()
+        return_schema = []
         try:
             loop = asyncio.get_running_loop()
-            validate_and_errors = await loop.run_in_executor(
+            ejercicios = list(range(params.ejercicio_desde, params.ejercicio_hasta + 1))
+            validate_list = await loop.run_in_executor(
                 None,
-                lambda: self._blocking_download_and_process(username, password, params),
+                lambda: self._blocking_download_and_process_multi(username, password, ejercicios=ejercicios),
             )
 
             # 🔹 Si hay registros validados, eliminar los antiguos e insertar los nuevos
-            if validate_and_errors.validated:
-                logger.info(
-                    f"Procesado ejercicio {params.ejercicio}. Errores: {len(validate_and_errors.errors)}"
-                )
-                delete_dict = {
-                    "ejercicio": params.ejercicio,
-                }
-                # Contar los documentos existentes antes de eliminarlos
-                deleted_count = await self.repository.count_by_fields(delete_dict)
-                await self.repository.delete_by_fields(delete_dict)
-                # await self.collection.delete_many({"ejercicio": ejercicio})
-                data_to_store = jsonable_encoder(validate_and_errors.validated)
-                inserted_records = await self.repository.save_all(data_to_store)
-                logger.info(
-                    f"Inserted {len(inserted_records.inserted_ids)} records into MongoDB."
-                )
-                return_schema.deleted = deleted_count
-                return_schema.added = len(data_to_store)
-                return_schema.errors = validate_and_errors.errors
+            for ejercicio, validate_and_errors in validate_list:
+                if validate_and_errors.validated:
+                    partial_schema = await sync_validated_to_repository(
+                        repository=self.repository,
+                        validation=validate_and_errors,
+                        delete_filter={
+                            "ejercicio": ejercicio,
+                        },
+                        title=f"SSCC Banco Invico del ejercicio {ejercicio}",
+                        logger=logger,
+                        label=f"Ejercicio {ejercicio} del SSCC Banco Invico",
+                    )
+                    return_schema.append(partial_schema)
 
         except ValidationError as e:
             logger.error(f"Validation Error: {e}")
@@ -103,7 +110,7 @@ class BancoINVICOService:
     # -------------------------------------------------
     def _blocking_download_and_process(self, username, password, params):
         save_path = Path(
-            os.path.join(get_download_sgf_path(), "Resumen de Rendiciones SSCC")
+            os.path.join(get_download_sscc_path(), "Movimientos Generales SSCC")
         )
         filename = f"{params.ejercicio}  - Bancos - Consulta General de Movimientos.csv"
         full_path = Path(save_path / filename)
@@ -138,6 +145,54 @@ class BancoINVICOService:
                 model=BancoINVICOReport,
             )
             return validate_and_errors
+
+    # -------------------------------------------------
+    @staticmethod
+    def _blocking_download_and_process_multi(
+        username: str,
+        password: str,
+        ejercicios: List[int],
+    ) -> List[ValidateAndErrors]:
+        results = []
+        conn = login(username, password)
+        if not isinstance(ejercicios, list):
+            ejercicios = [ejercicios]
+        try:
+            banco_invico = BancoINVICO(sscc=conn)
+            for ejercicio in ejercicios:
+                try:
+                    save_path = Path(
+                        os.path.join(get_download_sscc_path(), "Movimientos Generales SSCC")
+                    )
+                    banco_invico.download_report(
+                        dir_path=save_path,
+                        ejercicios=str(ejercicio),
+                    )
+                    filename = f"{ejercicio} - Bancos - Consulta General de Movimientos.csv"
+                    file_path = Path(os.path.join(save_path, filename))
+                    for _ in range(10):
+                        if file_path.exists():
+                            break
+                        time.sleep(0.5)
+                    else:
+                        raise FileNotFoundError(f"No se encontró archivo: {file_path}")
+
+                    banco_invico.read_csv_file(file_path)
+                    banco_invico.process_dataframe()
+
+                    validation = validate_and_extract_data_from_df(
+                        dataframe=banco_invico.clean_df,
+                        model=BancoINVICOReport,
+                        field_id="cod_imputacion",
+                    )
+                    results.append((ejercicio, validation))
+
+                except Exception as e:
+                    logger.error(f"Error procesando el ejercicio '{ejercicio}': {e}")
+        finally:
+            conn.quit()
+
+        return results
 
     # -------------------------------------------------
     async def get_banco_invico_from_db(

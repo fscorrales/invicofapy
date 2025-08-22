@@ -27,6 +27,7 @@ from pywinauto import WindowSpecification, keyboard
 from pywinauto.application import Application
 from pywinauto.timings import TimeoutError
 
+from ...config import logger
 
 # --------------------------------------------------
 def get_args():
@@ -97,6 +98,10 @@ class ConnectSSCC:
             logout(window=self.main)
         except Exception as e:
             print(f"Error al cerrar sesión: {e}")
+
+    # --------------------------------------------------
+    def quit(self):
+        self.__exit__(None, None, None)
 
 
 # --------------------------------------------------
@@ -180,14 +185,21 @@ class SSCCReportManager(ABC):
 
     # --------------------------------------------------
     def move_report(self, dir_path: Path, name: str):
+        if not isinstance(dir_path, Path):
+            dir_path = Path(dir_path)
         old_file_path = Path(os.path.join(r"D:\Users\fcorrales\Desktop", name))
         new_file_path = dir_path / name
 
+        # Crear las carpetas necesarias
+        dir_path.mkdir(parents=True, exist_ok=True)
+
         for _ in range(10):  # Máximo 10 intentos (~5 segundos)
             if old_file_path.exists():
+                # logger.info(f"Intento: {_} ruta: {old_file_path}")
                 break
             time.sleep(0.5)
         else:
+            # logger.info(f"Intento: {_} ruta: {old_file_path}")
             raise FileNotFoundError(
                 f"No se encontró el archivo descargado en: {old_file_path}"
             )
@@ -197,12 +209,15 @@ class SSCCReportManager(ABC):
             while self.is_locked(old_file_path):
                 time.sleep(1)
 
+        # logger.info(f"Se encontró el archivo descargado en: {old_file_path}")
+        # logger.info(f"Se moviera el archivo a: {new_file_path}")
         if os.path.isfile(old_file_path):
             if os.path.isfile(new_file_path):
                 os.remove(new_file_path)
             os.rename(old_file_path, new_file_path)
         else:
             raise ValueError("%s isn't a file!" % old_file_path)
+        # logger.info(f"Archivo movido a: {new_file_path}")
 
     # --------------------------------------------------
     @abstractmethod

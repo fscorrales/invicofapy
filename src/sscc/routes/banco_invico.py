@@ -17,7 +17,7 @@ banco_invico_router = APIRouter(prefix="/banco_invico")
 
 
 # -------------------------------------------------
-@banco_invico_router.post("/sync_from_sscc", response_model=RouteReturnSchema)
+@banco_invico_router.post("/sync_from_sscc", response_model=List[RouteReturnSchema])
 async def sync_banco_invico_from_sscc(
     auth: OptionalAuthorizationDependency,
     service: BancoINVICOServiceDependency,
@@ -39,8 +39,8 @@ async def sync_banco_invico_from_sscc(
 async def sync_banco_invico_from_sqlite(
     service: BancoINVICOServiceDependency,
     sqlite_path: str = Query(
-        default=os.path.join(get_sqlite_path(), "siif.sqlite"),
-        description="Ruta al archivo SIIF SQLite",
+        default=os.path.join(get_sqlite_path(), "sscc.sqlite"),
+        description="Ruta al archivo SSCC SQLite",
         alias="path",
     ),
 ):

@@ -228,7 +228,7 @@ class BancoINVICO(SSCCReportManager):
                     ).wrapper_object()
                     cmb_nombre.click_input()
                     report_name = (
-                        ejercicio + " - Bancos - Consulta General de Movimientos.csv"
+                        str(ejercicio) + " - Bancos - Consulta General de Movimientos.csv"
                     )
                     cmb_nombre.type_keys(report_name, with_spaces=True)
                     btn_guardar = export_dlg.child_window(
@@ -327,8 +327,7 @@ def main():
                 if args.download:
                     banco_invico.download_report(
                         dir_path=save_path,
-                        ejercicios=str(ejercicio),
-                        origenes=args.origenes,
+                        ejercicios=str(ejercicio)
                     )
                 if args.file:
                     filename = args.file
