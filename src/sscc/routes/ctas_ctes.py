@@ -3,7 +3,7 @@ from typing import Annotated, List
 
 from fastapi import APIRouter, Depends, Query
 
-from ...utils import RouteReturnSchema, apply_auto_filter, get_sqlite_path
+from ...utils import RouteReturnSchema, apply_auto_filter, get_sscc_cta_cte_path
 from ..schemas import CtasCtesDocument, CtasCtesFilter
 from ..services import CtasCtesServiceDependency
 
@@ -15,7 +15,7 @@ ctas_ctes_router = APIRouter(prefix="/ctas_ctes")
 async def sync_ctas_ctes_from_excel(
     service: CtasCtesServiceDependency,
     excel_path: str = Query(
-        default=os.path.join(get_sqlite_path(), "siif.sqlite"),
+        default=os.path.join(get_sscc_cta_cte_path(), "cta_cte.xlsx"),
         description="Ruta al archivo Ctas Ctes EXCEL",
         alias="path",
     ),

@@ -39,8 +39,7 @@ class CtasCtesDocument(CtasCtesReport):
 
 # -------------------------------------------------
 class CtasCtesFilter(BaseFilterParams):
-    nro_prog: Optional[str] = None
-    desc_prog: Optional[str] = None
+    map_to: Optional[str] = None
 
 
 # -------------------------------------------------
