@@ -620,7 +620,6 @@ class IcaroMongoMigrator:
         validate_and_errors = validate_and_extract_data_from_df(
             dataframe=df, model=ResumenRendObrasReport, field_id="id_carga"
         )
-        logger.info(validate_and_errors)
         # await self.resumen_rend_obras_repo.delete_all()
         # await self.resumen_rend_obras_repo.save_all(df.to_dict(orient="records"))
         return await sync_validated_to_repository(

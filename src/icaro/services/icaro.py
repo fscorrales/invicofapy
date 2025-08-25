@@ -22,6 +22,10 @@ from ..repositories import (
     CertificadosRepositoryDependency,
     CtasCtesRepositoryDependency,
     EstructurasRepositoryDependency,
+    ProgramasRepositoryDependency,
+    SubprogramasRepositoryDependency,
+    ProyectosRepositoryDependency,
+    ActividadesRepositoryDependency,
     FuentesRepositoryDependency,
     ObrasRepositoryDependency,
     PartidasRepositoryDependency,
@@ -34,6 +38,10 @@ from ..schemas import (
     CertificadosDocument,
     CtasCtesDocument,
     EstructurasDocument,
+    ProgramasDocument,
+    SubprogramasDocument,
+    ProyectosDocument,
+    ActividadesDocument,
     FuentesDocument,
     ObrasDocument,
     PartidasDocument,
@@ -51,6 +59,10 @@ class IcaroService:
     certificados_repo: CertificadosRepositoryDependency
     ctas_ctes_repo: CtasCtesRepositoryDependency
     estructuras_repo: EstructurasRepositoryDependency
+    programas_repo: ProgramasRepositoryDependency
+    subprogramas_repo: SubprogramasRepositoryDependency
+    proyectos_repo: ProyectosRepositoryDependency
+    actividades_repo: ActividadesRepositoryDependency
     fuentes_repo: FuentesRepositoryDependency
     partidas_repo: PartidasRepositoryDependency
     proveedores_repo: ProveedoresRepositoryDependency
@@ -96,6 +108,42 @@ class IcaroService:
         return await self.estructuras_repo.safe_find_with_filter_params(
             params=params,
             error_title="Error retrieving Estructuras from the database",
+        )
+
+    # -------------------------------------------------
+    async def get_programas_from_db(
+        self, params: BaseFilterParams
+    ) -> List[ProgramasDocument]:
+        return await self.programas_repo.safe_find_with_filter_params(
+            params=params,
+            error_title="Error retrieving Programas from the database",
+        )
+
+    # -------------------------------------------------
+    async def get_subprogramas_from_db(
+        self, params: BaseFilterParams
+    ) -> List[SubprogramasDocument]:
+        return await self.subprogramas_repo.safe_find_with_filter_params(
+            params=params,
+            error_title="Error retrieving Subprogramas from the database",
+        )
+
+    # -------------------------------------------------
+    async def get_proyectos_from_db(
+        self, params: BaseFilterParams
+    ) -> List[ProyectosDocument]:
+        return await self.proyectos_repo.safe_find_with_filter_params(
+            params=params,
+            error_title="Error retrieving Proyectos from the database",
+        )
+
+    # -------------------------------------------------
+    async def get_actividades_from_db(
+        self, params: BaseFilterParams
+    ) -> List[ActividadesDocument]:
+        return await self.actividades_repo.safe_find_with_filter_params(
+            params=params,
+            error_title="Error retrieving Actividades from the database",
         )
 
     # -------------------------------------------------
@@ -209,6 +257,10 @@ class IcaroService:
         certificados_docs = await self.certificados_repo.get_all()
         ctas_ctes_docs = await self.ctas_ctes_repo.get_all()
         estructuras_docs = await self.estructuras_repo.get_all()
+        programas_docs = await self.programas_repo.get_all()
+        subprogramas_docs = await self.subprogramas_repo.get_all()
+        proyectos_docs = await self.proyectos_repo.get_all()
+        actividades_docs = await self.actividades_repo.get_all()
         fuentes_docs = await self.fuentes_repo.get_all()
         partidas_docs = await self.partidas_repo.get_all()
         proveedores_docs = await self.proveedores_repo.get_all()
@@ -221,6 +273,10 @@ class IcaroService:
             and not certificados_docs
             and not ctas_ctes_docs
             and not estructuras_docs
+            and not programas_docs
+            and not subprogramas_docs
+            and not proyectos_docs
+            and not actividades_docs
             and not fuentes_docs
             and not partidas_docs
             and not proveedores_docs
@@ -236,6 +292,10 @@ class IcaroService:
                 (pd.DataFrame(certificados_docs), "certificados"),
                 (pd.DataFrame(ctas_ctes_docs), "ctas_ctes"),
                 (pd.DataFrame(estructuras_docs), "estructuras"),
+                (pd.DataFrame(programas_docs), "programas"),
+                (pd.DataFrame(subprogramas_docs), "subprogramas"),
+                (pd.DataFrame(proyectos_docs), "proyectos"),
+                (pd.DataFrame(actividades_docs), "actividades"),
                 (pd.DataFrame(fuentes_docs), "fuentes"),
                 (pd.DataFrame(partidas_docs), "partidas"),
                 (pd.DataFrame(proveedores_docs), "proveedores"),
