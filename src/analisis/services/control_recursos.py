@@ -84,6 +84,7 @@ class ControlRecursosService:
                 detail="Missing username or password",
             )
         return_schema = []
+        ejercicios = list(range(params.ejercicio_desde, params.ejercicio_hasta + 1))
         async with async_playwright() as p:
             connect_siif = await login(
                 username=params.siif_username,
@@ -94,10 +95,12 @@ class ControlRecursosService:
             try:
                 # 🔹Rci02
                 self.siif_rci02_handler = Rci02(siif=connect_siif)
-                partial_schema = await self.siif_rci02_handler.download_and_sync_validated_to_repository(
-                    ejercicio=int(params.ejercicio)
-                )
-                return_schema.append(partial_schema)
+                await self.siif_rci02_handler.go_to_reports()
+                for ejercicio in ejercicios:
+                    partial_schema = await self.siif_rci02_handler.download_and_sync_validated_to_repository(
+                        ejercicio=int(ejercicio),
+                    )
+                    return_schema.append(partial_schema)
 
                 # 🔹Banco INVICO
                 partial_schema = (
@@ -107,7 +110,7 @@ class ControlRecursosService:
                         params=params,
                     )
                 )
-                return_schema.append(partial_schema)
+                return_schema.extend(partial_schema)
 
                 # 🔹Ctas Ctes
                 partial_schema = await self.ctas_ctes_service.sync_ctas_ctes_from_excel(
@@ -141,7 +144,9 @@ class ControlRecursosService:
         return_schema = []
         try:
             # 🔹 Control Recursos
-            partial_schema = await self.compute_control_recursos(params=params)
+            ejercicios = list(range(params.ejercicio_desde, params.ejercicio_hasta + 1))
+            for ejercicio in ejercicios:
+                partial_schema = await self.compute_control_recursos(ejercicio=ejercicio)
             return_schema.append(partial_schema)
 
         except ValidationError as e:
@@ -172,12 +177,12 @@ class ControlRecursosService:
 
         return export_multiple_dataframes_to_excel(
             df_sheet_pairs=[
-                (pd.DataFrame(control_recursos_docs), "control_recursos"),
+                (pd.DataFrame(control_recursos_docs), "new_control_recursos"),
                 (
                     await self.generate_siif_comprobantes_recursos(),
-                    "siif_recursos",
+                    "new_siif_recursos",
                 ),
-                (await self.generate_banco_invico(), "banco_ingresos"),
+                (await self.generate_banco_invico(), "new_banco_ingresos"),
             ],
             filename="control_recursos.xlsx",
             spreadsheet_key="1hJyBOkA8sj5otGjYGVOzYViqSpmv_b4L8dXNju_GJ5Q",
@@ -188,17 +193,18 @@ class ControlRecursosService:
     async def generate_siif_comprobantes_recursos(
         self, ejercicio: int = None
     ) -> pd.DataFrame:
-        docs = await get_siif_rci02_unified_cta_cte(
+        df = await get_siif_rci02_unified_cta_cte(
             ejercicio=ejercicio, filters={"es_verificado": True}
         )
-        if not docs:
+        if df.empty:
             raise HTTPException(
                 status_code=404,
                 detail="No se encontraron registros en la colección siif_comprobantes_recursos",
             )
-        df = pd.DataFrame(docs)
+        # logger.info(f"df.shape: {df.shape} - df.head: {df.head()}")
         keep = ["MACRO"]
-        df["cta_cte"].loc[df.glosa.str.contains("|".join(keep))] = "Macro"
+        df.loc[df.glosa.str.contains("|".join(keep)), "cta_cte"] = "Macro"
+        # df["cta_cte"].loc[df.glosa.str.contains("|".join(keep))] = "Macro"
         df["grupo"] = np.where(
             df["cta_cte"] == "10270",
             "FONAVI",
@@ -217,17 +223,19 @@ class ControlRecursosService:
         dep_pf = ["214", "215"]
         dep_otros = ["003", "055", "005", "013"]
         dep_cert_neg = ["18"]
-        filters = (
-            {"movimiento": "DEPOSITO"},
-            {
-                "cod_imputacion": {
-                    "$nin": dep_transf_int + dep_pf + dep_otros + dep_cert_neg
-                }
-            },
-        )
+        filters = {
+            "movimiento": "DEPOSITO",
+            "cod_imputacion__nin": dep_transf_int + dep_pf + dep_otros + dep_cert_neg,
+        }
         df = await get_banco_invico_unified_cta_cte(
             ejercicio=ejercicio, filters=filters
         )
+        if df.empty:
+            raise HTTPException(
+                status_code=404,
+                detail="No se encontraron registros en la colección banco_invico",
+            )
+        # logger.info(f"df.shape: {df.shape} - df.head: {df.head()}")
         df["grupo"] = np.where(
             df["cta_cte"] == "10270",
             "FONAVI",
@@ -242,24 +250,29 @@ class ControlRecursosService:
 
     # --------------------------------------------------
     async def compute_control_recursos(
-        self, params: ControlRecursosParams
+        self, ejercicio: int
     ) -> RouteReturnSchema:
         return_schema = RouteReturnSchema()
         try:
             group_by = ["ejercicio", "mes", "cta_cte", "grupo"]
-            siif = self.generate_siif_comprobantes_recursos(
-                ejercicio=int(params.ejercicio)
+            siif = await self.generate_siif_comprobantes_recursos(
+                ejercicio=int(ejercicio)
             )
-            siif = siif.loc[not siif["es_invico"]]
-            siif = siif.loc[not siif["es_remanente"]]
+            # logger.info(f"siif.shape: {siif.shape}")
+            siif = siif.loc[~siif["es_invico"]]
+            siif = siif.loc[~siif["es_remanente"]]
+            # logger.info(f"siif.shape: {siif.shape}")
             siif = siif.groupby(group_by)["importe"].sum()
             siif = siif.reset_index(drop=False)
             siif = siif.rename(columns={"importe": "recursos_siif"})
-            sscc = self.generate_banco_invico(ejercicio=int(params.ejercicio))
+            # logger.info(f"siif.head: {siif.head()}")
+            sscc = await self.generate_banco_invico(ejercicio=int(ejercicio))
             sscc = sscc.groupby(group_by)["importe"].sum()
             sscc = sscc.reset_index(drop=False)
             sscc = sscc.rename(columns={"importe": "depositos_banco"})
+            # logger.info(f"sscc.head: {sscc.head()}")
             df = pd.merge(siif, sscc, how="outer")
+            # logger.info(f"df.shape: {df.shape}, df.head: {df.head()}")
             # 🔹 Validar datos usando Pydantic
             validate_and_errors = validate_and_extract_data_from_df(
                 dataframe=df, model=ControlRecursosReport, field_id="cta_cte"
@@ -269,9 +282,9 @@ class ControlRecursosService:
                 repository=self.control_recursos_repo,
                 validation=validate_and_errors,
                 delete_filter=None,
-                title="Reporte de Ejecución Presupuestaria SIIF con Descripción",
+                title=f"Control de Recursos Ejercicio {ejercicio}",
                 logger=logger,
-                label=f"Reporte de Ejecución Presupuestaria SIIF con Descripción hasta el ejercicio {params.ejercicio}",
+                label=f"Control de Recursos Ejercicio {ejercicio}",
             )
             # return_schema.append(partial_schema)
 

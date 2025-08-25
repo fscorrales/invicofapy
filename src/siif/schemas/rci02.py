@@ -16,17 +16,17 @@ from pydantic import (
 )
 from pydantic_mongo import PydanticObjectId
 
-from ...utils import BaseFilterParams
+from ...utils import BaseFilterParams, CamelModel
 
 
 # --------------------------------------------------
-class Rci02Params(BaseModel):
-    ejercicio_from: int = Field(default=date.today().year, alias="ejercicioDesde")
-    ejercicio_to: int = Field(default=date.today().year, alias="ejercicioHasta")
+class Rci02Params(CamelModel):
+    ejercicio_desde: int = Field(default=date.today().year)
+    ejercicio_hasta: int = Field(default=date.today().year)
     # ejercicio_from: int = date.today().year
     # ejercicio_to: int = date.today().year
 
-    @field_validator("ejercicio_from", "ejercicio_to")
+    @field_validator("ejercicio_desde", "ejercicio_hasta")
     @classmethod
     def validate_ejercicio_range(cls, v: int) -> int:
         current_year = date.today().year
@@ -36,7 +36,7 @@ class Rci02Params(BaseModel):
 
     @model_validator(mode="after")
     def check_range(self) -> "Rci02Params":
-        if self.ejercicio_to < self.ejercicio_from:
+        if self.ejercicio_hasta < self.ejercicio_desde:
             raise ValueError("Ejercicio Desde no puede ser menor que Ejercicio Hasta")
         return self
 

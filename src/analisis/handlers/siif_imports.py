@@ -201,12 +201,16 @@ async def get_siif_rci02_unified_cta_cte(
         filters["ejercicio"] = ejercicio
     docs = await Rci02Repository().safe_find_by_filter(filters=filters)
     df = pd.DataFrame(docs)
+    # logger.info(f"df.shape: {df.shape} - df.head: {df.head()}")
     df.reset_index(drop=True, inplace=True)
     ctas_ctes = pd.DataFrame(await CtasCtesRepository().get_all())
+    # logger.info(f"ctas_ctes.shape: {ctas_ctes.shape} - ctas_ctes.head: {ctas_ctes.head()}")
     map_to = ctas_ctes.loc[:, ["map_to", "siif_recursos_cta_cte"]]
     df = pd.merge(
         df, map_to, how="left", left_on="cta_cte", right_on="siif_recursos_cta_cte"
     )
+    # logger.info(f"df.shape: {df.shape} - df.head: {df.head()}")
     df["cta_cte"] = df["map_to"]
-    df.drop(["map_to", "siif_recursos_cta_cte"], axis="columns", inplace=True)
+    df.drop(["map_to", "siif_recursos_cta_cte", "_id"], axis="columns", inplace=True)
+    # logger.info(f"df.shape: {df.shape} - df.head: {df.head()}")
     return df

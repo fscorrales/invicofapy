@@ -50,7 +50,7 @@ class Rci02Service:
                 detail="Missing username or password",
             )
         return_schema = []
-        ejercicios = list(range(params.ejercicio_from, params.ejercicio_to + 1))
+        ejercicios = list(range(params.ejercicio_desde, params.ejercicio_hasta + 1))
         async with async_playwright() as p:
             try:
                 await self.rci02.login(
