@@ -26,7 +26,7 @@ from fastapi.responses import StreamingResponse
 
 from ..config import logger
 from .google_sheets import GoogleSheets
-from .safe_get import sanitize_dataframe_for_json
+from .safe_get import sanitize_dataframe_for_json_with_datetime
 
 
 # --------------------------------------------------
@@ -171,7 +171,7 @@ def export_multiple_dataframes_to_excel(
         # 1️⃣ Sanitizar y preparar DataFrames
         sanitized_pairs = []
         for df, sheet_name in df_sheet_pairs:
-            df = sanitize_dataframe_for_json(df)
+            df = sanitize_dataframe_for_json_with_datetime(df)
             df = df.drop(columns=["_id"], errors="ignore")
             sanitized_pairs.append((df, sheet_name))
 
