@@ -147,7 +147,7 @@ class ControlRecursosService:
             ejercicios = list(range(params.ejercicio_desde, params.ejercicio_hasta + 1))
             for ejercicio in ejercicios:
                 partial_schema = await self.compute_control_recursos(ejercicio=ejercicio)
-            return_schema.append(partial_schema)
+                return_schema.append(partial_schema)
 
         except ValidationError as e:
             logger.error(f"Validation Error: {e}")
@@ -177,15 +177,15 @@ class ControlRecursosService:
 
         return export_multiple_dataframes_to_excel(
             df_sheet_pairs=[
-                (pd.DataFrame(control_recursos_docs), "new_control_recursos"),
+                (pd.DataFrame(control_recursos_docs), "control_recursos"),
                 (
                     await self.generate_siif_comprobantes_recursos(),
-                    "new_siif_recursos",
+                    "siif_recursos",
                 ),
-                (await self.generate_banco_invico(), "new_banco_ingresos"),
+                # (await self.generate_banco_invico(), "new_banco_ingresos"),
             ],
             filename="control_recursos.xlsx",
-            spreadsheet_key="1hJyBOkA8sj5otGjYGVOzYViqSpmv_b4L8dXNju_GJ5Q",
+            spreadsheet_key="1u_I5wN3w_rGX6rWIsItXkmwfIEuSox6ZsmKYbMZ2iUY",
             upload_to_google_sheets=upload_to_google_sheets,
         )
 
@@ -194,7 +194,7 @@ class ControlRecursosService:
         self, ejercicio: int = None
     ) -> pd.DataFrame:
         df = await get_siif_rci02_unified_cta_cte(
-            ejercicio=ejercicio, filters={"es_verificado": True}
+            ejercicio=ejercicio, filters={"es_verificado": True, "es_remanente": False}
         )
         if df.empty:
             raise HTTPException(
@@ -215,6 +215,7 @@ class ControlRecursosService:
             ),
         )
         df.reset_index(drop=True, inplace=True)
+        # logger.info(df[df.isnull().any(axis=1)][["mes", "nro_entrada"]])
         return df
 
     # --------------------------------------------------
@@ -272,6 +273,7 @@ class ControlRecursosService:
             sscc = sscc.rename(columns={"importe": "depositos_banco"})
             # logger.info(f"sscc.head: {sscc.head()}")
             df = pd.merge(siif, sscc, how="outer")
+            df = df.fillna(0)
             # logger.info(f"df.shape: {df.shape}, df.head: {df.head()}")
             # 🔹 Validar datos usando Pydantic
             validate_and_errors = validate_and_extract_data_from_df(
@@ -281,7 +283,7 @@ class ControlRecursosService:
             return_schema = await sync_validated_to_repository(
                 repository=self.control_recursos_repo,
                 validation=validate_and_errors,
-                delete_filter=None,
+                delete_filter={"ejercicio": ejercicio},
                 title=f"Control de Recursos Ejercicio {ejercicio}",
                 logger=logger,
                 label=f"Control de Recursos Ejercicio {ejercicio}",
