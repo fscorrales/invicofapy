@@ -1,8 +1,8 @@
 __all__ = [
-    "ReporteSIIFPresWithDescParams",
-    "ReporteSIIFPresWithDescReport",
-    "ReporteSIIFPresWithDescDocument",
-    "ReporteSIIFPresWithDescFilter",
+    "ReporteFormulacionPresupuestoParams",
+    "ReporteFormulacionPresupuestoReport",
+    "ReporteFormulacionPresupuestoDocument",
+    "ReporteFormulacionPresupuestoFilter",
 ]
 
 from datetime import date
@@ -15,7 +15,7 @@ from ...utils import BaseFilterParams
 
 
 # --------------------------------------------------
-class ReporteSIIFPresWithDescParams(BaseModel):
+class ReporteFormulacionPresupuestoParams(BaseModel):
     ejercicio: int = date.today().year
 
     @field_validator("ejercicio")
@@ -31,7 +31,7 @@ class ReporteSIIFPresWithDescParams(BaseModel):
 
 
 # -------------------------------------------------
-class ReporteSIIFPresWithDescReport(BaseModel):
+class ReporteFormulacionPresupuestoReport(BaseModel):
     ejercicio: int
     estructura: str
     programa: str
@@ -50,11 +50,11 @@ class ReporteSIIFPresWithDescReport(BaseModel):
 
 
 # -------------------------------------------------
-class ReporteSIIFPresWithDescDocument(ReporteSIIFPresWithDescReport):
+class ReporteFormulacionPresupuestoDocument(ReporteFormulacionPresupuestoReport):
     id: PydanticObjectId = Field(alias="_id")
 
 
 # -------------------------------------------------
-class ReporteSIIFPresWithDescFilter(BaseFilterParams):
+class ReporteFormulacionPresupuestoFilter(BaseFilterParams):
     ejercicio: Optional[int] = None
     fuente: Optional[int] = None

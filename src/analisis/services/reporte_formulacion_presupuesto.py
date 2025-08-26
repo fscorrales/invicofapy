@@ -16,7 +16,7 @@ Google Sheet:
 
 """
 
-__all__ = ["ReporteEjecucionObrasService", "ReporteEjecucionObrasServiceDependency"]
+__all__ = ["ReporteFormulacionPresupuestoService", "ReporteFormulacionPresupuestoServiceDependency"]
 
 import os
 from dataclasses import dataclass, field
@@ -29,7 +29,7 @@ from fastapi.responses import StreamingResponse
 from playwright.async_api import async_playwright
 from pydantic import ValidationError
 
-from siif.repositories import RfpP605bRepositoryDependency, Ri102RepositoryDependency
+from ...siif.repositories import RfpP605bRepositoryDependency, Ri102RepositoryDependency
 
 from ...config import logger
 from ...icaro.handlers import IcaroMongoMigrator
@@ -61,32 +61,32 @@ from ..handlers import (
     get_siif_rf602,
 )
 from ..repositories.reporte_formulacion_presupuesto import (
-    ReporteSIIFPresWithDescRepositoryDependency,
+    ReporteFormulacionPresupuestoRepositoryDependency,
 )
 from ..schemas.reporte_formulacion_presupuesto import (
-    ReporteSIIFPresWithDescDocument,
-    ReporteSIIFPresWithDescParams,
-    ReporteSIIFPresWithDescReport,
+    ReporteFormulacionPresupuestoDocument,
+    ReporteFormulacionPresupuestoParams,
+    ReporteFormulacionPresupuestoReport,
 )
 
 
 # --------------------------------------------------
 @dataclass
-class ReporteEjecucionObrasService:
-    siif_pres_with_desc_repo: ReporteSIIFPresWithDescRepositoryDependency
-    siif_pres_recursos_repo: Ri102RepositoryDependency
-    siif_carga_form_gtos_repo: RfpP605bRepositoryDependency
+class ReporteFormulacionPresupuestoService:
+    # siif_pres_with_desc_repo: ReporteSIIFPresWithDescRepositoryDependency
+    # siif_pres_recursos_repo: Ri102RepositoryDependency
+    # siif_carga_form_gtos_repo: RfpP605bRepositoryDependency
     siif_rf602_handler: Rf602 = field(init=False)  # No se pasa como argumento
     siif_rf610_handler: Rf610 = field(init=False)  # No se pasa como argumento
     siif_ri102_handler: Ri102 = field(init=False)  # No se pasa como argumento
     siif_rfp_p605b_handler: RfpP605b = field(init=False)  # No se pasa como argumento
 
     # -------------------------------------------------
-    async def sync_icaro_vs_siif_from_source(
+    async def sync_formulacion_presupuesto_from_source(
         self,
         username: str,
         password: str,
-        params: ControlCompletoParams = None,
+        params: ReporteFormulacionPresupuestoParams = None,
     ) -> List[RouteReturnSchema]:
         """Downloads a report from SIIF, processes it, validates the data,
         and stores it in MongoDB if valid.
@@ -168,491 +168,491 @@ class ReporteEjecucionObrasService:
                     logger.warning(f"Logout falló o browser ya cerrado: {e}")
                 return return_schema
 
-    # -------------------------------------------------
-    async def generate_all(
-        self, params: ControlCompletoParams
-    ) -> List[RouteReturnSchema]:
-        """
-        Compute all controls for the given params.
-        """
-        return_schema = []
-        try:
-            # 🔹 SIIF Presupuesto con Descripción
-            partial_schema = await self.generate_siif_pres_with_desc(params=params)
-            return_schema.append(partial_schema)
+    # # -------------------------------------------------
+    # async def generate_all(
+    #     self, params: ControlCompletoParams
+    # ) -> List[RouteReturnSchema]:
+    #     """
+    #     Compute all controls for the given params.
+    #     """
+    #     return_schema = []
+    #     try:
+    #         # 🔹 SIIF Presupuesto con Descripción
+    #         partial_schema = await self.generate_siif_pres_with_desc(params=params)
+    #         return_schema.append(partial_schema)
 
-            # 🔹 SIIF Comprobantes Recursos
-            partial_schema = await self.generate_siif_pres_recursos()
-            return_schema.append(partial_schema)
+    #         # 🔹 SIIF Comprobantes Recursos
+    #         partial_schema = await self.generate_siif_pres_recursos()
+    #         return_schema.append(partial_schema)
 
-        except ValidationError as e:
-            logger.error(f"Validation Error: {e}")
-            raise HTTPException(
-                status_code=400,
-                detail="Invalid response format from Icaro vs SIIF",
-            )
-        except Exception as e:
-            logger.error(f"Error in compute_all: {e}")
-            raise HTTPException(
-                status_code=500,
-                detail="Error in compute_all",
-            )
-        finally:
-            return return_schema
+    #     except ValidationError as e:
+    #         logger.error(f"Validation Error: {e}")
+    #         raise HTTPException(
+    #             status_code=400,
+    #             detail="Invalid response format from Icaro vs SIIF",
+    #         )
+    #     except Exception as e:
+    #         logger.error(f"Error in compute_all: {e}")
+    #         raise HTTPException(
+    #             status_code=500,
+    #             detail="Error in compute_all",
+    #         )
+    #     finally:
+    #         return return_schema
 
-    # -------------------------------------------------
-    async def export_all_from_db(
-        self, upload_to_google_sheets: bool = True
-    ) -> StreamingResponse:
-        # ejecucion_obras.reporte_planillometro_contabilidad (planillometro_contabilidad)
+    # # -------------------------------------------------
+    # async def export_all_from_db(
+    #     self, upload_to_google_sheets: bool = True
+    # ) -> StreamingResponse:
+    #     # ejecucion_obras.reporte_planillometro_contabilidad (planillometro_contabilidad)
 
-        siif_pres_with_desc_docs = await self.siif_pres_with_desc_repo.get_all()
-        siif_carga_form_gtos_docs = await self.siif_carga_form_gtos_repo.get_all()
-        siif_pres_recursos_docs = await self.siif_pres_recursos_repo.get_all()
+    #     siif_pres_with_desc_docs = await self.siif_pres_with_desc_repo.get_all()
+    #     siif_carga_form_gtos_docs = await self.siif_carga_form_gtos_repo.get_all()
+    #     siif_pres_recursos_docs = await self.siif_pres_recursos_repo.get_all()
 
-        if (
-            not siif_pres_with_desc_docs
-            and not siif_carga_form_gtos_docs
-            and not siif_pres_recursos_docs
-        ):
-            raise HTTPException(status_code=404, detail="No se encontraron registros")
+    #     if (
+    #         not siif_pres_with_desc_docs
+    #         and not siif_carga_form_gtos_docs
+    #         and not siif_pres_recursos_docs
+    #     ):
+    #         raise HTTPException(status_code=404, detail="No se encontraron registros")
 
-        return export_multiple_dataframes_to_excel(
-            df_sheet_pairs=[
-                (pd.DataFrame(siif_pres_with_desc_docs), "siif_ejec_gastos"),
-                (pd.DataFrame(siif_carga_form_gtos_docs), "siif_carga_form_gtos"),
-                (pd.DataFrame(siif_pres_recursos_docs), "siif_recursos_cod"),
-            ],
-            filename="reportes_formulacion_presupuesto.xlsx",
-            spreadsheet_key="1hJyBOkA8sj5otGjYGVOzYViqSpmv_b4L8dXNju_GJ5Q",
-            upload_to_google_sheets=upload_to_google_sheets,
-        )
+    #     return export_multiple_dataframes_to_excel(
+    #         df_sheet_pairs=[
+    #             (pd.DataFrame(siif_pres_with_desc_docs), "siif_ejec_gastos"),
+    #             (pd.DataFrame(siif_carga_form_gtos_docs), "siif_carga_form_gtos"),
+    #             (pd.DataFrame(siif_pres_recursos_docs), "siif_recursos_cod"),
+    #         ],
+    #         filename="reportes_formulacion_presupuesto.xlsx",
+    #         spreadsheet_key="1hJyBOkA8sj5otGjYGVOzYViqSpmv_b4L8dXNju_GJ5Q",
+    #         upload_to_google_sheets=upload_to_google_sheets,
+    #     )
 
-    # --------------------------------------------------
-    async def generate_siif_pres_with_desc(
-        self, params: ReporteSIIFPresWithDescParams
-    ) -> RouteReturnSchema:
-        return_schema = RouteReturnSchema()
-        try:
-            df = await get_siif_rf602(ejercicio=params.ejercicio)
-            df = df.sort_values(by=["ejercicio", "estructura"], ascending=[False, True])
-            df = df.merge(
-                get_siif_desc_pres(ejercicio_to=params.ejercicio),
-                how="left",
-                on="estructura",
-                copy=False,
-            )
-            df.drop(
-                labels=[
-                    "org",
-                    "pendiente",
-                    "programa",
-                    "subprograma",
-                    "proyecto",
-                    "actividad",
-                    "grupo",
-                ],
-                axis=1,
-                inplace=True,
-            )
+    # # --------------------------------------------------
+    # async def generate_siif_pres_with_desc(
+    #     self, params: ReporteSIIFPresWithDescParams
+    # ) -> RouteReturnSchema:
+    #     return_schema = RouteReturnSchema()
+    #     try:
+    #         df = await get_siif_rf602(ejercicio=params.ejercicio)
+    #         df = df.sort_values(by=["ejercicio", "estructura"], ascending=[False, True])
+    #         df = df.merge(
+    #             get_siif_desc_pres(ejercicio_to=params.ejercicio),
+    #             how="left",
+    #             on="estructura",
+    #             copy=False,
+    #         )
+    #         df.drop(
+    #             labels=[
+    #                 "org",
+    #                 "pendiente",
+    #                 "programa",
+    #                 "subprograma",
+    #                 "proyecto",
+    #                 "actividad",
+    #                 "grupo",
+    #             ],
+    #             axis=1,
+    #             inplace=True,
+    #         )
 
-            first_cols = [
-                "ejercicio",
-                "estructura",
-                "partida",
-                "fuente",
-                "desc_prog",
-                "desc_subprog",
-                "desc_proy",
-                "desc_act",
-            ]
-            df = df.loc[:, first_cols].join(df.drop(first_cols, axis=1))
+    #         first_cols = [
+    #             "ejercicio",
+    #             "estructura",
+    #             "partida",
+    #             "fuente",
+    #             "desc_prog",
+    #             "desc_subprog",
+    #             "desc_proy",
+    #             "desc_act",
+    #         ]
+    #         df = df.loc[:, first_cols].join(df.drop(first_cols, axis=1))
 
-            df = pd.DataFrame(df)
-            df.reset_index(drop=True, inplace=True)
-            # 🔹 Validar datos usando Pydantic
-            validate_and_errors = validate_and_extract_data_from_df(
-                dataframe=df, model=ReporteSIIFPresWithDescReport, field_id="estructura"
-            )
+    #         df = pd.DataFrame(df)
+    #         df.reset_index(drop=True, inplace=True)
+    #         # 🔹 Validar datos usando Pydantic
+    #         validate_and_errors = validate_and_extract_data_from_df(
+    #             dataframe=df, model=ReporteSIIFPresWithDescReport, field_id="estructura"
+    #         )
 
-            return_schema = await sync_validated_to_repository(
-                repository=self.siif_pres_with_desc_repo,
-                validation=validate_and_errors,
-                delete_filter=None,
-                title="Reporte de Ejecución Presupuestaria SIIF con Descripción",
-                logger=logger,
-                label=f"Reporte de Ejecución Presupuestaria SIIF con Descripción hasta el ejercicio {params.ejercicio}",
-            )
-            # return_schema.append(partial_schema)
+    #         return_schema = await sync_validated_to_repository(
+    #             repository=self.siif_pres_with_desc_repo,
+    #             validation=validate_and_errors,
+    #             delete_filter=None,
+    #             title="Reporte de Ejecución Presupuestaria SIIF con Descripción",
+    #             logger=logger,
+    #             label=f"Reporte de Ejecución Presupuestaria SIIF con Descripción hasta el ejercicio {params.ejercicio}",
+    #         )
+    #         # return_schema.append(partial_schema)
 
-        except ValidationError as e:
-            logger.error(f"Validation Error: {e}")
-            raise HTTPException(
-                status_code=400,
-                detail="Invalid response format from Reporte de Ejecución Presupuestaria SIIF con Descripción",
-            )
-        except Exception as e:
-            logger.error(f"Error in generate_siif_pres_with_desc: {e}")
-            raise HTTPException(
-                status_code=500,
-                detail="Error in generate_siif_pres_with_desc",
-            )
-        finally:
-            return return_schema
+    #     except ValidationError as e:
+    #         logger.error(f"Validation Error: {e}")
+    #         raise HTTPException(
+    #             status_code=400,
+    #             detail="Invalid response format from Reporte de Ejecución Presupuestaria SIIF con Descripción",
+    #         )
+    #     except Exception as e:
+    #         logger.error(f"Error in generate_siif_pres_with_desc: {e}")
+    #         raise HTTPException(
+    #             status_code=500,
+    #             detail="Error in generate_siif_pres_with_desc",
+    #         )
+    #     finally:
+    #         return return_schema
 
-    # -------------------------------------------------
-    async def get_siif_pres_with_desc_from_db(
-        self, params: BaseFilterParams
-    ) -> List[ReporteSIIFPresWithDescDocument]:
-        return await self.siif_pres_with_desc_repo.safe_find_with_filter_params(
-            params=params,
-            error_title="Error retrieving Reporte de Ejecución Presupuestaria SIIF con Descripción from the database",
-        )
+    # # -------------------------------------------------
+    # async def get_siif_pres_with_desc_from_db(
+    #     self, params: BaseFilterParams
+    # ) -> List[ReporteSIIFPresWithDescDocument]:
+    #     return await self.siif_pres_with_desc_repo.safe_find_with_filter_params(
+    #         params=params,
+    #         error_title="Error retrieving Reporte de Ejecución Presupuestaria SIIF con Descripción from the database",
+    #     )
 
-    # -------------------------------------------------
-    async def export_siif_pres_with_desc_from_db(
-        self, upload_to_google_sheets: bool = True
-    ) -> StreamingResponse:
-        df = pd.DataFrame(await self.siif_pres_with_desc_repo.get_all())
+    # # -------------------------------------------------
+    # async def export_siif_pres_with_desc_from_db(
+    #     self, upload_to_google_sheets: bool = True
+    # ) -> StreamingResponse:
+    #     df = pd.DataFrame(await self.siif_pres_with_desc_repo.get_all())
 
-        return export_dataframe_as_excel_response(
-            df,
-            filename="siif_pres_with_desc.xlsx",
-            sheet_name="siif_ejec_gastos",
-            upload_to_google_sheets=upload_to_google_sheets,
-            google_sheet_key="1hJyBOkA8sj5otGjYGVOzYViqSpmv_b4L8dXNju_GJ5Q",
-        )
+    #     return export_dataframe_as_excel_response(
+    #         df,
+    #         filename="siif_pres_with_desc.xlsx",
+    #         sheet_name="siif_ejec_gastos",
+    #         upload_to_google_sheets=upload_to_google_sheets,
+    #         google_sheet_key="1hJyBOkA8sj5otGjYGVOzYViqSpmv_b4L8dXNju_GJ5Q",
+    #     )
 
-    # --------------------------------------------------
-    async def generate_siif_pres_recursos(self) -> RouteReturnSchema:
-        return RouteReturnSchema(
-            title="Reporte de Comprobantes de Recursos SIIF (ri102)"
-        )
+    # # --------------------------------------------------
+    # async def generate_siif_pres_recursos(self) -> RouteReturnSchema:
+    #     return RouteReturnSchema(
+    #         title="Reporte de Comprobantes de Recursos SIIF (ri102)"
+    #     )
 
-    # -------------------------------------------------
-    async def get_siif_pres_recursos_from_db(
-        self, params: BaseFilterParams
-    ) -> List[ReporteSIIFPresWithDescDocument]:
-        return await self.siif_pres_recursos_repo.safe_find_with_filter_params(
-            params=params,
-            error_title="Error retrieving Reporte de Presupuesto de Recursos SIIF (ri102) from the database",
-        )
+    # # -------------------------------------------------
+    # async def get_siif_pres_recursos_from_db(
+    #     self, params: BaseFilterParams
+    # ) -> List[ReporteSIIFPresWithDescDocument]:
+    #     return await self.siif_pres_recursos_repo.safe_find_with_filter_params(
+    #         params=params,
+    #         error_title="Error retrieving Reporte de Presupuesto de Recursos SIIF (ri102) from the database",
+    #     )
 
-    # -------------------------------------------------
-    async def export_siif_pres_recursos_from_db(
-        self, upload_to_google_sheets: bool = True
-    ) -> StreamingResponse:
-        df = pd.DataFrame(await self.siif_pres_recursos_repo.get_all())
+    # # -------------------------------------------------
+    # async def export_siif_pres_recursos_from_db(
+    #     self, upload_to_google_sheets: bool = True
+    # ) -> StreamingResponse:
+    #     df = pd.DataFrame(await self.siif_pres_recursos_repo.get_all())
 
-        return export_dataframe_as_excel_response(
-            df,
-            filename="siif_pres_recursos.xlsx",
-            sheet_name="siif_recursos_cod",
-            upload_to_google_sheets=upload_to_google_sheets,
-            google_sheet_key="1hJyBOkA8sj5otGjYGVOzYViqSpmv_b4L8dXNju_GJ5Q",
-        )
+    #     return export_dataframe_as_excel_response(
+    #         df,
+    #         filename="siif_pres_recursos.xlsx",
+    #         sheet_name="siif_recursos_cod",
+    #         upload_to_google_sheets=upload_to_google_sheets,
+    #         google_sheet_key="1hJyBOkA8sj5otGjYGVOzYViqSpmv_b4L8dXNju_GJ5Q",
+    #     )
 
-    # --------------------------------------------------
-    async def generate_siif_carga_form_gtos(self) -> RouteReturnSchema:
-        return RouteReturnSchema(
-            title="Reporte de Carga Formulación de Gastos (rfp_p605b)"
-        )
+    # # --------------------------------------------------
+    # async def generate_siif_carga_form_gtos(self) -> RouteReturnSchema:
+    #     return RouteReturnSchema(
+    #         title="Reporte de Carga Formulación de Gastos (rfp_p605b)"
+    #     )
 
-    # -------------------------------------------------
-    async def get_siif_carga_form_gtos_from_db(
-        self, params: BaseFilterParams
-    ) -> List[ReporteSIIFPresWithDescDocument]:
-        return await self.siif_carga_form_gtos_repo.safe_find_with_filter_params(
-            params=params,
-            error_title="Error retrieving Carga Formulación de Gastos (rfp_p605b) from the database",
-        )
+    # # -------------------------------------------------
+    # async def get_siif_carga_form_gtos_from_db(
+    #     self, params: BaseFilterParams
+    # ) -> List[ReporteSIIFPresWithDescDocument]:
+    #     return await self.siif_carga_form_gtos_repo.safe_find_with_filter_params(
+    #         params=params,
+    #         error_title="Error retrieving Carga Formulación de Gastos (rfp_p605b) from the database",
+    #     )
 
-    # -------------------------------------------------
-    async def export_siif_carga_form_gtos_from_db(
-        self, upload_to_google_sheets: bool = True
-    ) -> StreamingResponse:
-        df = pd.DataFrame(await self.siif_carga_form_gtos_repo.get_all())
+    # # -------------------------------------------------
+    # async def export_siif_carga_form_gtos_from_db(
+    #     self, upload_to_google_sheets: bool = True
+    # ) -> StreamingResponse:
+    #     df = pd.DataFrame(await self.siif_carga_form_gtos_repo.get_all())
 
-        return export_dataframe_as_excel_response(
-            df,
-            filename="siif_carga_form_gtos.xlsx",
-            sheet_name="siif_carga_form_gtos",
-            upload_to_google_sheets=upload_to_google_sheets,
-            google_sheet_key="1hJyBOkA8sj5otGjYGVOzYViqSpmv_b4L8dXNju_GJ5Q",
-        )
+    #     return export_dataframe_as_excel_response(
+    #         df,
+    #         filename="siif_carga_form_gtos.xlsx",
+    #         sheet_name="siif_carga_form_gtos",
+    #         upload_to_google_sheets=upload_to_google_sheets,
+    #         google_sheet_key="1hJyBOkA8sj5otGjYGVOzYViqSpmv_b4L8dXNju_GJ5Q",
+    #     )
 
-    # --------------------------------------------------
-    async def import_siif_pres_with_icaro_desc(self, ejercicio: int = None):
-        df = await get_siif_rf602(
-            ejercicio=ejercicio,
-            filters={
-                "$and": [
-                    {"partida": {"$in": ["421", "422"]}},
-                    {"ordenado": {"$gt": 0}},
-                ]
-            },
-        )
-        df.drop(
-            labels=[
-                "org",
-                "pendiente",
-                "programa",
-                "subprograma",
-                "proyecto",
-                "actividad",
-                "grupo",
-            ],
-            axis=1,
-            inplace=True,
-        )
-        df["actividad"] = df["estructura"].str[0:11]
-        df.sort_values(
-            by=["ejercicio", "estructura"], ascending=[False, True], inplace=True
-        )
-        df = df.merge(
-            await get_icaro_estructuras_desc(), how="left", on="actividad", copy=False
-        )
-        df["estructura"] = df["actividad"]
-        df.drop(
-            labels=["ejercicio", "actividad", "subprograma_desc"], axis=1, inplace=True
-        )
-        # df.rename(
-        #     columns={
-        #         "desc_prog": "prog_con_desc",
-        #         "desc_proy": "proy_con_desc",
-        #         "desc_act": "act_con_desc",
-        #     },
-        #     inplace=True,
-        # )
+    # # --------------------------------------------------
+    # async def import_siif_pres_with_icaro_desc(self, ejercicio: int = None):
+    #     df = await get_siif_rf602(
+    #         ejercicio=ejercicio,
+    #         filters={
+    #             "$and": [
+    #                 {"partida": {"$in": ["421", "422"]}},
+    #                 {"ordenado": {"$gt": 0}},
+    #             ]
+    #         },
+    #     )
+    #     df.drop(
+    #         labels=[
+    #             "org",
+    #             "pendiente",
+    #             "programa",
+    #             "subprograma",
+    #             "proyecto",
+    #             "actividad",
+    #             "grupo",
+    #         ],
+    #         axis=1,
+    #         inplace=True,
+    #     )
+    #     df["actividad"] = df["estructura"].str[0:11]
+    #     df.sort_values(
+    #         by=["ejercicio", "estructura"], ascending=[False, True], inplace=True
+    #     )
+    #     df = df.merge(
+    #         await get_icaro_estructuras_desc(), how="left", on="actividad", copy=False
+    #     )
+    #     df["estructura"] = df["actividad"]
+    #     df.drop(
+    #         labels=["ejercicio", "actividad", "subprograma_desc"], axis=1, inplace=True
+    #     )
+    #     # df.rename(
+    #     #     columns={
+    #     #         "desc_prog": "prog_con_desc",
+    #     #         "desc_proy": "proy_con_desc",
+    #     #         "desc_act": "act_con_desc",
+    #     #     },
+    #     #     inplace=True,
+    #     # )
 
-        first_cols = [
-            "estructura",
-            "partida",
-            "fuente",
-            "desc_programa",
-            "desc_proyecto",
-            "desc_actividad",
-        ]
-        df = df.loc[:, first_cols].join(df.drop(first_cols, axis=1))
+    #     first_cols = [
+    #         "estructura",
+    #         "partida",
+    #         "fuente",
+    #         "desc_programa",
+    #         "desc_proyecto",
+    #         "desc_actividad",
+    #     ]
+    #     df = df.loc[:, first_cols].join(df.drop(first_cols, axis=1))
 
-        df = pd.DataFrame(df)
-        df.reset_index(drop=True, inplace=True)
-        return df
+    #     df = pd.DataFrame(df)
+    #     df.reset_index(drop=True, inplace=True)
+    #     return df
 
-    # --------------------------------------------------
-    async def import_icaro_carga_desc(
-        self,
-        ejercicio: int = None,
-        es_desc_siif: bool = True,
-        es_ejercicio_to: bool = True,
-        es_neto_pa6: bool = True,
-    ):
-        filters = {}
-        filters["partida"] = {"$in": ["421", "422"]}
+    # # --------------------------------------------------
+    # async def import_icaro_carga_desc(
+    #     self,
+    #     ejercicio: int = None,
+    #     es_desc_siif: bool = True,
+    #     es_ejercicio_to: bool = True,
+    #     es_neto_pa6: bool = True,
+    # ):
+    #     filters = {}
+    #     filters["partida"] = {"$in": ["421", "422"]}
 
-        if es_ejercicio_to:
-            filters["ejercicio"] = {"$lt": ejercicio}
-        else:
-            filters["ejercicio"] = ejercicio
+    #     if es_ejercicio_to:
+    #         filters["ejercicio"] = {"$lt": ejercicio}
+    #     else:
+    #         filters["ejercicio"] = ejercicio
 
-        if es_neto_pa6:
-            filters["tipo"] = {"$ne": "PA6"}
-        else:
-            filters["tipo"] = {"$ne": "REG"}
+    #     if es_neto_pa6:
+    #         filters["tipo"] = {"$ne": "PA6"}
+    #     else:
+    #         filters["tipo"] = {"$ne": "REG"}
 
-        df = await get_icaro_carga(filters=filters)
+    #     df = await get_icaro_carga(filters=filters)
 
-        if es_desc_siif:
-            df["estructura"] = df["actividad"] + "-" + df["partida"]
-            df = df.merge(
-                await get_siif_desc_pres(ejercicio_to=ejercicio),
-                how="left",
-                on="estructura",
-                copy=False,
-            )
-            df.drop(labels=["estructura"], axis="columns", inplace=True)
-        else:
-            df = df.merge(
-                await get_icaro_estructuras_desc(),
-                how="left",
-                on="actividad",
-                copy=False,
-            )
-        df.reset_index(drop=True, inplace=True)
-        prov = await get_icaro_proveedores()
-        prov = prov.loc[:, ["cuit", "desc_proveedor"]]
-        prov.drop_duplicates(subset=["cuit"], inplace=True)
-        prov.rename(columns={"desc_proveedor": "proveedor"}, inplace=True)
-        df = df.merge(prov, how="left", on="cuit", copy=False)
-        return df
+    #     if es_desc_siif:
+    #         df["estructura"] = df["actividad"] + "-" + df["partida"]
+    #         df = df.merge(
+    #             await get_siif_desc_pres(ejercicio_to=ejercicio),
+    #             how="left",
+    #             on="estructura",
+    #             copy=False,
+    #         )
+    #         df.drop(labels=["estructura"], axis="columns", inplace=True)
+    #     else:
+    #         df = df.merge(
+    #             await get_icaro_estructuras_desc(),
+    #             how="left",
+    #             on="actividad",
+    #             copy=False,
+    #         )
+    #     df.reset_index(drop=True, inplace=True)
+    #     prov = await get_icaro_proveedores()
+    #     prov = prov.loc[:, ["cuit", "desc_proveedor"]]
+    #     prov.drop_duplicates(subset=["cuit"], inplace=True)
+    #     prov.rename(columns={"desc_proveedor": "proveedor"}, inplace=True)
+    #     df = df.merge(prov, how="left", on="cuit", copy=False)
+    #     return df
 
-    # --------------------------------------------------
-    async def get_icaro_mod_basicos(
-        self,
-        ejercicio: int = None,
-        es_desc_siif: bool = True,
-        es_ejercicio_to: bool = True,
-        es_neto_pa6: bool = True,
-    ):
-        filters = {}
-        filters["partida"] = {"$in": ["421", "422"]}
+    # # --------------------------------------------------
+    # async def get_icaro_mod_basicos(
+    #     self,
+    #     ejercicio: int = None,
+    #     es_desc_siif: bool = True,
+    #     es_ejercicio_to: bool = True,
+    #     es_neto_pa6: bool = True,
+    # ):
+    #     filters = {}
+    #     filters["partida"] = {"$in": ["421", "422"]}
 
-        if es_ejercicio_to:
-            filters["ejercicio"] = {"$lt": ejercicio}
-        else:
-            filters["ejercicio"] = ejercicio
+    #     if es_ejercicio_to:
+    #         filters["ejercicio"] = {"$lt": ejercicio}
+    #     else:
+    #         filters["ejercicio"] = ejercicio
 
-        if es_neto_pa6:
-            filters["tipo"] = {"$ne": "PA6"}
-        else:
-            filters["tipo"] = {"$ne": "REG"}
+    #     if es_neto_pa6:
+    #         filters["tipo"] = {"$ne": "PA6"}
+    #     else:
+    #         filters["tipo"] = {"$ne": "REG"}
 
-        df = await get_icaro_carga(filters=filters)
-        df = df.loc[df["actividad"].str.startswith("29")]
-        df_obras = await get_icaro_obras()
-        df_obras = df_obras.loc[
-            :, ["desc_obra", "localidad", "norma_legal", "info_adicional"]
-        ]
-        df = df.merge(df_obras, how="left", on="desc_obra", copy=False)
-        if es_desc_siif:
-            df["estructura"] = df["actividad"] + "-" + df["partida"]
-            df = df.merge(
-                await get_siif_desc_pres(ejercicio_to=ejercicio),
-                how="left",
-                on="estructura",
-                copy=False,
-            )
-            df.drop(labels=["estructura"], axis="columns", inplace=True)
-        else:
-            df = df.merge(
-                await get_icaro_estructuras_desc(),
-                how="left",
-                on="actividad",
-                copy=False,
-            )
-        prov = await get_icaro_proveedores()
-        prov = prov.loc[:, ["cuit", "desc_proveedor"]]
-        prov.drop_duplicates(subset=["cuit"], inplace=True)
-        prov.rename(columns={"desc_proveedor": "proveedor"}, inplace=True)
-        df = df.merge(prov, how="left", on="cuit", copy=False)
-        df.reset_index(drop=True, inplace=True)
-        return df
+    #     df = await get_icaro_carga(filters=filters)
+    #     df = df.loc[df["actividad"].str.startswith("29")]
+    #     df_obras = await get_icaro_obras()
+    #     df_obras = df_obras.loc[
+    #         :, ["desc_obra", "localidad", "norma_legal", "info_adicional"]
+    #     ]
+    #     df = df.merge(df_obras, how="left", on="desc_obra", copy=False)
+    #     if es_desc_siif:
+    #         df["estructura"] = df["actividad"] + "-" + df["partida"]
+    #         df = df.merge(
+    #             await get_siif_desc_pres(ejercicio_to=ejercicio),
+    #             how="left",
+    #             on="estructura",
+    #             copy=False,
+    #         )
+    #         df.drop(labels=["estructura"], axis="columns", inplace=True)
+    #     else:
+    #         df = df.merge(
+    #             await get_icaro_estructuras_desc(),
+    #             how="left",
+    #             on="actividad",
+    #             copy=False,
+    #         )
+    #     prov = await get_icaro_proveedores()
+    #     prov = prov.loc[:, ["cuit", "desc_proveedor"]]
+    #     prov.drop_duplicates(subset=["cuit"], inplace=True)
+    #     prov.rename(columns={"desc_proveedor": "proveedor"}, inplace=True)
+    #     df = df.merge(prov, how="left", on="cuit", copy=False)
+    #     df.reset_index(drop=True, inplace=True)
+    #     return df
 
-    # --------------------------------------------------
-    async def compute_control_icaro_mod_basicos(
-        self,
-        ejercicio: int,
-        por_convenio: bool = True,
-        es_desc_siif: bool = True,
-    ) -> RouteReturnSchema:
-        # return_schema = RouteReturnSchema()
-        try:
-            df = await self.get_icaro_mod_basicos(es_desc_siif=es_desc_siif)
-            if por_convenio:
-                df = df.loc[df.fuente == "11"]
-            df.sort_values(
-                ["actividad", "partida", "desc_obra", "fuente"], inplace=True
-            )
-            group_cols = [
-                "desc_programa",
-                "desc_proyecto",
-                "desc_actividad",
-                "actividad",
-                "partida",
-                "fuente",
-                "localidad",
-                "norma_legal",
-                "desc_obra",
-            ]
-            # Ejercicio alta
-            df_alta = df.groupby(group_cols).ejercicio.min().reset_index()
-            df_alta.rename(columns={"ejercicio": "alta"}, inplace=True)
-            # Ejecucion Total
-            df_total = df.groupby(group_cols).importe.sum().reset_index()
-            df_total.rename(columns={"importe": "ejecucion_total"}, inplace=True)
-            # Obras en curso
-            obras_curso = df.groupby(["desc_obra"]).avance.max().to_frame()
-            obras_curso = obras_curso.loc[obras_curso.avance < 1].reset_index().obra
-            df_curso = (
-                df.loc[df.desc_obra.isin(obras_curso)]
-                .groupby(group_cols)
-                .importe.sum()
-                .reset_index()
-            )
-            df_curso.rename(columns={"importe": "en_curso"}, inplace=True)
-            # Obras terminadas anterior
-            df_prev = df.loc[df.ejercicio.astype(int) < int(ejercicio)]
-            obras_term_ant = df_prev.loc[df_prev.avance == 1].obra
-            df_term_ant = (
-                df_prev.loc[df_prev.desc_obra.isin(obras_term_ant)]
-                .groupby(group_cols)
-                .importe.sum()
-                .reset_index()
-            )
-            df_term_ant.rename(columns={"importe": "terminadas_ant"}, inplace=True)
-            # Pivoteamos en funcion de...
-            if por_convenio:
-                df_pivot = df.loc[:, group_cols + ["info_adicional", "importe"]]
-                df_pivot = df_pivot.pivot_table(
-                    index=group_cols,
-                    columns="info_adicional",
-                    values="importe",
-                    aggfunc="sum",
-                    fill_value=0,
-                )
-                df_pivot.reset_index(inplace=True)
-            else:
-                df_pivot = df.loc[:, group_cols + ["ejercicio", "importe"]]
-                df_pivot = df_pivot.pivot_table(
-                    index=group_cols,
-                    columns="ejercicio",
-                    values="importe",
-                    aggfunc="sum",
-                    fill_value=0,
-                )
-                df_pivot = df_pivot.reset_index()
+    # # --------------------------------------------------
+    # async def compute_control_icaro_mod_basicos(
+    #     self,
+    #     ejercicio: int,
+    #     por_convenio: bool = True,
+    #     es_desc_siif: bool = True,
+    # ) -> RouteReturnSchema:
+    #     # return_schema = RouteReturnSchema()
+    #     try:
+    #         df = await self.get_icaro_mod_basicos(es_desc_siif=es_desc_siif)
+    #         if por_convenio:
+    #             df = df.loc[df.fuente == "11"]
+    #         df.sort_values(
+    #             ["actividad", "partida", "desc_obra", "fuente"], inplace=True
+    #         )
+    #         group_cols = [
+    #             "desc_programa",
+    #             "desc_proyecto",
+    #             "desc_actividad",
+    #             "actividad",
+    #             "partida",
+    #             "fuente",
+    #             "localidad",
+    #             "norma_legal",
+    #             "desc_obra",
+    #         ]
+    #         # Ejercicio alta
+    #         df_alta = df.groupby(group_cols).ejercicio.min().reset_index()
+    #         df_alta.rename(columns={"ejercicio": "alta"}, inplace=True)
+    #         # Ejecucion Total
+    #         df_total = df.groupby(group_cols).importe.sum().reset_index()
+    #         df_total.rename(columns={"importe": "ejecucion_total"}, inplace=True)
+    #         # Obras en curso
+    #         obras_curso = df.groupby(["desc_obra"]).avance.max().to_frame()
+    #         obras_curso = obras_curso.loc[obras_curso.avance < 1].reset_index().obra
+    #         df_curso = (
+    #             df.loc[df.desc_obra.isin(obras_curso)]
+    #             .groupby(group_cols)
+    #             .importe.sum()
+    #             .reset_index()
+    #         )
+    #         df_curso.rename(columns={"importe": "en_curso"}, inplace=True)
+    #         # Obras terminadas anterior
+    #         df_prev = df.loc[df.ejercicio.astype(int) < int(ejercicio)]
+    #         obras_term_ant = df_prev.loc[df_prev.avance == 1].obra
+    #         df_term_ant = (
+    #             df_prev.loc[df_prev.desc_obra.isin(obras_term_ant)]
+    #             .groupby(group_cols)
+    #             .importe.sum()
+    #             .reset_index()
+    #         )
+    #         df_term_ant.rename(columns={"importe": "terminadas_ant"}, inplace=True)
+    #         # Pivoteamos en funcion de...
+    #         if por_convenio:
+    #             df_pivot = df.loc[:, group_cols + ["info_adicional", "importe"]]
+    #             df_pivot = df_pivot.pivot_table(
+    #                 index=group_cols,
+    #                 columns="info_adicional",
+    #                 values="importe",
+    #                 aggfunc="sum",
+    #                 fill_value=0,
+    #             )
+    #             df_pivot.reset_index(inplace=True)
+    #         else:
+    #             df_pivot = df.loc[:, group_cols + ["ejercicio", "importe"]]
+    #             df_pivot = df_pivot.pivot_table(
+    #                 index=group_cols,
+    #                 columns="ejercicio",
+    #                 values="importe",
+    #                 aggfunc="sum",
+    #                 fill_value=0,
+    #             )
+    #             df_pivot = df_pivot.reset_index()
 
-            # Agrupamos todo
-            df = pd.merge(df_alta, df_pivot, how="left", on=group_cols)
-            df = pd.merge(df, df_total, how="left", on=group_cols)
-            df = pd.merge(df, df_curso, how="left", on=group_cols)
-            df = pd.merge(df, df_term_ant, how="left", on=group_cols)
-            df.fillna(0, inplace=True)
-            df["terminadas_actual"] = (
-                df.ejecucion_total - df.en_curso - df.terminadas_ant
-            )
-            df = pd.DataFrame(df)
-            df.reset_index(drop=True, inplace=True)
-            df.rename(columns={"": "Sin Convenio"}, inplace=True)
-            # 🔹 Validar datos usando Pydantic
-            validate_and_errors = validate_and_extract_data_from_df(
-                dataframe=df, model=ControlAnualReport, field_id="estructura"
-            )
+    #         # Agrupamos todo
+    #         df = pd.merge(df_alta, df_pivot, how="left", on=group_cols)
+    #         df = pd.merge(df, df_total, how="left", on=group_cols)
+    #         df = pd.merge(df, df_curso, how="left", on=group_cols)
+    #         df = pd.merge(df, df_term_ant, how="left", on=group_cols)
+    #         df.fillna(0, inplace=True)
+    #         df["terminadas_actual"] = (
+    #             df.ejecucion_total - df.en_curso - df.terminadas_ant
+    #         )
+    #         df = pd.DataFrame(df)
+    #         df.reset_index(drop=True, inplace=True)
+    #         df.rename(columns={"": "Sin Convenio"}, inplace=True)
+    #         # 🔹 Validar datos usando Pydantic
+    #         validate_and_errors = validate_and_extract_data_from_df(
+    #             dataframe=df, model=ControlAnualReport, field_id="estructura"
+    #         )
 
-            return_schema = await sync_validated_to_repository(
-                repository=self.control_anual_repo,
-                validation=validate_and_errors,
-                delete_filter={"ejercicio": params.ejercicio},
-                title="Control de Ejecución Icaro Módulos Básicos",
-                logger=logger,
-                label=f"Control de Ejecución Icaro Módulos Básicos ejercicio {params.ejercicio}",
-            )
-            # return_schema.append(partial_schema)
+    #         return_schema = await sync_validated_to_repository(
+    #             repository=self.control_anual_repo,
+    #             validation=validate_and_errors,
+    #             delete_filter={"ejercicio": params.ejercicio},
+    #             title="Control de Ejecución Icaro Módulos Básicos",
+    #             logger=logger,
+    #             label=f"Control de Ejecución Icaro Módulos Básicos ejercicio {params.ejercicio}",
+    #         )
+    #         # return_schema.append(partial_schema)
 
-        except ValidationError as e:
-            logger.error(f"Validation Error: {e}")
-            raise HTTPException(
-                status_code=400,
-                detail="Invalid response format from Control Anual ICARO vs SIIF",
-            )
-        except Exception as e:
-            logger.error(f"Error in compute_control_anual: {e}")
-            raise HTTPException(
-                status_code=500,
-                detail="Error in compute_control_anual",
-            )
-        finally:
-            return return_schema
+    #     except ValidationError as e:
+    #         logger.error(f"Validation Error: {e}")
+    #         raise HTTPException(
+    #             status_code=400,
+    #             detail="Invalid response format from Control Anual ICARO vs SIIF",
+    #         )
+    #     except Exception as e:
+    #         logger.error(f"Error in compute_control_anual: {e}")
+    #         raise HTTPException(
+    #             status_code=500,
+    #             detail="Error in compute_control_anual",
+    #         )
+    #     finally:
+    #         return return_schema
 
     # # --------------------------------------------------
     # def reporte_siif_ejec_obras_actual(self):
@@ -921,6 +921,6 @@ class ReporteEjecucionObrasService:
     #     return df
 
 
-ReporteEjecucionObrasServiceDependency = Annotated[
-    ReporteEjecucionObrasService, Depends()
+ReporteFormulacionPresupuestoServiceDependency = Annotated[
+    ReporteFormulacionPresupuestoService, Depends()
 ]

@@ -5,22 +5,22 @@ from fastapi import APIRouter, Depends, Query
 from ...auth.services import OptionalAuthorizationDependency
 from ...config import settings
 from ...utils import RouteReturnSchema
-from ..schemas.reporte_modulos_basicos import (
-    ReporteModulosBasicosIcaroParams,
+from ..schemas.reporte_formulacion_presupuesto import (
+    ReporteFormulacionPresupuestoParams,
 )
-from ..services.reporte_modulos_basicos import ReporteModulosBasicosServiceDependency
+from ..services.reporte_formulacion_presupuesto import ReporteFormulacionPresupuestoServiceDependency
 
-reporte_modulos_basicos_router = APIRouter(prefix="/modulos_basicos")
+reporte_formulacion_presupuesto_router = APIRouter(prefix="/formulacion_presupuesto")
 
 
 # -------------------------------------------------
-@reporte_modulos_basicos_router.post(
+@reporte_formulacion_presupuesto_router.post(
     "/sync_from_source", response_model=List[RouteReturnSchema]
 )
-async def sync_modulos_basicos_from_source(
+async def sync_formulacion_presupuesto_from_source(
     auth: OptionalAuthorizationDependency,
-    service: ReporteModulosBasicosServiceDependency,
-    params: Annotated[ReporteModulosBasicosIcaroParams, Depends()],
+    service: ReporteFormulacionPresupuestoServiceDependency,
+    params: Annotated[ReporteFormulacionPresupuestoParams, Depends()],
     username: str = None,
     password: str = None,
 ):
@@ -28,35 +28,35 @@ async def sync_modulos_basicos_from_source(
         username = settings.SIIF_USERNAME
         password = settings.SIIF_PASSWORD
 
-    return await service.sync_modulos_basicos_from_source(
+    return await service.sync_formulacion_presupuesto_from_source(
         username=username, password=password, params=params
     )
 
 
-# -------------------------------------------------
-@reporte_modulos_basicos_router.post(
-    "/generate", response_model=List[RouteReturnSchema]
-)
-async def generate_all(
-    service: ReporteModulosBasicosServiceDependency,
-    params: Annotated[ReporteModulosBasicosIcaroParams, Depends()],
-):
-    return await service.generate_all(params=params)
+# # -------------------------------------------------
+# @reporte_modulos_basicos_router.post(
+#     "/generate", response_model=List[RouteReturnSchema]
+# )
+# async def generate_all(
+#     service: ReporteModulosBasicosServiceDependency,
+#     params: Annotated[ReporteModulosBasicosIcaroParams, Depends()],
+# ):
+#     return await service.generate_all(params=params)
 
 
-# -------------------------------------------------
-@reporte_modulos_basicos_router.get(
-    "/export",
-    summary="Descarga todos los controles como archivo .xlsx y exporta a Google Sheets",
-    response_description="Archivo Excel con los registros solicitados",
-)
-async def export_all_from_db(
-    service: ReporteModulosBasicosServiceDependency,
-    upload_to_google_sheets: bool = Query(True, alias="uploadToGoogleSheets"),
-):
-    return await service.export_all_from_db(
-        upload_to_google_sheets=upload_to_google_sheets
-    )
+# # -------------------------------------------------
+# @reporte_modulos_basicos_router.get(
+#     "/export",
+#     summary="Descarga todos los controles como archivo .xlsx y exporta a Google Sheets",
+#     response_description="Archivo Excel con los registros solicitados",
+# )
+# async def export_all_from_db(
+#     service: ReporteModulosBasicosServiceDependency,
+#     upload_to_google_sheets: bool = Query(True, alias="uploadToGoogleSheets"),
+# ):
+#     return await service.export_all_from_db(
+#         upload_to_google_sheets=upload_to_google_sheets
+#     )
 
 
 # # -------------------------------------------------
