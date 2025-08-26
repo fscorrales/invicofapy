@@ -182,7 +182,7 @@ class ControlRecursosService:
                     await self.generate_siif_comprobantes_recursos(),
                     "siif_recursos",
                 ),
-                # (await self.generate_banco_invico(), "new_banco_ingresos"),
+                (await self.generate_banco_invico(), "new_banco_ingresos"),
             ],
             filename="control_recursos.xlsx",
             spreadsheet_key="1u_I5wN3w_rGX6rWIsItXkmwfIEuSox6ZsmKYbMZ2iUY",
@@ -247,6 +247,7 @@ class ControlRecursosService:
             ),
         )
         df.reset_index(drop=True, inplace=True)
+        # logger.info(df[df.isnull().any(axis=1)])
         return df
 
     # --------------------------------------------------
