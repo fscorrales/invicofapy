@@ -16,7 +16,10 @@ Google Sheet:
 
 """
 
-__all__ = ["ReporteFormulacionPresupuestoService", "ReporteFormulacionPresupuestoServiceDependency"]
+__all__ = [
+    "ReporteFormulacionPresupuestoService",
+    "ReporteFormulacionPresupuestoServiceDependency",
+]
 
 import os
 from dataclasses import dataclass, field
@@ -29,8 +32,6 @@ from fastapi.responses import StreamingResponse
 from playwright.async_api import async_playwright
 from pydantic import ValidationError
 
-from ...siif.repositories import RfpP605bRepositoryDependency, Ri102RepositoryDependency
-
 from ...config import logger
 from ...icaro.handlers import IcaroMongoMigrator
 from ...siif.handlers import (
@@ -41,6 +42,7 @@ from ...siif.handlers import (
     login,
     logout,
 )
+from ...siif.repositories import RfpP605bRepositoryDependency, Ri102RepositoryDependency
 from ...utils import (
     BaseFilterParams,
     GoogleSheets,
@@ -200,105 +202,77 @@ class ReporteFormulacionPresupuestoService:
     #     finally:
     #         return return_schema
 
-    # # -------------------------------------------------
-    # async def export_all_from_db(
-    #     self, upload_to_google_sheets: bool = True
-    # ) -> StreamingResponse:
-    #     # ejecucion_obras.reporte_planillometro_contabilidad (planillometro_contabilidad)
+    # -------------------------------------------------
+    async def export_all_from_db(
+        self, upload_to_google_sheets: bool = True
+    ) -> StreamingResponse:
+        # ejecucion_obras.reporte_planillometro_contabilidad (planillometro_contabilidad)
 
-    #     siif_pres_with_desc_docs = await self.siif_pres_with_desc_repo.get_all()
-    #     siif_carga_form_gtos_docs = await self.siif_carga_form_gtos_repo.get_all()
-    #     siif_pres_recursos_docs = await self.siif_pres_recursos_repo.get_all()
+        # siif_pres_with_desc_docs = await self.siif_pres_with_desc_repo.get_all()
+        # siif_carga_form_gtos_docs = await self.siif_carga_form_gtos_repo.get_all()
+        # siif_pres_recursos_docs = await self.siif_pres_recursos_repo.get_all()
 
-    #     if (
-    #         not siif_pres_with_desc_docs
-    #         and not siif_carga_form_gtos_docs
-    #         and not siif_pres_recursos_docs
-    #     ):
-    #         raise HTTPException(status_code=404, detail="No se encontraron registros")
+        # if (
+        #     not siif_pres_with_desc_docs
+        #     and not siif_carga_form_gtos_docs
+        #     and not siif_pres_recursos_docs
+        # ):
+        #     raise HTTPException(status_code=404, detail="No se encontraron registros")
 
-    #     return export_multiple_dataframes_to_excel(
-    #         df_sheet_pairs=[
-    #             (pd.DataFrame(siif_pres_with_desc_docs), "siif_ejec_gastos"),
-    #             (pd.DataFrame(siif_carga_form_gtos_docs), "siif_carga_form_gtos"),
-    #             (pd.DataFrame(siif_pres_recursos_docs), "siif_recursos_cod"),
-    #         ],
-    #         filename="reportes_formulacion_presupuesto.xlsx",
-    #         spreadsheet_key="1hJyBOkA8sj5otGjYGVOzYViqSpmv_b4L8dXNju_GJ5Q",
-    #         upload_to_google_sheets=upload_to_google_sheets,
-    #     )
+        return export_multiple_dataframes_to_excel(
+            df_sheet_pairs=[
+                # (pd.DataFrame(siif_pres_with_desc_docs), "siif_ejec_gastos"),
+                # (pd.DataFrame(siif_carga_form_gtos_docs), "siif_carga_form_gtos"),
+                # (pd.DataFrame(siif_pres_recursos_docs), "siif_recursos_cod"),
+                (
+                    await self.generate_siif_pres_with_desc(),
+                    "new_siif_ejec_gastos",
+                ),
+            ],
+            filename="reportes_formulacion_presupuesto.xlsx",
+            spreadsheet_key="1hJyBOkA8sj5otGjYGVOzYViqSpmv_b4L8dXNju_GJ5Q",
+            upload_to_google_sheets=upload_to_google_sheets,
+        )
 
-    # # --------------------------------------------------
-    # async def generate_siif_pres_with_desc(
-    #     self, params: ReporteSIIFPresWithDescParams
-    # ) -> RouteReturnSchema:
-    #     return_schema = RouteReturnSchema()
-    #     try:
-    #         df = await get_siif_rf602(ejercicio=params.ejercicio)
-    #         df = df.sort_values(by=["ejercicio", "estructura"], ascending=[False, True])
-    #         df = df.merge(
-    #             get_siif_desc_pres(ejercicio_to=params.ejercicio),
-    #             how="left",
-    #             on="estructura",
-    #             copy=False,
-    #         )
-    #         df.drop(
-    #             labels=[
-    #                 "org",
-    #                 "pendiente",
-    #                 "programa",
-    #                 "subprograma",
-    #                 "proyecto",
-    #                 "actividad",
-    #                 "grupo",
-    #             ],
-    #             axis=1,
-    #             inplace=True,
-    #         )
+    # --------------------------------------------------
+    async def generate_siif_pres_with_desc(self, ejercicio: int) -> pd.DataFrame:
+        df = await get_siif_rf602(ejercicio=ejercicio)
+        df = df.sort_values(by=["ejercicio", "estructura"], ascending=[False, True])
+        df = df.merge(
+            get_siif_desc_pres(ejercicio_to=ejercicio),
+            how="left",
+            on="estructura",
+            copy=False,
+        )
+        df.drop(
+            labels=[
+                "org",
+                "pendiente",
+                "programa",
+                "subprograma",
+                "proyecto",
+                "actividad",
+                "grupo",
+            ],
+            axis=1,
+            inplace=True,
+        )
 
-    #         first_cols = [
-    #             "ejercicio",
-    #             "estructura",
-    #             "partida",
-    #             "fuente",
-    #             "desc_prog",
-    #             "desc_subprog",
-    #             "desc_proy",
-    #             "desc_act",
-    #         ]
-    #         df = df.loc[:, first_cols].join(df.drop(first_cols, axis=1))
+        first_cols = [
+            "ejercicio",
+            "estructura",
+            "partida",
+            "fuente",
+            "desc_programa",
+            "desc_subprograma",
+            "desc_proyecto",
+            "desc_actividad",
+        ]
+        df = df.loc[:, first_cols].join(df.drop(first_cols, axis=1))
 
-    #         df = pd.DataFrame(df)
-    #         df.reset_index(drop=True, inplace=True)
-    #         # 🔹 Validar datos usando Pydantic
-    #         validate_and_errors = validate_and_extract_data_from_df(
-    #             dataframe=df, model=ReporteSIIFPresWithDescReport, field_id="estructura"
-    #         )
-
-    #         return_schema = await sync_validated_to_repository(
-    #             repository=self.siif_pres_with_desc_repo,
-    #             validation=validate_and_errors,
-    #             delete_filter=None,
-    #             title="Reporte de Ejecución Presupuestaria SIIF con Descripción",
-    #             logger=logger,
-    #             label=f"Reporte de Ejecución Presupuestaria SIIF con Descripción hasta el ejercicio {params.ejercicio}",
-    #         )
-    #         # return_schema.append(partial_schema)
-
-    #     except ValidationError as e:
-    #         logger.error(f"Validation Error: {e}")
-    #         raise HTTPException(
-    #             status_code=400,
-    #             detail="Invalid response format from Reporte de Ejecución Presupuestaria SIIF con Descripción",
-    #         )
-    #     except Exception as e:
-    #         logger.error(f"Error in generate_siif_pres_with_desc: {e}")
-    #         raise HTTPException(
-    #             status_code=500,
-    #             detail="Error in generate_siif_pres_with_desc",
-    #         )
-    #     finally:
-    #         return return_schema
+        df = pd.DataFrame(df)
+        df.reset_index(drop=True, inplace=True)
+        return df
 
     # # -------------------------------------------------
     # async def get_siif_pres_with_desc_from_db(
