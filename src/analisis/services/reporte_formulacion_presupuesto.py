@@ -204,7 +204,7 @@ class ReporteFormulacionPresupuestoService:
 
     # -------------------------------------------------
     async def export_all_from_db(
-        self, upload_to_google_sheets: bool = True
+        self, upload_to_google_sheets: bool = True, params: ReporteFormulacionPresupuestoParams = None
     ) -> StreamingResponse:
         # ejecucion_obras.reporte_planillometro_contabilidad (planillometro_contabilidad)
 
@@ -225,8 +225,8 @@ class ReporteFormulacionPresupuestoService:
                 # (pd.DataFrame(siif_carga_form_gtos_docs), "siif_carga_form_gtos"),
                 # (pd.DataFrame(siif_pres_recursos_docs), "siif_recursos_cod"),
                 (
-                    await self.generate_siif_pres_with_desc(),
-                    "new_siif_ejec_gastos",
+                    await self.generate_siif_pres_with_desc(ejercicio=params.ejercicio),
+                    "siif_ejec_gastos",
                 ),
             ],
             filename="reportes_formulacion_presupuesto.xlsx",
@@ -239,7 +239,7 @@ class ReporteFormulacionPresupuestoService:
         df = await get_siif_rf602(ejercicio=ejercicio)
         df = df.sort_values(by=["ejercicio", "estructura"], ascending=[False, True])
         df = df.merge(
-            get_siif_desc_pres(ejercicio_to=ejercicio),
+            await get_siif_desc_pres(ejercicio_to=ejercicio),
             how="left",
             on="estructura",
             copy=False,
@@ -248,15 +248,15 @@ class ReporteFormulacionPresupuestoService:
             labels=[
                 "org",
                 "pendiente",
-                "programa",
                 "subprograma",
                 "proyecto",
                 "actividad",
-                "grupo",
             ],
             axis=1,
             inplace=True,
         )
+
+        df["programa"] = df["programa"].astype(int)
 
         first_cols = [
             "ejercicio",
@@ -267,6 +267,8 @@ class ReporteFormulacionPresupuestoService:
             "desc_subprograma",
             "desc_proyecto",
             "desc_actividad",
+            "programa",
+            "grupo"
         ]
         df = df.loc[:, first_cols].join(df.drop(first_cols, axis=1))
 

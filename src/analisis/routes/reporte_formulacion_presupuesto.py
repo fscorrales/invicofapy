@@ -43,8 +43,10 @@ async def sync_formulacion_presupuesto_from_source(
 )
 async def export_all_from_db(
     service: ReporteFormulacionPresupuestoServiceDependency,
+    params: Annotated[ReporteFormulacionPresupuestoParams, Depends()],
     upload_to_google_sheets: bool = Query(True, alias="uploadToGoogleSheets"),
 ):
     return await service.export_all_from_db(
-        upload_to_google_sheets=upload_to_google_sheets
+        upload_to_google_sheets=upload_to_google_sheets,
+        params=params
     )
