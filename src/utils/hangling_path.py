@@ -70,7 +70,7 @@ def get_download_siif_path():
 
 # --------------------------------------------------
 def get_siif_planillometro_hist_path():
-    dir_path = os.path.join(get_download_sscc_path(), "Planillometro Historico")
+    dir_path = os.path.join(get_download_siif_path(), "Planillometro Historico")
     return dir_path
 
 

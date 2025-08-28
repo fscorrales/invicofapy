@@ -27,7 +27,7 @@ class PlanillometroHistReport(BaseModel):
     estructura_actividad: Optional[str] = None
     partida: Optional[str] = None
     estructura: Optional[str] = None
-    alta: Optional[int] = None
+    alta: Optional[str] = None
     acum_2008: Optional[float] = None
 
 

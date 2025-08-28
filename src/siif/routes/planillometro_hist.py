@@ -32,7 +32,7 @@ async def sync_planillometro_hist_from_excel(
 @planillometro_hist_router.get(
     "/get_from_db", response_model=List[PlanillometroHistDocument]
 )
-async def get_ctas_ctes_from_db(
+async def get_planillometro_hist_from_db(
     service: PlanillometroHistServiceDependency,
     params: Annotated[PlanillometroHistFilter, Depends()],
 ):
