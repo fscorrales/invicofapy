@@ -370,7 +370,7 @@ class ReporteFormulacionPresupuestoService:
         filters["partida"] = {"$in": ["421", "422"]}
 
         if es_ejercicio_to:
-            filters["ejercicio"] = {"$lt": ejercicio}
+            filters["ejercicio"] = {"$lte": ejercicio}
         else:
             filters["ejercicio"] = ejercicio
 
@@ -500,17 +500,18 @@ class ReporteFormulacionPresupuestoService:
     #     return df
 
     # --------------------------------------------------
-    def generate_planillometro_contabilidad(
+    async def generate_planillometro_contabilidad(
         self,
+        ejercicio: int = None,
         es_desc_siif: bool = True,
-        incluir_desc_subprog: bool = False,
+        incluir_desc_subprog: bool = True,
         ultimos_ejercicios: str = "All",
         desagregar_partida: bool = True,
         agregar_acum_2008: bool = True,
         date_up_to: dt.date = None,
         include_pa6: bool = False,
     ):
-        df = self.generate_icaro_carga_desc(es_desc_siif=es_desc_siif)
+        df = await self.generate_icaro_carga_desc(ejercicio=ejercicio, es_desc_siif=es_desc_siif)
         df.sort_values(["actividad", "partida", "fuente"], inplace=True)
 
         # Grupos de columnas
@@ -527,7 +528,7 @@ class ReporteFormulacionPresupuestoService:
         # Incluimos PA6 (ultimo ejercicio)
         if include_pa6:
             df = df.loc[df.ejercicio.astype(int) < int(self.ejercicio)]
-            df_last = self.generate_icaro_carga_desc(
+            df_last = await self.generate_icaro_carga_desc(
                 es_desc_siif=es_desc_siif, ejercicio_to=False, neto_pa6=False
             )
             df = pd.concat([df, df_last], axis=0)
@@ -542,7 +543,7 @@ class ReporteFormulacionPresupuestoService:
         #     df_acum_2008 = self.import_acum_2008()
         #     df_acum_2008["ejercicio"] = "2008"
         #     df_acum_2008["avance"] = 1
-        #     df_acum_2008["obra"] = df_acum_2008["desc_act"]
+        #     df_acum_2008["desc_obra"] = df_acum_2008["desc_act"]
         #     df_acum_2008 = df_acum_2008.rename(columns={"acum_2008": "importe"})
         #     df["estructura"] = df["actividad"] + "-" + df["partida"]
         #     df_dif = df_acum_2008.loc[
@@ -624,10 +625,10 @@ class ReporteFormulacionPresupuestoService:
                 df_ejercicio.ejercicio.astype(int) <= int(ejercicio)
             ]
             df_ejercicio["ejercicio"] = ejercicio
-            obras_curso = df_ejercicio.groupby(["obra"]).avance.max().to_frame()
-            obras_curso = obras_curso.loc[obras_curso.avance < 1].reset_index().obra
+            obras_curso = df_ejercicio.groupby(["desc_obra"]).avance.max().to_frame()
+            obras_curso = obras_curso.loc[obras_curso.avance < 1].reset_index().desc_obra
             df_ejercicio = (
-                df_ejercicio.loc[df_ejercicio.obra.isin(obras_curso)]
+                df_ejercicio.loc[df_ejercicio.desc_obra.isin(obras_curso)]
                 .groupby(group_cols + ["ejercicio"])
                 .importe.sum()
                 .reset_index()
@@ -643,12 +644,12 @@ class ReporteFormulacionPresupuestoService:
                 df_ejercicio.ejercicio.astype(int) < int(ejercicio)
             ]
             df_ejercicio["ejercicio"] = ejercicio
-            obras_term_ant = df_ejercicio.groupby(["obra"]).avance.max().to_frame()
+            obras_term_ant = df_ejercicio.groupby(["desc_obra"]).avance.max().to_frame()
             obras_term_ant = (
-                obras_term_ant.loc[obras_term_ant.avance == 1].reset_index().obra
+                obras_term_ant.loc[obras_term_ant.avance == 1].reset_index().desc_obra
             )
             df_ejercicio = (
-                df_ejercicio.loc[df_ejercicio.obra.isin(obras_term_ant)]
+                df_ejercicio.loc[df_ejercicio.desc_obra.isin(obras_term_ant)]
                 .groupby(group_cols + ["ejercicio"])
                 .importe.sum()
                 .reset_index()
