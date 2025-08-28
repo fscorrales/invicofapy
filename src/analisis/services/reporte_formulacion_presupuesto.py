@@ -21,11 +21,13 @@ __all__ = [
     "ReporteFormulacionPresupuestoServiceDependency",
 ]
 
+import datetime as dt
 import os
 from dataclasses import dataclass, field
 from io import BytesIO
 from typing import Annotated, List
 
+import numpy as np
 import pandas as pd
 from fastapi import Depends, HTTPException
 from fastapi.responses import StreamingResponse
@@ -129,28 +131,28 @@ class ReporteFormulacionPresupuestoService:
                 return_schema.append(partial_schema)
 
                 # # 🔹 Ri102
-                self.siif_ri102_handler = Ri102(siif=connect_siif)
-                await self.siif_ri102_handler.go_to_reports()
-                partial_schema = await self.siif_ri102_handler.download_and_sync_validated_to_repository(
-                    ejercicio=int(params.ejercicio)
-                )
-                return_schema.append(partial_schema)
+                # self.siif_ri102_handler = Ri102(siif=connect_siif)
+                # await self.siif_ri102_handler.go_to_reports()
+                # partial_schema = await self.siif_ri102_handler.download_and_sync_validated_to_repository(
+                #     ejercicio=int(params.ejercicio)
+                # )
+                # return_schema.append(partial_schema)
 
                 # # 🔹 Rfp_p605b
-                self.siif_rfp_p605b_handler = RfpP605b(siif=connect_siif)
-                await self.siif_rfp_p605b_handler.go_to_reports()
-                partial_schema = await self.siif_rfp_p605b_handler.download_and_sync_validated_to_repository(
-                    ejercicio=int(params.ejercicio) + 1
-                )
-                return_schema.append(partial_schema)
+                # self.siif_rfp_p605b_handler = RfpP605b(siif=connect_siif)
+                # await self.siif_rfp_p605b_handler.go_to_reports()
+                # partial_schema = await self.siif_rfp_p605b_handler.download_and_sync_validated_to_repository(
+                #     ejercicio=int(params.ejercicio) + 1
+                # )
+                # return_schema.append(partial_schema)
 
-                # 🔹 Icaro
-                path = os.path.join(get_r_icaro_path(), "ICARO.sqlite")
-                migrator = IcaroMongoMigrator(sqlite_path=path)
-                return_schema.append(await migrator.migrate_carga())
-                return_schema.append(await migrator.migrate_estructuras())
-                return_schema.append(await migrator.migrate_proveedores())
-                return_schema.append(await migrator.migrate_obras())
+                # # 🔹 Icaro
+                # path = os.path.join(get_r_icaro_path(), "ICARO.sqlite")
+                # migrator = IcaroMongoMigrator(sqlite_path=path)
+                # return_schema.append(await migrator.migrate_carga())
+                # return_schema.append(await migrator.migrate_estructuras())
+                # return_schema.append(await migrator.migrate_proveedores())
+                # return_schema.append(await migrator.migrate_obras())
 
                 # import_acum_2008 (PATRICIA)
 
@@ -204,7 +206,9 @@ class ReporteFormulacionPresupuestoService:
 
     # -------------------------------------------------
     async def export_all_from_db(
-        self, upload_to_google_sheets: bool = True, params: ReporteFormulacionPresupuestoParams = None
+        self,
+        upload_to_google_sheets: bool = True,
+        params: ReporteFormulacionPresupuestoParams = None,
     ) -> StreamingResponse:
         # ejecucion_obras.reporte_planillometro_contabilidad (planillometro_contabilidad)
 
@@ -221,12 +225,17 @@ class ReporteFormulacionPresupuestoService:
 
         return export_multiple_dataframes_to_excel(
             df_sheet_pairs=[
-                # (pd.DataFrame(siif_pres_with_desc_docs), "siif_ejec_gastos"),
                 # (pd.DataFrame(siif_carga_form_gtos_docs), "siif_carga_form_gtos"),
                 # (pd.DataFrame(siif_pres_recursos_docs), "siif_recursos_cod"),
                 (
                     await self.generate_siif_pres_with_desc(ejercicio=params.ejercicio),
                     "siif_ejec_gastos",
+                ),
+                (
+                    await self.generate_planillometro_contabilidad(
+                        ejercicio=params.ejercicio
+                    ),
+                    "planillometro_contabilidad",
                 ),
             ],
             filename="reportes_formulacion_presupuesto.xlsx",
@@ -268,36 +277,13 @@ class ReporteFormulacionPresupuestoService:
             "desc_proyecto",
             "desc_actividad",
             "programa",
-            "grupo"
+            "grupo",
         ]
         df = df.loc[:, first_cols].join(df.drop(first_cols, axis=1))
 
         df = pd.DataFrame(df)
         df.reset_index(drop=True, inplace=True)
         return df
-
-    # # -------------------------------------------------
-    # async def get_siif_pres_with_desc_from_db(
-    #     self, params: BaseFilterParams
-    # ) -> List[ReporteSIIFPresWithDescDocument]:
-    #     return await self.siif_pres_with_desc_repo.safe_find_with_filter_params(
-    #         params=params,
-    #         error_title="Error retrieving Reporte de Ejecución Presupuestaria SIIF con Descripción from the database",
-    #     )
-
-    # # -------------------------------------------------
-    # async def export_siif_pres_with_desc_from_db(
-    #     self, upload_to_google_sheets: bool = True
-    # ) -> StreamingResponse:
-    #     df = pd.DataFrame(await self.siif_pres_with_desc_repo.get_all())
-
-    #     return export_dataframe_as_excel_response(
-    #         df,
-    #         filename="siif_pres_with_desc.xlsx",
-    #         sheet_name="siif_ejec_gastos",
-    #         upload_to_google_sheets=upload_to_google_sheets,
-    #         google_sheet_key="1hJyBOkA8sj5otGjYGVOzYViqSpmv_b4L8dXNju_GJ5Q",
-    #     )
 
     # # --------------------------------------------------
     # async def generate_siif_pres_recursos(self) -> RouteReturnSchema:
@@ -312,49 +298,6 @@ class ReporteFormulacionPresupuestoService:
     #     return await self.siif_pres_recursos_repo.safe_find_with_filter_params(
     #         params=params,
     #         error_title="Error retrieving Reporte de Presupuesto de Recursos SIIF (ri102) from the database",
-    #     )
-
-    # # -------------------------------------------------
-    # async def export_siif_pres_recursos_from_db(
-    #     self, upload_to_google_sheets: bool = True
-    # ) -> StreamingResponse:
-    #     df = pd.DataFrame(await self.siif_pres_recursos_repo.get_all())
-
-    #     return export_dataframe_as_excel_response(
-    #         df,
-    #         filename="siif_pres_recursos.xlsx",
-    #         sheet_name="siif_recursos_cod",
-    #         upload_to_google_sheets=upload_to_google_sheets,
-    #         google_sheet_key="1hJyBOkA8sj5otGjYGVOzYViqSpmv_b4L8dXNju_GJ5Q",
-    #     )
-
-    # # --------------------------------------------------
-    # async def generate_siif_carga_form_gtos(self) -> RouteReturnSchema:
-    #     return RouteReturnSchema(
-    #         title="Reporte de Carga Formulación de Gastos (rfp_p605b)"
-    #     )
-
-    # # -------------------------------------------------
-    # async def get_siif_carga_form_gtos_from_db(
-    #     self, params: BaseFilterParams
-    # ) -> List[ReporteSIIFPresWithDescDocument]:
-    #     return await self.siif_carga_form_gtos_repo.safe_find_with_filter_params(
-    #         params=params,
-    #         error_title="Error retrieving Carga Formulación de Gastos (rfp_p605b) from the database",
-    #     )
-
-    # # -------------------------------------------------
-    # async def export_siif_carga_form_gtos_from_db(
-    #     self, upload_to_google_sheets: bool = True
-    # ) -> StreamingResponse:
-    #     df = pd.DataFrame(await self.siif_carga_form_gtos_repo.get_all())
-
-    #     return export_dataframe_as_excel_response(
-    #         df,
-    #         filename="siif_carga_form_gtos.xlsx",
-    #         sheet_name="siif_carga_form_gtos",
-    #         upload_to_google_sheets=upload_to_google_sheets,
-    #         google_sheet_key="1hJyBOkA8sj5otGjYGVOzYViqSpmv_b4L8dXNju_GJ5Q",
     #     )
 
     # # --------------------------------------------------
@@ -415,220 +358,52 @@ class ReporteFormulacionPresupuestoService:
     #     df.reset_index(drop=True, inplace=True)
     #     return df
 
-    # # --------------------------------------------------
-    # async def import_icaro_carga_desc(
-    #     self,
-    #     ejercicio: int = None,
-    #     es_desc_siif: bool = True,
-    #     es_ejercicio_to: bool = True,
-    #     es_neto_pa6: bool = True,
-    # ):
-    #     filters = {}
-    #     filters["partida"] = {"$in": ["421", "422"]}
+    # --------------------------------------------------
+    async def generate_icaro_carga_desc(
+        self,
+        ejercicio: int = None,
+        es_desc_siif: bool = True,
+        es_ejercicio_to: bool = True,
+        es_neto_pa6: bool = True,
+    ):
+        filters = {}
+        filters["partida"] = {"$in": ["421", "422"]}
 
-    #     if es_ejercicio_to:
-    #         filters["ejercicio"] = {"$lt": ejercicio}
-    #     else:
-    #         filters["ejercicio"] = ejercicio
+        if es_ejercicio_to:
+            filters["ejercicio"] = {"$lt": ejercicio}
+        else:
+            filters["ejercicio"] = ejercicio
 
-    #     if es_neto_pa6:
-    #         filters["tipo"] = {"$ne": "PA6"}
-    #     else:
-    #         filters["tipo"] = {"$ne": "REG"}
+        if es_neto_pa6:
+            filters["tipo"] = {"$ne": "PA6"}
+        else:
+            filters["tipo"] = {"$ne": "REG"}
 
-    #     df = await get_icaro_carga(filters=filters)
+        df = await get_icaro_carga(filters=filters)
 
-    #     if es_desc_siif:
-    #         df["estructura"] = df["actividad"] + "-" + df["partida"]
-    #         df = df.merge(
-    #             await get_siif_desc_pres(ejercicio_to=ejercicio),
-    #             how="left",
-    #             on="estructura",
-    #             copy=False,
-    #         )
-    #         df.drop(labels=["estructura"], axis="columns", inplace=True)
-    #     else:
-    #         df = df.merge(
-    #             await get_icaro_estructuras_desc(),
-    #             how="left",
-    #             on="actividad",
-    #             copy=False,
-    #         )
-    #     df.reset_index(drop=True, inplace=True)
-    #     prov = await get_icaro_proveedores()
-    #     prov = prov.loc[:, ["cuit", "desc_proveedor"]]
-    #     prov.drop_duplicates(subset=["cuit"], inplace=True)
-    #     prov.rename(columns={"desc_proveedor": "proveedor"}, inplace=True)
-    #     df = df.merge(prov, how="left", on="cuit", copy=False)
-    #     return df
-
-    # # --------------------------------------------------
-    # async def get_icaro_mod_basicos(
-    #     self,
-    #     ejercicio: int = None,
-    #     es_desc_siif: bool = True,
-    #     es_ejercicio_to: bool = True,
-    #     es_neto_pa6: bool = True,
-    # ):
-    #     filters = {}
-    #     filters["partida"] = {"$in": ["421", "422"]}
-
-    #     if es_ejercicio_to:
-    #         filters["ejercicio"] = {"$lt": ejercicio}
-    #     else:
-    #         filters["ejercicio"] = ejercicio
-
-    #     if es_neto_pa6:
-    #         filters["tipo"] = {"$ne": "PA6"}
-    #     else:
-    #         filters["tipo"] = {"$ne": "REG"}
-
-    #     df = await get_icaro_carga(filters=filters)
-    #     df = df.loc[df["actividad"].str.startswith("29")]
-    #     df_obras = await get_icaro_obras()
-    #     df_obras = df_obras.loc[
-    #         :, ["desc_obra", "localidad", "norma_legal", "info_adicional"]
-    #     ]
-    #     df = df.merge(df_obras, how="left", on="desc_obra", copy=False)
-    #     if es_desc_siif:
-    #         df["estructura"] = df["actividad"] + "-" + df["partida"]
-    #         df = df.merge(
-    #             await get_siif_desc_pres(ejercicio_to=ejercicio),
-    #             how="left",
-    #             on="estructura",
-    #             copy=False,
-    #         )
-    #         df.drop(labels=["estructura"], axis="columns", inplace=True)
-    #     else:
-    #         df = df.merge(
-    #             await get_icaro_estructuras_desc(),
-    #             how="left",
-    #             on="actividad",
-    #             copy=False,
-    #         )
-    #     prov = await get_icaro_proveedores()
-    #     prov = prov.loc[:, ["cuit", "desc_proveedor"]]
-    #     prov.drop_duplicates(subset=["cuit"], inplace=True)
-    #     prov.rename(columns={"desc_proveedor": "proveedor"}, inplace=True)
-    #     df = df.merge(prov, how="left", on="cuit", copy=False)
-    #     df.reset_index(drop=True, inplace=True)
-    #     return df
-
-    # # --------------------------------------------------
-    # async def compute_control_icaro_mod_basicos(
-    #     self,
-    #     ejercicio: int,
-    #     por_convenio: bool = True,
-    #     es_desc_siif: bool = True,
-    # ) -> RouteReturnSchema:
-    #     # return_schema = RouteReturnSchema()
-    #     try:
-    #         df = await self.get_icaro_mod_basicos(es_desc_siif=es_desc_siif)
-    #         if por_convenio:
-    #             df = df.loc[df.fuente == "11"]
-    #         df.sort_values(
-    #             ["actividad", "partida", "desc_obra", "fuente"], inplace=True
-    #         )
-    #         group_cols = [
-    #             "desc_programa",
-    #             "desc_proyecto",
-    #             "desc_actividad",
-    #             "actividad",
-    #             "partida",
-    #             "fuente",
-    #             "localidad",
-    #             "norma_legal",
-    #             "desc_obra",
-    #         ]
-    #         # Ejercicio alta
-    #         df_alta = df.groupby(group_cols).ejercicio.min().reset_index()
-    #         df_alta.rename(columns={"ejercicio": "alta"}, inplace=True)
-    #         # Ejecucion Total
-    #         df_total = df.groupby(group_cols).importe.sum().reset_index()
-    #         df_total.rename(columns={"importe": "ejecucion_total"}, inplace=True)
-    #         # Obras en curso
-    #         obras_curso = df.groupby(["desc_obra"]).avance.max().to_frame()
-    #         obras_curso = obras_curso.loc[obras_curso.avance < 1].reset_index().obra
-    #         df_curso = (
-    #             df.loc[df.desc_obra.isin(obras_curso)]
-    #             .groupby(group_cols)
-    #             .importe.sum()
-    #             .reset_index()
-    #         )
-    #         df_curso.rename(columns={"importe": "en_curso"}, inplace=True)
-    #         # Obras terminadas anterior
-    #         df_prev = df.loc[df.ejercicio.astype(int) < int(ejercicio)]
-    #         obras_term_ant = df_prev.loc[df_prev.avance == 1].obra
-    #         df_term_ant = (
-    #             df_prev.loc[df_prev.desc_obra.isin(obras_term_ant)]
-    #             .groupby(group_cols)
-    #             .importe.sum()
-    #             .reset_index()
-    #         )
-    #         df_term_ant.rename(columns={"importe": "terminadas_ant"}, inplace=True)
-    #         # Pivoteamos en funcion de...
-    #         if por_convenio:
-    #             df_pivot = df.loc[:, group_cols + ["info_adicional", "importe"]]
-    #             df_pivot = df_pivot.pivot_table(
-    #                 index=group_cols,
-    #                 columns="info_adicional",
-    #                 values="importe",
-    #                 aggfunc="sum",
-    #                 fill_value=0,
-    #             )
-    #             df_pivot.reset_index(inplace=True)
-    #         else:
-    #             df_pivot = df.loc[:, group_cols + ["ejercicio", "importe"]]
-    #             df_pivot = df_pivot.pivot_table(
-    #                 index=group_cols,
-    #                 columns="ejercicio",
-    #                 values="importe",
-    #                 aggfunc="sum",
-    #                 fill_value=0,
-    #             )
-    #             df_pivot = df_pivot.reset_index()
-
-    #         # Agrupamos todo
-    #         df = pd.merge(df_alta, df_pivot, how="left", on=group_cols)
-    #         df = pd.merge(df, df_total, how="left", on=group_cols)
-    #         df = pd.merge(df, df_curso, how="left", on=group_cols)
-    #         df = pd.merge(df, df_term_ant, how="left", on=group_cols)
-    #         df.fillna(0, inplace=True)
-    #         df["terminadas_actual"] = (
-    #             df.ejecucion_total - df.en_curso - df.terminadas_ant
-    #         )
-    #         df = pd.DataFrame(df)
-    #         df.reset_index(drop=True, inplace=True)
-    #         df.rename(columns={"": "Sin Convenio"}, inplace=True)
-    #         # 🔹 Validar datos usando Pydantic
-    #         validate_and_errors = validate_and_extract_data_from_df(
-    #             dataframe=df, model=ControlAnualReport, field_id="estructura"
-    #         )
-
-    #         return_schema = await sync_validated_to_repository(
-    #             repository=self.control_anual_repo,
-    #             validation=validate_and_errors,
-    #             delete_filter={"ejercicio": params.ejercicio},
-    #             title="Control de Ejecución Icaro Módulos Básicos",
-    #             logger=logger,
-    #             label=f"Control de Ejecución Icaro Módulos Básicos ejercicio {params.ejercicio}",
-    #         )
-    #         # return_schema.append(partial_schema)
-
-    #     except ValidationError as e:
-    #         logger.error(f"Validation Error: {e}")
-    #         raise HTTPException(
-    #             status_code=400,
-    #             detail="Invalid response format from Control Anual ICARO vs SIIF",
-    #         )
-    #     except Exception as e:
-    #         logger.error(f"Error in compute_control_anual: {e}")
-    #         raise HTTPException(
-    #             status_code=500,
-    #             detail="Error in compute_control_anual",
-    #         )
-    #     finally:
-    #         return return_schema
+        if es_desc_siif:
+            df["estructura"] = df["actividad"] + "-" + df["partida"]
+            df = df.merge(
+                await get_siif_desc_pres(ejercicio_to=ejercicio),
+                how="left",
+                on="estructura",
+                copy=False,
+            )
+            df.drop(labels=["estructura"], axis="columns", inplace=True)
+        else:
+            df = df.merge(
+                await get_icaro_estructuras_desc(),
+                how="left",
+                on="actividad",
+                copy=False,
+            )
+        df.reset_index(drop=True, inplace=True)
+        prov = await get_icaro_proveedores()
+        prov = prov.loc[:, ["cuit", "desc_proveedor"]]
+        prov.drop_duplicates(subset=["cuit"], inplace=True)
+        prov.rename(columns={"desc_proveedor": "proveedor"}, inplace=True)
+        df = df.merge(prov, how="left", on="cuit", copy=False)
+        return df
 
     # # --------------------------------------------------
     # def reporte_siif_ejec_obras_actual(self):
@@ -724,177 +499,177 @@ class ReporteFormulacionPresupuestoService:
     #     df.reset_index(drop=True, inplace=True)
     #     return df
 
-    # # --------------------------------------------------
-    # def reporte_planillometro_contabilidad(
-    #     self,
-    #     es_desc_siif: bool = True,
-    #     incluir_desc_subprog: bool = False,
-    #     ultimos_ejercicios: str = "All",
-    #     desagregar_partida: bool = True,
-    #     agregar_acum_2008: bool = True,
-    #     date_up_to: dt.date = None,
-    #     include_pa6: bool = False,
-    # ):
-    #     df = self.import_icaro_carga_desc(es_desc_siif=es_desc_siif)
-    #     df.sort_values(["actividad", "partida", "fuente"], inplace=True)
+    # --------------------------------------------------
+    def generate_planillometro_contabilidad(
+        self,
+        es_desc_siif: bool = True,
+        incluir_desc_subprog: bool = False,
+        ultimos_ejercicios: str = "All",
+        desagregar_partida: bool = True,
+        agregar_acum_2008: bool = True,
+        date_up_to: dt.date = None,
+        include_pa6: bool = False,
+    ):
+        df = self.generate_icaro_carga_desc(es_desc_siif=es_desc_siif)
+        df.sort_values(["actividad", "partida", "fuente"], inplace=True)
 
-    #     # Grupos de columnas
-    #     group_cols = ["desc_prog"]
-    #     if incluir_desc_subprog:
-    #         group_cols = group_cols + ["desc_subprog"]
-    #     group_cols = group_cols + ["desc_proy", "desc_act", "actividad"]
-    #     if desagregar_partida:
-    #         group_cols = group_cols + ["partida"]
+        # Grupos de columnas
+        group_cols = ["desc_programa"]
+        if incluir_desc_subprog:
+            group_cols = group_cols + ["desc_subprograma"]
+        group_cols = group_cols + ["desc_proyecto", "desc_actividad", "actividad"]
+        if desagregar_partida:
+            group_cols = group_cols + ["partida"]
 
-    #     # Eliminamos aquellos ejercicios anteriores a 2009
-    #     df = df.loc[df.ejercicio.astype(int) >= 2009]
+        # Eliminamos aquellos ejercicios anteriores a 2009
+        df = df.loc[df.ejercicio.astype(int) >= 2009]
 
-    #     # Incluimos PA6 (ultimo ejercicio)
-    #     if include_pa6:
-    #         df = df.loc[df.ejercicio.astype(int) < int(self.ejercicio)]
-    #         df_last = self.import_icaro_carga_desc(
-    #             es_desc_siif=es_desc_siif, ejercicio_to=False, neto_pa6=False
-    #         )
-    #         df = pd.concat([df, df_last], axis=0)
+        # Incluimos PA6 (ultimo ejercicio)
+        if include_pa6:
+            df = df.loc[df.ejercicio.astype(int) < int(self.ejercicio)]
+            df_last = self.generate_icaro_carga_desc(
+                es_desc_siif=es_desc_siif, ejercicio_to=False, neto_pa6=False
+            )
+            df = pd.concat([df, df_last], axis=0)
 
-    #     # Filtramos hasta una fecha máxima
-    #     if date_up_to:
-    #         date_up_to = np.datetime64(date_up_to)
-    #         df = df.loc[df["fecha"] <= date_up_to]
+        # Filtramos hasta una fecha máxima
+        if date_up_to:
+            date_up_to = np.datetime64(date_up_to)
+            df = df.loc[df["fecha"] <= date_up_to]
 
-    #     # Agregamos ejecución acumulada de Patricia
-    #     if agregar_acum_2008:
-    #         df_acum_2008 = self.import_acum_2008()
-    #         df_acum_2008["ejercicio"] = "2008"
-    #         df_acum_2008["avance"] = 1
-    #         df_acum_2008["obra"] = df_acum_2008["desc_act"]
-    #         df_acum_2008 = df_acum_2008.rename(columns={"acum_2008": "importe"})
-    #         df["estructura"] = df["actividad"] + "-" + df["partida"]
-    #         df_dif = df_acum_2008.loc[
-    #             df_acum_2008["estructura"].isin(df["estructura"].unique().tolist())
-    #         ]
-    #         df_dif = df_dif.drop(
-    #             columns=["desc_prog", "desc_subprog", "desc_proy", "desc_act"]
-    #         )
-    #         if incluir_desc_subprog:
-    #             columns_to_merge = [
-    #                 "estructura",
-    #                 "desc_prog",
-    #                 "desc_subprog",
-    #                 "desc_proy",
-    #                 "desc_act",
-    #             ]
-    #         else:
-    #             columns_to_merge = ["estructura", "desc_prog", "desc_proy", "desc_act"]
-    #         df_dif = pd.merge(
-    #             df_dif,
-    #             df.loc[:, columns_to_merge].drop_duplicates(),
-    #             on=["estructura"],
-    #             how="left",
-    #         )
-    #         df = df.drop(columns=["estructura"])
-    #         df_acum_2008 = df_acum_2008.loc[
-    #             ~df_acum_2008["estructura"].isin(df_dif["estructura"].unique().tolist())
-    #         ]
-    #         df_acum_2008 = pd.concat([df_acum_2008, df_dif])
-    #         df = pd.concat([df, df_acum_2008])
+        # # Agregamos ejecución acumulada de Patricia
+        # if agregar_acum_2008:
+        #     df_acum_2008 = self.import_acum_2008()
+        #     df_acum_2008["ejercicio"] = "2008"
+        #     df_acum_2008["avance"] = 1
+        #     df_acum_2008["obra"] = df_acum_2008["desc_act"]
+        #     df_acum_2008 = df_acum_2008.rename(columns={"acum_2008": "importe"})
+        #     df["estructura"] = df["actividad"] + "-" + df["partida"]
+        #     df_dif = df_acum_2008.loc[
+        #         df_acum_2008["estructura"].isin(df["estructura"].unique().tolist())
+        #     ]
+        #     df_dif = df_dif.drop(
+        #         columns=["desc_prog", "desc_subprog", "desc_proy", "desc_act"]
+        #     )
+        #     if incluir_desc_subprog:
+        #         columns_to_merge = [
+        #             "estructura",
+        #             "desc_prog",
+        #             "desc_subprog",
+        #             "desc_proy",
+        #             "desc_act",
+        #         ]
+        #     else:
+        #         columns_to_merge = ["estructura", "desc_prog", "desc_proy", "desc_act"]
+        #     df_dif = pd.merge(
+        #         df_dif,
+        #         df.loc[:, columns_to_merge].drop_duplicates(),
+        #         on=["estructura"],
+        #         how="left",
+        #     )
+        #     df = df.drop(columns=["estructura"])
+        #     df_acum_2008 = df_acum_2008.loc[
+        #         ~df_acum_2008["estructura"].isin(df_dif["estructura"].unique().tolist())
+        #     ]
+        #     df_acum_2008 = pd.concat([df_acum_2008, df_dif])
+        #     df = pd.concat([df, df_acum_2008])
 
-    #     # Ejercicio alta
-    #     df_alta = df.groupby(group_cols).ejercicio.min().reset_index()
-    #     df_alta.rename(columns={"ejercicio": "alta"}, inplace=True)
+        # Ejercicio alta
+        df_alta = df.groupby(group_cols).ejercicio.min().reset_index()
+        df_alta.rename(columns={"ejercicio": "alta"}, inplace=True)
 
-    #     df_ejercicios = df.copy()
-    #     if ultimos_ejercicios != "All":
-    #         ejercicios = int(ultimos_ejercicios)
-    #         ejercicios = df_ejercicios.sort_values(
-    #             "ejercicio", ascending=False
-    #         ).ejercicio.unique()[0:ejercicios]
-    #         # df_anos = df_anos.loc[df_anos.ejercicio.isin(ejercicios)]
-    #     else:
-    #         ejercicios = df_ejercicios.sort_values(
-    #             "ejercicio", ascending=False
-    #         ).ejercicio.unique()
+        df_ejercicios = df.copy()
+        if ultimos_ejercicios != "All":
+            ejercicios = int(ultimos_ejercicios)
+            ejercicios = df_ejercicios.sort_values(
+                "ejercicio", ascending=False
+            ).ejercicio.unique()[0:ejercicios]
+            # df_anos = df_anos.loc[df_anos.ejercicio.isin(ejercicios)]
+        else:
+            ejercicios = df_ejercicios.sort_values(
+                "ejercicio", ascending=False
+            ).ejercicio.unique()
 
-    #     # Ejercicio actual
-    #     df_ejec_actual = df.copy()
-    #     df_ejec_actual = df_ejec_actual.loc[df_ejec_actual.ejercicio.isin(ejercicios)]
-    #     df_ejec_actual = (
-    #         df_ejec_actual.groupby(group_cols + ["ejercicio"])
-    #         .importe.sum()
-    #         .reset_index()
-    #     )
-    #     df_ejec_actual.rename(columns={"importe": "ejecucion"}, inplace=True)
+        # Ejercicio actual
+        df_ejec_actual = df.copy()
+        df_ejec_actual = df_ejec_actual.loc[df_ejec_actual.ejercicio.isin(ejercicios)]
+        df_ejec_actual = (
+            df_ejec_actual.groupby(group_cols + ["ejercicio"])
+            .importe.sum()
+            .reset_index()
+        )
+        df_ejec_actual.rename(columns={"importe": "ejecucion"}, inplace=True)
 
-    #     # Ejecucion Acumulada
-    #     df_acum = pd.DataFrame()
-    #     for ejercicio in ejercicios:
-    #         df_ejercicio = df.copy()
-    #         df_ejercicio = df_ejercicio.loc[
-    #             df_ejercicio.ejercicio.astype(int) <= int(ejercicio)
-    #         ]
-    #         df_ejercicio["ejercicio"] = ejercicio
-    #         df_ejercicio = (
-    #             df_ejercicio.groupby(group_cols + ["ejercicio"])
-    #             .importe.sum()
-    #             .reset_index()
-    #         )
-    #         df_ejercicio.rename(columns={"importe": "acum"}, inplace=True)
-    #         df_acum = pd.concat([df_acum, df_ejercicio])
+        # Ejecucion Acumulada
+        df_acum = pd.DataFrame()
+        for ejercicio in ejercicios:
+            df_ejercicio = df.copy()
+            df_ejercicio = df_ejercicio.loc[
+                df_ejercicio.ejercicio.astype(int) <= int(ejercicio)
+            ]
+            df_ejercicio["ejercicio"] = ejercicio
+            df_ejercicio = (
+                df_ejercicio.groupby(group_cols + ["ejercicio"])
+                .importe.sum()
+                .reset_index()
+            )
+            df_ejercicio.rename(columns={"importe": "acum"}, inplace=True)
+            df_acum = pd.concat([df_acum, df_ejercicio])
 
-    #     # Obras en curso
-    #     df_curso = pd.DataFrame()
-    #     for ejercicio in ejercicios:
-    #         df_ejercicio = df.copy()
-    #         df_ejercicio = df_ejercicio.loc[
-    #             df_ejercicio.ejercicio.astype(int) <= int(ejercicio)
-    #         ]
-    #         df_ejercicio["ejercicio"] = ejercicio
-    #         obras_curso = df_ejercicio.groupby(["obra"]).avance.max().to_frame()
-    #         obras_curso = obras_curso.loc[obras_curso.avance < 1].reset_index().obra
-    #         df_ejercicio = (
-    #             df_ejercicio.loc[df_ejercicio.obra.isin(obras_curso)]
-    #             .groupby(group_cols + ["ejercicio"])
-    #             .importe.sum()
-    #             .reset_index()
-    #         )
-    #         df_ejercicio.rename(columns={"importe": "en_curso"}, inplace=True)
-    #         df_curso = pd.concat([df_curso, df_ejercicio])
+        # Obras en curso
+        df_curso = pd.DataFrame()
+        for ejercicio in ejercicios:
+            df_ejercicio = df.copy()
+            df_ejercicio = df_ejercicio.loc[
+                df_ejercicio.ejercicio.astype(int) <= int(ejercicio)
+            ]
+            df_ejercicio["ejercicio"] = ejercicio
+            obras_curso = df_ejercicio.groupby(["obra"]).avance.max().to_frame()
+            obras_curso = obras_curso.loc[obras_curso.avance < 1].reset_index().obra
+            df_ejercicio = (
+                df_ejercicio.loc[df_ejercicio.obra.isin(obras_curso)]
+                .groupby(group_cols + ["ejercicio"])
+                .importe.sum()
+                .reset_index()
+            )
+            df_ejercicio.rename(columns={"importe": "en_curso"}, inplace=True)
+            df_curso = pd.concat([df_curso, df_ejercicio])
 
-    #     # Obras terminadas anterior
-    #     df_term_ant = pd.DataFrame()
-    #     for ejercicio in ejercicios:
-    #         df_ejercicio = df.copy()
-    #         df_ejercicio = df_ejercicio.loc[
-    #             df_ejercicio.ejercicio.astype(int) < int(ejercicio)
-    #         ]
-    #         df_ejercicio["ejercicio"] = ejercicio
-    #         obras_term_ant = df_ejercicio.groupby(["obra"]).avance.max().to_frame()
-    #         obras_term_ant = (
-    #             obras_term_ant.loc[obras_term_ant.avance == 1].reset_index().obra
-    #         )
-    #         df_ejercicio = (
-    #             df_ejercicio.loc[df_ejercicio.obra.isin(obras_term_ant)]
-    #             .groupby(group_cols + ["ejercicio"])
-    #             .importe.sum()
-    #             .reset_index()
-    #         )
-    #         df_ejercicio.rename(columns={"importe": "terminadas_ant"}, inplace=True)
-    #         df_term_ant = pd.concat([df_term_ant, df_ejercicio])
+        # Obras terminadas anterior
+        df_term_ant = pd.DataFrame()
+        for ejercicio in ejercicios:
+            df_ejercicio = df.copy()
+            df_ejercicio = df_ejercicio.loc[
+                df_ejercicio.ejercicio.astype(int) < int(ejercicio)
+            ]
+            df_ejercicio["ejercicio"] = ejercicio
+            obras_term_ant = df_ejercicio.groupby(["obra"]).avance.max().to_frame()
+            obras_term_ant = (
+                obras_term_ant.loc[obras_term_ant.avance == 1].reset_index().obra
+            )
+            df_ejercicio = (
+                df_ejercicio.loc[df_ejercicio.obra.isin(obras_term_ant)]
+                .groupby(group_cols + ["ejercicio"])
+                .importe.sum()
+                .reset_index()
+            )
+            df_ejercicio.rename(columns={"importe": "terminadas_ant"}, inplace=True)
+            df_term_ant = pd.concat([df_term_ant, df_ejercicio])
 
-    #     df = pd.merge(df_alta, df_acum, on=group_cols, how="left")
-    #     df = pd.merge(df, df_ejec_actual, on=group_cols + ["ejercicio"], how="left")
-    #     cols = df.columns.tolist()
-    #     penultima_col = cols.pop(-2)  # Elimina la penúltima columna y la guarda
-    #     cols.append(penultima_col)  # Agrega la penúltima columna al final
-    #     df = df[cols]  # Reordena las columnas
-    #     df = pd.merge(df, df_curso, on=group_cols + ["ejercicio"], how="left")
-    #     df = pd.merge(df, df_term_ant, on=group_cols + ["ejercicio"], how="left")
-    #     df = df.fillna(0)
-    #     df["terminadas_actual"] = df.acum - df.en_curso - df.terminadas_ant
-    #     df["actividad"] = df["actividad"] + "-" + df["partida"]
-    #     df = df.rename(columns={"actividad": "estructura"})
-    #     df = df.drop(columns=["partida"])
-    #     return df
+        df = pd.merge(df_alta, df_acum, on=group_cols, how="left")
+        df = pd.merge(df, df_ejec_actual, on=group_cols + ["ejercicio"], how="left")
+        cols = df.columns.tolist()
+        penultima_col = cols.pop(-2)  # Elimina la penúltima columna y la guarda
+        cols.append(penultima_col)  # Agrega la penúltima columna al final
+        df = df[cols]  # Reordena las columnas
+        df = pd.merge(df, df_curso, on=group_cols + ["ejercicio"], how="left")
+        df = pd.merge(df, df_term_ant, on=group_cols + ["ejercicio"], how="left")
+        df = df.fillna(0)
+        df["terminadas_actual"] = df.acum - df.en_curso - df.terminadas_ant
+        df["actividad"] = df["actividad"] + "-" + df["partida"]
+        df = df.rename(columns={"actividad": "estructura"})
+        df = df.drop(columns=["partida"])
+        return df
 
 
 ReporteFormulacionPresupuestoServiceDependency = Annotated[
