@@ -92,7 +92,6 @@ class PlanillometroHistMongoMigrator:
         )
         df = df.dropna(subset=["estructura"])
         df["acum_2008"] = df["acum_2008"].astype(float)
-        df = df.rename(columns={"actividad": "estructura_actividad"})
         df = df.loc[
             :,
             [
@@ -100,7 +99,7 @@ class PlanillometroHistMongoMigrator:
                 "desc_subprograma",
                 "desc_proyecto",
                 "desc_actividad",
-                "estructura_actividad",
+                "actividad",
                 "partida",
                 "estructura",
                 "alta",

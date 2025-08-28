@@ -24,7 +24,7 @@ class PlanillometroHistReport(BaseModel):
     desc_subprograma: Optional[str] = None
     desc_proyecto: Optional[str] = None
     desc_actividad: Optional[str] = None
-    estructura_actividad: Optional[str] = None
+    actividad: Optional[str] = None
     partida: Optional[str] = None
     estructura: Optional[str] = None
     alta: Optional[str] = None
