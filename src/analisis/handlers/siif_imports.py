@@ -5,6 +5,7 @@ __all__ = [
     "get_siif_ri102",
     "get_siif_rci02_unified_cta_cte",
     "get_siif_comprobantes_gtos_joined",
+    "get_planillometro_hist",
 ]
 
 import datetime as dt
@@ -15,6 +16,7 @@ from fastapi import HTTPException
 
 from ...config import logger
 from ...siif.repositories import (
+    PlanillometroHistRepository,
     Rcg01UejpRepository,
     Rci02Repository,
     Rf602Repository,
@@ -214,3 +216,20 @@ async def get_siif_rci02_unified_cta_cte(
     df.drop(["map_to", "siif_recursos_cta_cte", "_id"], axis="columns", inplace=True)
     # logger.info(f"df.shape: {df.shape} - df.head: {df.head()}")
     return df
+
+
+# --------------------------------------------------
+async def get_planillometro_hist(filters: dict = {}) -> pd.DataFrame:
+    """
+    Get the Planillometro Hist data from the repository.
+    """
+    try:
+        docs = await PlanillometroHistRepository().find_by_filter(filters=filters)
+        df = pd.DataFrame(docs)
+        return df
+    except Exception as e:
+        logger.error(f"Error retrieving Planillometro Historico from database: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="Error retrieving Planillometro Historico from the database",
+        )

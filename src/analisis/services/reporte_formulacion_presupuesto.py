@@ -61,6 +61,7 @@ from ..handlers import (
     get_icaro_estructuras_desc,
     get_icaro_obras,
     get_icaro_proveedores,
+    get_planillometro_hist,
     get_siif_desc_pres,
     get_siif_rf602,
 )
@@ -511,7 +512,9 @@ class ReporteFormulacionPresupuestoService:
         date_up_to: dt.date = None,
         include_pa6: bool = False,
     ):
-        df = await self.generate_icaro_carga_desc(ejercicio=ejercicio, es_desc_siif=es_desc_siif)
+        df = await self.generate_icaro_carga_desc(
+            ejercicio=ejercicio, es_desc_siif=es_desc_siif
+        )
         df.sort_values(["actividad", "partida", "fuente"], inplace=True)
 
         # Grupos de columnas
@@ -538,42 +541,52 @@ class ReporteFormulacionPresupuestoService:
             date_up_to = np.datetime64(date_up_to)
             df = df.loc[df["fecha"] <= date_up_to]
 
-        # # Agregamos ejecución acumulada de Patricia
-        # if agregar_acum_2008:
-        #     df_acum_2008 = self.import_acum_2008()
-        #     df_acum_2008["ejercicio"] = "2008"
-        #     df_acum_2008["avance"] = 1
-        #     df_acum_2008["desc_obra"] = df_acum_2008["desc_act"]
-        #     df_acum_2008 = df_acum_2008.rename(columns={"acum_2008": "importe"})
-        #     df["estructura"] = df["actividad"] + "-" + df["partida"]
-        #     df_dif = df_acum_2008.loc[
-        #         df_acum_2008["estructura"].isin(df["estructura"].unique().tolist())
-        #     ]
-        #     df_dif = df_dif.drop(
-        #         columns=["desc_prog", "desc_subprog", "desc_proy", "desc_act"]
-        #     )
-        #     if incluir_desc_subprog:
-        #         columns_to_merge = [
-        #             "estructura",
-        #             "desc_prog",
-        #             "desc_subprog",
-        #             "desc_proy",
-        #             "desc_act",
-        #         ]
-        #     else:
-        #         columns_to_merge = ["estructura", "desc_prog", "desc_proy", "desc_act"]
-        #     df_dif = pd.merge(
-        #         df_dif,
-        #         df.loc[:, columns_to_merge].drop_duplicates(),
-        #         on=["estructura"],
-        #         how="left",
-        #     )
-        #     df = df.drop(columns=["estructura"])
-        #     df_acum_2008 = df_acum_2008.loc[
-        #         ~df_acum_2008["estructura"].isin(df_dif["estructura"].unique().tolist())
-        #     ]
-        #     df_acum_2008 = pd.concat([df_acum_2008, df_dif])
-        #     df = pd.concat([df, df_acum_2008])
+        # Agregamos ejecución acumulada de Patricia
+        if agregar_acum_2008:
+            df_acum_2008 = await get_planillometro_hist()
+            df_acum_2008["ejercicio"] = "2008"
+            df_acum_2008["avance"] = 1
+            df_acum_2008["desc_obra"] = df_acum_2008["desc_actividad"]
+            df_acum_2008 = df_acum_2008.rename(columns={"acum_2008": "importe"})
+            df["estructura"] = df["actividad"] + "-" + df["partida"]
+            df_dif = df_acum_2008.loc[
+                df_acum_2008["estructura"].isin(df["estructura"].unique().tolist())
+            ]
+            df_dif = df_dif.drop(
+                columns=[
+                    "desc_programa",
+                    "desc_subprograma",
+                    "desc_proyecto",
+                    "desc_actividad",
+                ]
+            )
+            if incluir_desc_subprog:
+                columns_to_merge = [
+                    "estructura",
+                    "desc_programa",
+                    "desc_subprograma",
+                    "desc_proyecto",
+                    "desc_actividad",
+                ]
+            else:
+                columns_to_merge = [
+                    "estructura",
+                    "desc_programa",
+                    "desc_proyecto",
+                    "desc_actividad",
+                ]
+            df_dif = pd.merge(
+                df_dif,
+                df.loc[:, columns_to_merge].drop_duplicates(),
+                on=["estructura"],
+                how="left",
+            )
+            df = df.drop(columns=["estructura"])
+            df_acum_2008 = df_acum_2008.loc[
+                ~df_acum_2008["estructura"].isin(df_dif["estructura"].unique().tolist())
+            ]
+            df_acum_2008 = pd.concat([df_acum_2008, df_dif])
+            df = pd.concat([df, df_acum_2008])
 
         # Ejercicio alta
         df_alta = df.groupby(group_cols).ejercicio.min().reset_index()
@@ -626,7 +639,9 @@ class ReporteFormulacionPresupuestoService:
             ]
             df_ejercicio["ejercicio"] = ejercicio
             obras_curso = df_ejercicio.groupby(["desc_obra"]).avance.max().to_frame()
-            obras_curso = obras_curso.loc[obras_curso.avance < 1].reset_index().desc_obra
+            obras_curso = (
+                obras_curso.loc[obras_curso.avance < 1].reset_index().desc_obra
+            )
             df_ejercicio = (
                 df_ejercicio.loc[df_ejercicio.desc_obra.isin(obras_curso)]
                 .groupby(group_cols + ["ejercicio"])
