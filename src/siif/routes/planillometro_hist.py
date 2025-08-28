@@ -16,11 +16,13 @@ planillometro_hist_router = APIRouter(prefix="/planillometro_hist")
 
 # -------------------------------------------------
 @planillometro_hist_router.post("/sync_from_excel", response_model=RouteReturnSchema)
-async def sync_ctas_ctes_from_excel(
+async def sync_planillometro_hist_from_excel(
     service: PlanillometroHistServiceDependency,
     excel_path: str = Query(
-        default=os.path.join(get_siif_planillometro_hist_path(), "cta_cte.xlsx"),
-        description="Ruta al archivo Ctas Ctes EXCEL",
+        default=os.path.join(
+            get_siif_planillometro_hist_path(), "planillometro_hist.xlsx"
+        ),
+        description="Ruta al archivo Planillometro Historico EXCEL",
         alias="path",
     ),
 ):
@@ -44,5 +46,7 @@ async def get_ctas_ctes_from_db(
     summary="Descarga los registros de Planillometro Historico como archivo .xlsx",
     response_description="Archivo Excel con los registros solicitados",
 )
-async def export_ctas_ctes_from_db(service: PlanillometroHistServiceDependency):
+async def export_planillometro_hist_from_db(
+    service: PlanillometroHistServiceDependency,
+):
     return await service.export_planillometro_hist_from_db()
