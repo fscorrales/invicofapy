@@ -1,4 +1,5 @@
 from .common import *
+from .planillometro_hist import *
 from .rcg01_uejp import *
 from .rci02 import *
 from .rcocc31 import *

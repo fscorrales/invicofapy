@@ -1,5 +1,6 @@
 from .connect_siif import *
 from .join_comprobantes_gtos_gpo_part import *
+from .planillometro_hist import *
 from .rcg01_uejp import *
 from .rci02 import *
 from .rcocc31 import *

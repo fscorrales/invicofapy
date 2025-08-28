@@ -26,6 +26,7 @@ COLLECTIONS = [
     "siif_rdeu012",
     "siif_rcocc31",
     "siif_rvicon03",
+    "siif_planillometro_hist",
     "sgf_resumen_rend_prov",
     "icaro_programas",
     "icaro_subprogramas",

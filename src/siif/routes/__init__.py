@@ -2,6 +2,7 @@ __all__ = ["siif_router"]
 
 from fastapi import APIRouter
 
+from .planillometro_hist import planillometro_hist_router
 from .rcg01_uejp import rcg01_uejp_router
 from .rci02 import rci02_router
 from .rcocc31 import rcocc31_router
@@ -27,3 +28,4 @@ siif_router.include_router(rfondo07tp_router)
 siif_router.include_router(rfp_p605b_router)
 siif_router.include_router(rvicon03_router)
 siif_router.include_router(rcocc31_router)
+siif_router.include_router(planillometro_hist_router)

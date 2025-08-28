@@ -6,6 +6,8 @@ __all__ = [
     "get_download_sgf_path",
     "get_download_sscc_path",
     "get_sscc_cta_cte_path",
+    "get_download_siif_path",
+    "get_siif_planillometro_hist_path",
     "get_sqlite_path",
     "get_r_icaro_path",
     "get_slave_path",
@@ -48,13 +50,29 @@ def get_download_sgf_path():
 
 # --------------------------------------------------
 def get_download_sscc_path():
-    dir_path = os.path.join(get_download_path(), "Sistema de Seguimiento de Cuentas Corrientes")
+    dir_path = os.path.join(
+        get_download_path(), "Sistema de Seguimiento de Cuentas Corrientes"
+    )
     return dir_path
+
 
 # --------------------------------------------------
 def get_sscc_cta_cte_path():
     dir_path = os.path.join(get_download_sscc_path(), "cta_cte")
     return dir_path
+
+
+# --------------------------------------------------
+def get_download_siif_path():
+    dir_path = os.path.join(get_download_path(), "SIIF")
+    return dir_path
+
+
+# --------------------------------------------------
+def get_siif_planillometro_hist_path():
+    dir_path = os.path.join(get_download_sscc_path(), "Planillometro Historico")
+    return dir_path
+
 
 # --------------------------------------------------
 def get_sqlite_path():
@@ -88,6 +106,8 @@ def main():
     print(f"Download SGF Path: {get_download_sgf_path()}")
     print(f"Download SSCC Path: {get_download_sscc_path()}")
     print(f"SSCC Cta Cte Path: {get_sscc_cta_cte_path()}")
+    print(f"Download SIIF Path: {get_download_siif_path()}")
+    print(f"SIIF Planillometro Hist Path: {get_siif_planillometro_hist_path()}")
     print(f"DB Path: {get_sqlite_path()}")
     print(f"R Icaro Path: {get_r_icaro_path()}")
     print(f"Slave Path: {get_slave_path()}")
