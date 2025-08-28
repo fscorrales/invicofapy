@@ -544,7 +544,7 @@ class ReporteFormulacionPresupuestoService:
         # Agregamos ejecución acumulada de Patricia
         if agregar_acum_2008:
             df_acum_2008 = await get_planillometro_hist()
-            df_acum_2008["ejercicio"] = "2008"
+            df_acum_2008["ejercicio"] = 2008
             df_acum_2008["avance"] = 1
             df_acum_2008["desc_obra"] = df_acum_2008["desc_actividad"]
             df_acum_2008 = df_acum_2008.rename(columns={"acum_2008": "importe"})
