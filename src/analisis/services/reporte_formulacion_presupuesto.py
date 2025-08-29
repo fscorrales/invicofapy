@@ -64,6 +64,7 @@ from ..handlers import (
     get_planillometro_hist,
     get_siif_desc_pres,
     get_siif_rf602,
+    get_siif_ri102,
 )
 from ..repositories.reporte_formulacion_presupuesto import (
     ReporteFormulacionPresupuestoRepositoryDependency,
@@ -228,10 +229,18 @@ class ReporteFormulacionPresupuestoService:
         #     and not siif_pres_recursos_docs
         # ):
         #     raise HTTPException(status_code=404, detail="No se encontraron registros")
-
+        ejercicio_actual = dt.datetime.now().year
+        ultimos_ejercicios = list(range(ejercicio_actual - 3, ejercicio_actual + 1))
         return export_multiple_dataframes_to_excel(
             df_sheet_pairs=[
-                # (pd.DataFrame(siif_carga_form_gtos_docs), "siif_carga_form_gtos"),
+                (
+                    pd.DataFrame(
+                        get_siif_ri102(
+                            filters={"ejercicio": {"$in": ultimos_ejercicios}}
+                        )
+                    ),
+                    "siif_carga_form_gtos",
+                ),
                 # (pd.DataFrame(siif_pres_recursos_docs), "siif_recursos_cod"),
                 (
                     await self.generate_siif_pres_with_desc(ejercicio=params.ejercicio),
@@ -239,8 +248,7 @@ class ReporteFormulacionPresupuestoService:
                 ),
                 (
                     await self.generate_planillometro_contabilidad(
-                        ejercicio=params.ejercicio, 
-                        ultimos_ejercicios = 5
+                        ejercicio=params.ejercicio, ultimos_ejercicios=5
                     ),
                     "planillometro_contabilidad",
                 ),
@@ -307,64 +315,6 @@ class ReporteFormulacionPresupuestoService:
     #         error_title="Error retrieving Reporte de Presupuesto de Recursos SIIF (ri102) from the database",
     #     )
 
-    # # --------------------------------------------------
-    # async def import_siif_pres_with_icaro_desc(self, ejercicio: int = None):
-    #     df = await get_siif_rf602(
-    #         ejercicio=ejercicio,
-    #         filters={
-    #             "$and": [
-    #                 {"partida": {"$in": ["421", "422"]}},
-    #                 {"ordenado": {"$gt": 0}},
-    #             ]
-    #         },
-    #     )
-    #     df.drop(
-    #         labels=[
-    #             "org",
-    #             "pendiente",
-    #             "programa",
-    #             "subprograma",
-    #             "proyecto",
-    #             "actividad",
-    #             "grupo",
-    #         ],
-    #         axis=1,
-    #         inplace=True,
-    #     )
-    #     df["actividad"] = df["estructura"].str[0:11]
-    #     df.sort_values(
-    #         by=["ejercicio", "estructura"], ascending=[False, True], inplace=True
-    #     )
-    #     df = df.merge(
-    #         await get_icaro_estructuras_desc(), how="left", on="actividad", copy=False
-    #     )
-    #     df["estructura"] = df["actividad"]
-    #     df.drop(
-    #         labels=["ejercicio", "actividad", "subprograma_desc"], axis=1, inplace=True
-    #     )
-    #     # df.rename(
-    #     #     columns={
-    #     #         "desc_prog": "prog_con_desc",
-    #     #         "desc_proy": "proy_con_desc",
-    #     #         "desc_act": "act_con_desc",
-    #     #     },
-    #     #     inplace=True,
-    #     # )
-
-    #     first_cols = [
-    #         "estructura",
-    #         "partida",
-    #         "fuente",
-    #         "desc_programa",
-    #         "desc_proyecto",
-    #         "desc_actividad",
-    #     ]
-    #     df = df.loc[:, first_cols].join(df.drop(first_cols, axis=1))
-
-    #     df = pd.DataFrame(df)
-    #     df.reset_index(drop=True, inplace=True)
-    #     return df
-
     # --------------------------------------------------
     async def generate_icaro_carga_desc(
         self,
@@ -411,100 +361,6 @@ class ReporteFormulacionPresupuestoService:
         prov.rename(columns={"desc_proveedor": "proveedor"}, inplace=True)
         df = df.merge(prov, how="left", on="cuit", copy=False)
         return df
-
-    # # --------------------------------------------------
-    # def reporte_siif_ejec_obras_actual(self):
-    #     df = self.import_siif_obras_desc()
-    #     df = df.loc[df.ejercicio == self.ejercicio]
-    #     df.drop(labels=["ejercicio"], axis=1, inplace=True)
-    #     df.reset_index(drop=True, inplace=True)
-    #     return df
-
-    # # --------------------------------------------------
-    # def reporte_planillometro(
-    #     self,
-    #     full_icaro: bool = False,
-    #     es_desc_siif: bool = True,
-    #     desagregar_partida: bool = True,
-    #     desagregar_fuente: bool = True,
-    #     ultimos_ejercicios: str = "All",
-    # ):
-    #     df = self.import_icaro_carga_desc(es_desc_siif=es_desc_siif)
-    #     df.sort_values(["actividad", "partida", "fuente"], inplace=True)
-    #     group_cols = ["desc_prog", "desc_proy", "desc_act", "actividad"]
-    #     if full_icaro:
-    #         group_cols = group_cols + ["obra"]
-    #     if desagregar_partida:
-    #         group_cols = group_cols + ["partida"]
-    #     if desagregar_fuente:
-    #         group_cols = group_cols + ["fuente"]
-    #     # Ejercicio alta
-    #     df_alta = df.groupby(group_cols).ejercicio.min().reset_index()
-    #     df_alta.rename(columns={"ejercicio": "alta"}, inplace=True)
-    #     # Ejecucion Acumulada
-    #     df_acum = df.groupby(group_cols).importe.sum().reset_index()
-    #     df_acum.rename(columns={"importe": "acum"}, inplace=True)
-    #     # Obras en curso
-    #     obras_curso = df.groupby(["obra"]).avance.max().to_frame()
-    #     obras_curso = obras_curso.loc[obras_curso.avance < 1].reset_index().obra
-    #     df_curso = (
-    #         df.loc[df.obra.isin(obras_curso)]
-    #         .groupby(group_cols)
-    #         .importe.sum()
-    #         .reset_index()
-    #     )
-    #     df_curso.rename(columns={"importe": "en_curso"}, inplace=True)
-    #     # Obras terminadas anterior
-    #     df_prev = df.loc[df.ejercicio.astype(int) < int(self.ejercicio)]
-    #     obras_term_ant = df_prev.loc[df_prev.avance == 1].obra
-    #     df_term_ant = (
-    #         df_prev.loc[df_prev.obra.isin(obras_term_ant)]
-    #         .groupby(group_cols)
-    #         .importe.sum()
-    #         .reset_index()
-    #     )
-    #     df_term_ant.rename(columns={"importe": "terminadas_ant"}, inplace=True)
-    #     # Pivoteamos en funcion del ejercicio
-    #     df_anos = df.loc[:, group_cols + ["ejercicio", "importe"]]
-    #     if ultimos_ejercicios != "All":
-    #         ejercicios = int(ultimos_ejercicios)
-    #         ejercicios = df_anos.sort_values(
-    #             "ejercicio", ascending=False
-    #         ).ejercicio.unique()[0:ejercicios]
-    #         df_anos = df_anos.loc[df_anos.ejercicio.isin(ejercicios)]
-    #     df_anos = df_anos.pivot_table(
-    #         index=group_cols,
-    #         columns="ejercicio",
-    #         values="importe",
-    #         aggfunc="sum",
-    #         fill_value=0,
-    #     ).reset_index()
-    #     # df_anos = df_anos >>\
-    #     #     tidyr.pivot_wider(
-    #     #         names_from= f.ejercicio,
-    #     #         values_from = f.importe,
-    #     #         values_fn = base.sum,
-    #     #         values_fill = 0
-    #     #     )
-
-    #     # Agrupamos todo
-    #     df = pd.merge(df_alta, df_anos, how="left", on=group_cols)
-    #     df = pd.merge(df, df_acum, how="left", on=group_cols)
-    #     df = pd.merge(df, df_curso, how="left", on=group_cols)
-    #     df = pd.merge(df, df_term_ant, how="left", on=group_cols)
-    #     df.fillna(0, inplace=True)
-    #     df["terminadas_actual"] = df.acum - df.en_curso - df.terminadas_ant
-    #     # df = df_alta >>\
-    #     #     dplyr.left_join(df_anos) >>\
-    #     #     dplyr.left_join(df_acum) >>\
-    #     #     dplyr.left_join(df_curso) >>\
-    #     #     dplyr.left_join(df_term_ant) >>\
-    #     #     tidyr.replace_na(0) >>\
-    #     #     dplyr.mutate(
-    #     #         terminadas_actual = f.acum - f.en_curso - f.terminadas_ant)
-    #     df = pd.DataFrame(df)
-    #     df.reset_index(drop=True, inplace=True)
-    #     return df
 
     # --------------------------------------------------
     async def generate_planillometro_contabilidad(
