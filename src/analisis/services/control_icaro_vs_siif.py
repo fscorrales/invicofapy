@@ -224,7 +224,7 @@ class ControlIcaroVsSIIFService:
     ) -> StreamingResponse:
         try:
             ejercicio_actual = dt.datetime.now().year
-            ultimos_ejercicios = list(range(ejercicio_actual-3, ejercicio_actual+1))
+            ultimos_ejercicios = list(range(ejercicio_actual-2, ejercicio_actual+1))
             # 1️⃣ Obtenemos los documentos
             control_anual_docs = await self.control_anual_repo.find_by_filter(
                 {"ejercicio": {"$in": ultimos_ejercicios}}

@@ -134,13 +134,12 @@ class ReporteFormulacionPresupuestoService:
                 )
                 return_schema.append(partial_schema)
 
-                # # 🔹 Ri102
-                # self.siif_ri102_handler = Ri102(siif=connect_siif)
-                # await self.siif_ri102_handler.go_to_reports()
-                # partial_schema = await self.siif_ri102_handler.download_and_sync_validated_to_repository(
-                #     ejercicio=int(params.ejercicio)
-                # )
-                # return_schema.append(partial_schema)
+                # 🔹 Ri102
+                self.siif_ri102_handler = Ri102(siif=connect_siif)
+                partial_schema = await self.siif_ri102_handler.download_and_sync_validated_to_repository(
+                    ejercicio=int(params.ejercicio)
+                )
+                return_schema.append(partial_schema)
 
                 # # 🔹 Rfp_p605b
                 # self.siif_rfp_p605b_handler = RfpP605b(siif=connect_siif)
@@ -235,11 +234,11 @@ class ReporteFormulacionPresupuestoService:
             df_sheet_pairs=[
                 (
                     pd.DataFrame(
-                        get_siif_ri102(
+                        await get_siif_ri102(
                             filters={"ejercicio": {"$in": ultimos_ejercicios}}
                         )
                     ),
-                    "siif_carga_form_gtos",
+                    "siif_recursos_cod",
                 ),
                 # (pd.DataFrame(siif_pres_recursos_docs), "siif_recursos_cod"),
                 (
