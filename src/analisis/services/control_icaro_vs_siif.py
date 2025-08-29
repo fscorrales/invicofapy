@@ -16,6 +16,7 @@ Data required:
 __all__ = ["ControlIcaroVsSIIFService", "ControlIcaroVsSIIFServiceDependency"]
 
 import os
+import datetime as dt
 from dataclasses import dataclass, field
 from io import BytesIO
 from typing import Annotated, List
@@ -222,10 +223,18 @@ class ControlIcaroVsSIIFService:
         self, upload_to_google_sheets: bool = True
     ) -> StreamingResponse:
         try:
+            ejercicio_actual = dt.datetime.now().year
+            ultimos_ejercicios = list(range(ejercicio_actual-3, ejercicio_actual+1))
             # 1️⃣ Obtenemos los documentos
-            control_anual_docs = await self.control_anual_repo.get_all()
-            control_comprobantes_docs = await self.control_comprobantes_repo.get_all()
-            control_pa6_repo = await self.control_pa6_repo.get_all()
+            control_anual_docs = await self.control_anual_repo.find_by_filter(
+                {"ejercicio": {"$in": ultimos_ejercicios}}
+            )
+            control_comprobantes_docs = await self.control_comprobantes_repo.find_by_filter(
+                {"ejercicio": {"$in": ultimos_ejercicios}}
+            )
+            control_pa6_repo = await self.control_pa6_repo.find_by_filter(
+                {"ejercicio": {"$in": ultimos_ejercicios}}
+            )
 
             if (
                 not control_anual_docs
