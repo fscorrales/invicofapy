@@ -130,9 +130,9 @@ class PlanillometroHistMongoMigrator:
                 repository=PlanillometroHistRepository(),
                 validation=validate_and_errors,
                 delete_filter=None,
-                title="Sync Cuentas Corrientes from Excel",
+                title="Sync Planillometro Historico from Excel",
                 logger=logger,
-                label="Sync Cuentas Corrientes from Excel",
+                label="Sync Planillometro Historico from Excel",
             )
         except Exception as e:
             print(f"Error migrar y sincronizar el reporte: {e}")

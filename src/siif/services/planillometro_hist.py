@@ -44,8 +44,8 @@ class PlanillometroHistService:
 
         return_schema = RouteReturnSchema()
         try:
-            ctas_ctes = PlanillometroHistMongoMigrator(excel_path=excel_path)
-            return_schema = await ctas_ctes.sync_validated_excel_to_repository()
+            planillometro_hist = PlanillometroHistMongoMigrator(excel_path=excel_path)
+            return_schema = await planillometro_hist.sync_validated_excel_to_repository()
         except ValidationError as e:
             logger.error(f"Validation Error: {e}")
             raise HTTPException(status_code=400, detail="Invalid response format")
