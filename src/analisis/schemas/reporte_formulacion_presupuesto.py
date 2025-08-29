@@ -1,17 +1,19 @@
 __all__ = [
     "ReporteFormulacionPresupuestoParams",
+    "ReporteFormulacionPresupuestoSyncParams",
     "ReporteFormulacionPresupuestoReport",
     "ReporteFormulacionPresupuestoDocument",
     "ReporteFormulacionPresupuestoFilter",
 ]
 
+import os
 from datetime import date
 from typing import Optional
 
 from pydantic import BaseModel, Field, field_validator
 from pydantic_mongo import PydanticObjectId
 
-from ...utils import BaseFilterParams
+from ...utils import BaseFilterParams, get_siif_planillometro_hist_path
 
 
 # --------------------------------------------------
@@ -28,6 +30,16 @@ class ReporteFormulacionPresupuestoParams(BaseModel):
 
     def __int__(self):
         return self.ejercicio
+
+
+# --------------------------------------------------
+class ReporteFormulacionPresupuestoSyncParams(ReporteFormulacionPresupuestoParams):
+    siif_username: Optional[str] = None
+    siif_password: Optional[str] = None
+    planillometro_hist_excel_path: Optional[str] = Field(
+        default=os.path.join(get_siif_planillometro_hist_path(), "planillometro_hist.xlsx"),
+        description="Ruta al archivo Planillometro Histórico EXCEL",
+    )
 
 
 # -------------------------------------------------

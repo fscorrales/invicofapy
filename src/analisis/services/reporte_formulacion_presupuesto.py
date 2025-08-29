@@ -45,6 +45,7 @@ from ...siif.handlers import (
     logout,
 )
 from ...siif.repositories import RfpP605bRepositoryDependency, Ri102RepositoryDependency
+from ...siif.services import PlanillometroHistServiceDependency
 from ...utils import (
     BaseFilterParams,
     GoogleSheets,
@@ -59,7 +60,6 @@ from ...utils import (
 from ..handlers import (
     get_icaro_carga,
     get_icaro_estructuras_desc,
-    get_icaro_obras,
     get_icaro_proveedores,
     get_planillometro_hist,
     get_siif_desc_pres,
@@ -72,6 +72,7 @@ from ..schemas.reporte_formulacion_presupuesto import (
     ReporteFormulacionPresupuestoDocument,
     ReporteFormulacionPresupuestoParams,
     ReporteFormulacionPresupuestoReport,
+    ReporteFormulacionPresupuestoSyncParams,
 )
 
 
@@ -81,6 +82,7 @@ class ReporteFormulacionPresupuestoService:
     # siif_pres_with_desc_repo: ReporteSIIFPresWithDescRepositoryDependency
     # siif_pres_recursos_repo: Ri102RepositoryDependency
     # siif_carga_form_gtos_repo: RfpP605bRepositoryDependency
+    planillometro_hist_service: PlanillometroHistServiceDependency
     siif_rf602_handler: Rf602 = field(init=False)  # No se pasa como argumento
     siif_rf610_handler: Rf610 = field(init=False)  # No se pasa como argumento
     siif_ri102_handler: Ri102 = field(init=False)  # No se pasa como argumento
@@ -91,7 +93,7 @@ class ReporteFormulacionPresupuestoService:
         self,
         username: str,
         password: str,
-        params: ReporteFormulacionPresupuestoParams = None,
+        params: ReporteFormulacionPresupuestoSyncParams = None,
     ) -> List[RouteReturnSchema]:
         """Downloads a report from SIIF, processes it, validates the data,
         and stores it in MongoDB if valid.
@@ -118,6 +120,7 @@ class ReporteFormulacionPresupuestoService:
             try:
                 # 🔹 RF610
                 self.siif_rf610_handler = Rf610(siif=connect_siif)
+                await self.siif_rf610_handler.go_to_reports()
                 partial_schema = await self.siif_rf610_handler.download_and_sync_validated_to_repository(
                     ejercicio=int(params.ejercicio)
                 )
@@ -125,7 +128,6 @@ class ReporteFormulacionPresupuestoService:
 
                 # 🔹 RF602
                 self.siif_rf602_handler = Rf602(siif=connect_siif)
-                await self.siif_rf602_handler.go_to_reports()
                 partial_schema = await self.siif_rf602_handler.download_and_sync_validated_to_repository(
                     ejercicio=int(params.ejercicio)
                 )
@@ -147,15 +149,18 @@ class ReporteFormulacionPresupuestoService:
                 # )
                 # return_schema.append(partial_schema)
 
-                # # 🔹 Icaro
-                # path = os.path.join(get_r_icaro_path(), "ICARO.sqlite")
-                # migrator = IcaroMongoMigrator(sqlite_path=path)
-                # return_schema.append(await migrator.migrate_carga())
-                # return_schema.append(await migrator.migrate_estructuras())
-                # return_schema.append(await migrator.migrate_proveedores())
-                # return_schema.append(await migrator.migrate_obras())
+                # 🔹 Icaro
+                path = os.path.join(get_r_icaro_path(), "ICARO.sqlite")
+                migrator = IcaroMongoMigrator(sqlite_path=path)
+                return_schema.append(await migrator.migrate_carga())
+                return_schema.append(await migrator.migrate_estructuras())
+                return_schema.append(await migrator.migrate_proveedores())
 
-                # import_acum_2008 (PATRICIA)
+                # 🔹 Planillometro Histórico (PATRICIA)
+                partial_schema = await self.planillometro_hist_service.sync_planillometro_hist_from_excel(
+                    excel_path=params.planillometro_hist_excel_path,
+                )
+                return_schema.append(partial_schema)
 
             except ValidationError as e:
                 logger.error(f"Validation Error: {e}")
@@ -234,7 +239,8 @@ class ReporteFormulacionPresupuestoService:
                 ),
                 (
                     await self.generate_planillometro_contabilidad(
-                        ejercicio=params.ejercicio
+                        ejercicio=params.ejercicio, 
+                        ultimos_ejercicios = 5
                     ),
                     "planillometro_contabilidad",
                 ),
@@ -685,6 +691,7 @@ class ReporteFormulacionPresupuestoService:
         df["actividad"] = df["actividad"] + "-" + df["partida"]
         df = df.rename(columns={"actividad": "estructura"})
         df = df.drop(columns=["partida"])
+
         return df
 
 

@@ -7,6 +7,7 @@ from ...config import settings
 from ...utils import RouteReturnSchema
 from ..schemas.reporte_formulacion_presupuesto import (
     ReporteFormulacionPresupuestoParams,
+    ReporteFormulacionPresupuestoSyncParams,
 )
 from ..services.reporte_formulacion_presupuesto import (
     ReporteFormulacionPresupuestoServiceDependency,
@@ -22,9 +23,7 @@ reporte_formulacion_presupuesto_router = APIRouter(prefix="/formulacion_presupue
 async def sync_formulacion_presupuesto_from_source(
     auth: OptionalAuthorizationDependency,
     service: ReporteFormulacionPresupuestoServiceDependency,
-    params: Annotated[ReporteFormulacionPresupuestoParams, Depends()],
-    username: str = None,
-    password: str = None,
+    params: Annotated[ReporteFormulacionPresupuestoSyncParams, Depends()],
 ):
     if auth.is_admin:
         username = settings.SIIF_USERNAME
