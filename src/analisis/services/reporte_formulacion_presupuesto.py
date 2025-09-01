@@ -232,6 +232,7 @@ class ReporteFormulacionPresupuestoService:
         ultimos_ejercicios = list(range(ejercicio_actual - 3, ejercicio_actual + 1))
         return export_multiple_dataframes_to_excel(
             df_sheet_pairs=[
+                # (pd.DataFrame(siif_pres_recursos_docs), "siif_recursos_cod"),
                 (
                     pd.DataFrame(
                         await get_siif_ri102(
@@ -240,7 +241,6 @@ class ReporteFormulacionPresupuestoService:
                     ),
                     "siif_recursos_cod",
                 ),
-                # (pd.DataFrame(siif_pres_recursos_docs), "siif_recursos_cod"),
                 (
                     await self.generate_siif_pres_with_desc(ejercicio=params.ejercicio),
                     "siif_ejec_gastos",
