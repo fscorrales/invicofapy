@@ -259,7 +259,8 @@ class ReporteFormulacionPresupuestoService:
 
     # --------------------------------------------------
     async def generate_siif_pres_with_desc(self, ejercicio: int) -> pd.DataFrame:
-        df = await get_siif_rf602(ejercicio=ejercicio)
+        ultimos_ejercicios = list(range(ejercicio - 3, ejercicio + 1))
+        df = await get_siif_rf602(filters={"ejercicio": {"$in": ultimos_ejercicios}})
         df = df.sort_values(by=["ejercicio", "estructura"], ascending=[False, True])
         df = df.merge(
             await get_siif_desc_pres(ejercicio_to=ejercicio),

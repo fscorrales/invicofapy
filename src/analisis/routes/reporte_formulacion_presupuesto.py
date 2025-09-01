@@ -26,11 +26,11 @@ async def sync_formulacion_presupuesto_from_source(
     params: Annotated[ReporteFormulacionPresupuestoSyncParams, Depends()],
 ):
     if auth.is_admin:
-        username = settings.SIIF_USERNAME
-        password = settings.SIIF_PASSWORD
+        params.siif_username = settings.SIIF_USERNAME
+        params.siif_password = settings.SIIF_PASSWORD
 
     return await service.sync_formulacion_presupuesto_from_source(
-        username=username, password=password, params=params
+        username=params.siif_username, password=params.siif_password, params=params
     )
 
 
