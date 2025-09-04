@@ -24,7 +24,6 @@ __all__ = [
 import datetime as dt
 import os
 from dataclasses import dataclass, field
-from io import BytesIO
 from typing import Annotated, List
 
 import numpy as np
@@ -44,18 +43,11 @@ from ...siif.handlers import (
     login,
     logout,
 )
-from ...siif.repositories import RfpP605bRepositoryDependency, Ri102RepositoryDependency
 from ...siif.services import PlanillometroHistServiceDependency
 from ...utils import (
-    BaseFilterParams,
-    GoogleSheets,
     RouteReturnSchema,
-    export_dataframe_as_excel_response,
     export_multiple_dataframes_to_excel,
     get_r_icaro_path,
-    sanitize_dataframe_for_json,
-    sync_validated_to_repository,
-    validate_and_extract_data_from_df,
 )
 from ..handlers import (
     get_icaro_carga,
@@ -64,15 +56,11 @@ from ..handlers import (
     get_planillometro_hist,
     get_siif_desc_pres,
     get_siif_rf602,
+    get_siif_rfp_p605b,
     get_siif_ri102,
 )
-from ..repositories.reporte_formulacion_presupuesto import (
-    ReporteFormulacionPresupuestoRepositoryDependency,
-)
 from ..schemas.reporte_formulacion_presupuesto import (
-    ReporteFormulacionPresupuestoDocument,
     ReporteFormulacionPresupuestoParams,
-    ReporteFormulacionPresupuestoReport,
     ReporteFormulacionPresupuestoSyncParams,
 )
 
@@ -80,9 +68,6 @@ from ..schemas.reporte_formulacion_presupuesto import (
 # --------------------------------------------------
 @dataclass
 class ReporteFormulacionPresupuestoService:
-    # siif_pres_with_desc_repo: ReporteSIIFPresWithDescRepositoryDependency
-    # siif_pres_recursos_repo: Ri102RepositoryDependency
-    # siif_carga_form_gtos_repo: RfpP605bRepositoryDependency
     planillometro_hist_service: PlanillometroHistServiceDependency
     siif_rf602_handler: Rf602 = field(init=False)  # No se pasa como argumento
     siif_rf610_handler: Rf610 = field(init=False)  # No se pasa como argumento
@@ -141,13 +126,12 @@ class ReporteFormulacionPresupuestoService:
                 )
                 return_schema.append(partial_schema)
 
-                # # 🔹 Rfp_p605b
-                # self.siif_rfp_p605b_handler = RfpP605b(siif=connect_siif)
-                # await self.siif_rfp_p605b_handler.go_to_reports()
-                # partial_schema = await self.siif_rfp_p605b_handler.download_and_sync_validated_to_repository(
-                #     ejercicio=int(params.ejercicio) + 1
-                # )
-                # return_schema.append(partial_schema)
+                # 🔹 Rfp_p605b
+                self.siif_rfp_p605b_handler = RfpP605b(siif=connect_siif)
+                partial_schema = await self.siif_rfp_p605b_handler.download_and_sync_validated_to_repository(
+                    ejercicio=int(params.ejercicio) + 1
+                )
+                return_schema.append(partial_schema)
 
                 # 🔹 Icaro
                 path = os.path.join(get_r_icaro_path(), "ICARO.sqlite")
@@ -229,10 +213,9 @@ class ReporteFormulacionPresupuestoService:
         # ):
         #     raise HTTPException(status_code=404, detail="No se encontraron registros")
         ejercicio_actual = dt.datetime.now().year
-        ultimos_ejercicios = list(range(ejercicio_actual - 3, ejercicio_actual + 1))
+        ultimos_ejercicios = list(range(ejercicio_actual - 2, ejercicio_actual + 2))
         return export_multiple_dataframes_to_excel(
             df_sheet_pairs=[
-                # (pd.DataFrame(siif_pres_recursos_docs), "siif_recursos_cod"),
                 (
                     pd.DataFrame(
                         await get_siif_ri102(
@@ -250,6 +233,14 @@ class ReporteFormulacionPresupuestoService:
                         ejercicio=params.ejercicio, ultimos_ejercicios=5
                     ),
                     "planillometro_contabilidad",
+                ),
+                (
+                    pd.DataFrame(
+                        await get_siif_rfp_p605b(
+                            filters={"ejercicio": {"$in": ultimos_ejercicios}}
+                        )
+                    ),
+                    "siif_carga_form_gastos",
                 ),
             ],
             filename="reportes_formulacion_presupuesto.xlsx",

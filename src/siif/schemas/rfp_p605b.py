@@ -29,7 +29,7 @@ class RfpP605bParams(BaseModel):
     @field_validator("ejercicio_from", "ejercicio_to")
     @classmethod
     def validate_ejercicio_range(cls, v: int) -> int:
-        current_year = date.today().year
+        current_year = date.today().year + 1
         if not (2010 <= v <= current_year):
             raise ValueError(f"El ejercicio debe estar entre 2010 y {current_year}")
         return v

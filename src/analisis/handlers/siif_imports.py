@@ -6,6 +6,7 @@ __all__ = [
     "get_siif_rci02_unified_cta_cte",
     "get_siif_comprobantes_gtos_joined",
     "get_planillometro_hist",
+    "get_siif_rfp_p605b",
 ]
 
 import datetime as dt
@@ -22,6 +23,7 @@ from ...siif.repositories import (
     Rf602Repository,
     Rf610Repository,
     Rfondo07tpRepository,
+    RfpP605bRepository,
     Ri102Repository,
     Rpa03gRepository,
 )
@@ -233,3 +235,15 @@ async def get_planillometro_hist(filters: dict = {}) -> pd.DataFrame:
             status_code=500,
             detail="Error retrieving Planillometro Historico from the database",
         )
+
+
+# --------------------------------------------------
+async def get_siif_rfp_p605b(ejercicio: int = None, filters: dict = {}) -> pd.DataFrame:
+    """
+    Get the rfp_p605b data from the repository.
+    """
+    if ejercicio is not None:
+        filters["ejercicio"] = ejercicio
+    docs = await RfpP605bRepository().safe_find_by_filter(filters=filters)
+    df = pd.DataFrame(docs)
+    return df
