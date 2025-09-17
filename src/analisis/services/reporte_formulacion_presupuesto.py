@@ -162,56 +162,13 @@ class ReporteFormulacionPresupuestoService:
                     logger.warning(f"Logout falló o browser ya cerrado: {e}")
                 return return_schema
 
-    # # -------------------------------------------------
-    # async def generate_all(
-    #     self, params: ControlCompletoParams
-    # ) -> List[RouteReturnSchema]:
-    #     """
-    #     Compute all controls for the given params.
-    #     """
-    #     return_schema = []
-    #     try:
-    #         # 🔹 SIIF Presupuesto con Descripción
-    #         partial_schema = await self.generate_siif_pres_with_desc(params=params)
-    #         return_schema.append(partial_schema)
-
-    #         # 🔹 SIIF Comprobantes Recursos
-    #         partial_schema = await self.generate_siif_pres_recursos()
-    #         return_schema.append(partial_schema)
-
-    #     except ValidationError as e:
-    #         logger.error(f"Validation Error: {e}")
-    #         raise HTTPException(
-    #             status_code=400,
-    #             detail="Invalid response format from Icaro vs SIIF",
-    #         )
-    #     except Exception as e:
-    #         logger.error(f"Error in compute_all: {e}")
-    #         raise HTTPException(
-    #             status_code=500,
-    #             detail="Error in compute_all",
-    #         )
-    #     finally:
-    #         return return_schema
-
     # -------------------------------------------------
     async def export_all_from_db(
         self,
         upload_to_google_sheets: bool = True,
         params: ReporteFormulacionPresupuestoParams = None,
     ) -> StreamingResponse:
-        # ejecucion_obras.reporte_planillometro_contabilidad (planillometro_contabilidad)
 
-        # siif_pres_with_desc_docs = await self.siif_pres_with_desc_repo.get_all()
-        # siif_carga_form_gtos_docs = await self.siif_carga_form_gtos_repo.get_all()
-        # siif_pres_recursos_docs = await self.siif_pres_recursos_repo.get_all()
-
-        # if (
-        #     not siif_pres_with_desc_docs
-        #     and not siif_carga_form_gtos_docs
-        #     and not siif_pres_recursos_docs
-        # ):
-        #     raise HTTPException(status_code=404, detail="No se encontraron registros")
         ejercicio_actual = dt.datetime.now().year
         ultimos_ejercicios = list(range(ejercicio_actual - 2, ejercicio_actual + 2))
         return export_multiple_dataframes_to_excel(
@@ -230,7 +187,7 @@ class ReporteFormulacionPresupuestoService:
                 ),
                 (
                     await self.generate_planillometro_contabilidad(
-                        ejercicio=params.ejercicio, ultimos_ejercicios=5
+                        ejercicio=params.ejercicio, ultimos_ejercicios=5, include_pa6=True
                     ),
                     "planillometro_contabilidad",
                 ),
@@ -290,21 +247,6 @@ class ReporteFormulacionPresupuestoService:
         df = pd.DataFrame(df)
         df.reset_index(drop=True, inplace=True)
         return df
-
-    # # --------------------------------------------------
-    # async def generate_siif_pres_recursos(self) -> RouteReturnSchema:
-    #     return RouteReturnSchema(
-    #         title="Reporte de Comprobantes de Recursos SIIF (ri102)"
-    #     )
-
-    # # -------------------------------------------------
-    # async def get_siif_pres_recursos_from_db(
-    #     self, params: BaseFilterParams
-    # ) -> List[ReporteSIIFPresWithDescDocument]:
-    #     return await self.siif_pres_recursos_repo.safe_find_with_filter_params(
-    #         params=params,
-    #         error_title="Error retrieving Reporte de Presupuesto de Recursos SIIF (ri102) from the database",
-    #     )
 
     # --------------------------------------------------
     async def generate_icaro_carga_desc(
@@ -383,9 +325,10 @@ class ReporteFormulacionPresupuestoService:
 
         # Incluimos PA6 (ultimo ejercicio)
         if include_pa6:
-            df = df.loc[df.ejercicio.astype(int) < int(self.ejercicio)]
+            df = df.loc[df.ejercicio.astype(int) < int(ejercicio)]
             df_last = await self.generate_icaro_carga_desc(
-                es_desc_siif=es_desc_siif, ejercicio_to=False, neto_pa6=False
+                ejercicio=ejercicio, es_desc_siif=es_desc_siif, 
+                es_ejercicio_to=False,  es_neto_pa6=False
             )
             df = pd.concat([df, df_last], axis=0)
 
@@ -540,6 +483,27 @@ class ReporteFormulacionPresupuestoService:
         df = df.drop(columns=["partida"])
 
         return df
+
+   # -------------------------------------------------
+    async def export_planillometro_contabilidad(
+        self,
+        upload_to_google_sheets: bool = True,
+        params: ReporteFormulacionPresupuestoParams = None,
+    ) -> StreamingResponse:
+
+        return export_multiple_dataframes_to_excel(
+            df_sheet_pairs=[
+                (
+                    await self.generate_planillometro_contabilidad(
+                        ejercicio=params.ejercicio, ultimos_ejercicios=5, include_pa6=True
+                    ),
+                    "planillometro_contabilidad",
+                ),
+            ],
+            filename="planillometro_contabilidad_formulacion_presupuesto.xlsx",
+            spreadsheet_key="1hJyBOkA8sj5otGjYGVOzYViqSpmv_b4L8dXNju_GJ5Q",
+            upload_to_google_sheets=upload_to_google_sheets,
+        )
 
 
 ReporteFormulacionPresupuestoServiceDependency = Annotated[
