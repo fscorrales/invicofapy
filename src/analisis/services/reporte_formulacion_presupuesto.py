@@ -229,6 +229,7 @@ class ReporteFormulacionPresupuestoService:
         )
 
         df["programa"] = df["programa"].astype(int)
+        df["fuente"] = df["fuente"].astype(int)
 
         first_cols = [
             "ejercicio",
