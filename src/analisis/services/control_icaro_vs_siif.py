@@ -323,8 +323,8 @@ class ControlIcaroVsSIIFService:
             )
 
     # --------------------------------------------------
-    async def get_siif_comprobantes(self):
-        df = await get_siif_comprobantes_gtos_joined()
+    async def get_siif_comprobantes(self, ejercicio: int=None) -> pd.DataFrame:
+        df = await get_siif_comprobantes_gtos_joined(ejercicio=ejercicio)
         df = df.loc[
             (df["partida"].isin(["421", "422"]))
             | (
@@ -362,7 +362,7 @@ class ControlIcaroVsSIIFService:
             df = pd.merge(siif, icaro, how="outer", on=group_by, copy=False)
             df = df.fillna(0)
             df["diferencia"] = df["ejecucion_siif"] - df["ejecucion_icaro"]
-            logger.info(df.head())
+            # logger.info(df.head())
             df = df.merge(
                 await get_siif_desc_pres(ejercicio_to=params.ejercicio),
                 how="left",
@@ -373,7 +373,7 @@ class ControlIcaroVsSIIFService:
             df = df.reset_index(drop=True)
             df["fuente"] = pd.to_numeric(df["fuente"], errors="coerce")
             df["ejercicio"] = pd.to_numeric(df["ejercicio"], errors="coerce")
-            logger.info(df.head())
+            # logger.info(df.head())
             # 🔹 Validar datos usando Pydantic
             validate_and_errors = validate_and_extract_data_from_df(
                 dataframe=df, model=ControlAnualReport, field_id="estructura"
@@ -485,7 +485,8 @@ class ControlIcaroVsSIIFService:
                 "cuit",
                 "partida",
             ]
-            siif = await self.get_siif_comprobantes()
+            siif = await self.get_siif_comprobantes(ejercicio=params.ejercicio)
+            logger.info(f"siif_gtos.shape: {siif.shape} - siif_gtos.head: {siif.head()}")
             siif.loc[
                 (siif.clase_reg == "REG") & (siif.nro_fondo.isnull()), "clase_reg"
             ] = "CYO"
@@ -634,7 +635,7 @@ class ControlIcaroVsSIIFService:
                 "cuit",
             ]
 
-            siif_gtos = await self.get_siif_comprobantes()
+            siif_gtos = await self.get_siif_comprobantes(ejercicio=params.ejercicio)
             siif_gtos = siif_gtos.loc[siif_gtos["clase_reg"] == "REG"]
             siif_gtos = siif_gtos.loc[:, select + ["nro_fondo", "clase_reg"]]
             siif_gtos["nro_fondo"] = (

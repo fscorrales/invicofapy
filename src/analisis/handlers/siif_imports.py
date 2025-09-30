@@ -142,13 +142,29 @@ async def get_siif_desc_pres(
 
 
 # --------------------------------------------------
-async def get_siif_comprobantes_gtos_joined() -> pd.DataFrame:
+async def get_siif_comprobantes_gtos_joined(ejercicio: int = None) -> pd.DataFrame:
     """
     Join gto_rpa03g (gtos_gpo_part) with rcg01_uejp (gtos)
     """
     try:
-        df_gtos_gpo_part = pd.DataFrame(await Rpa03gRepository().get_all())
-        df_gtos = pd.DataFrame(await Rcg01UejpRepository().get_all())
+        if ejercicio is None:
+            docs_gtos_gpo_part = await Rpa03gRepository().get_all()
+            docs_gtos = await Rcg01UejpRepository().get_all()
+        else:
+            docs_gtos_gpo_part = await Rpa03gRepository().find_by_filter(
+                filters={
+                    "ejercicio": int(ejercicio),
+                }
+            )
+            docs_gtos = await Rcg01UejpRepository().find_by_filter(
+                filters={
+                    "ejercicio": int(ejercicio),
+                }
+            )
+        df_gtos_gpo_part = pd.DataFrame(docs_gtos_gpo_part)
+        df_gtos = pd.DataFrame(docs_gtos)
+        # df_gtos_gpo_part = pd.DataFrame(await Rpa03gRepository().get_all())
+        # df_gtos = pd.DataFrame(await Rcg01UejpRepository().get_all())
         df_gtos_filtered = df_gtos[
             [
                 "nro_comprobante",
