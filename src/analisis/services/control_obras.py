@@ -18,9 +18,11 @@ __all__ = ["ControlObrasService", "ControlObrasServiceDependency"]
 
 import os
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Annotated, List
 
 import pandas as pd
+from dateutil.relativedelta import relativedelta
 from fastapi import Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from playwright.async_api import async_playwright
@@ -107,11 +109,23 @@ class ControlObrasService:
             )
             try:
                 # 🔹Rdeu012
-                # self.siif_rdeu012_handler = Rdeu012(siif=connect_siif)
-                # partial_schema = await self.siif_rdeu012_handler.download_and_sync_validated_to_repository(
-                #     ejercicio=int(params.ejercicio)
-                # )
-                # return_schema.append(partial_schema)
+                # Obtenemos los meses a descargar
+                start = datetime.strptime(str(params.ejercicio), "%Y")
+                end = datetime.now().replace(day=1)
+
+                meses = []
+                current = start
+                while current <= end:
+                    meses.append(current.strftime("%m/%Y"))
+                    current += relativedelta(months=1)
+
+                self.siif_rdeu012_handler = Rdeu012(siif=connect_siif)
+                await self.siif_rdeu012_handler.go_to_reports()
+                for mes in meses:
+                    partial_schema = await self.siif_rdeu012_handler.download_and_sync_validated_to_repository(
+                        mes=str(mes)
+                    )
+                    return_schema.append(partial_schema)
 
                 # 🔹Banco INVICO
                 partial_schema = (
@@ -121,7 +135,7 @@ class ControlObrasService:
                         params=params,
                     )
                 )
-                return_schema.append(partial_schema)
+                return_schema.extend(partial_schema)
 
                 # 🔹Ctas Ctes
                 partial_schema = (
