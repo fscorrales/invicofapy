@@ -110,8 +110,12 @@ class ControlObrasService:
             try:
                 # 🔹Rdeu012
                 # Obtenemos los meses a descargar
-                start = datetime.strptime(str(params.ejercicio), "%Y")
-                end = datetime.now().replace(day=1)
+                start = datetime.strptime(str(params.ejercicio_desde), "%Y")
+                end = (
+                    datetime.strptime("12/" + str(params.ejercicio_hasta), "%m/%Y")
+                    if params.ejercicio_hasta < datetime.now().year
+                    else datetime.now().replace(day=1)
+                )
 
                 meses = []
                 current = start
@@ -146,7 +150,7 @@ class ControlObrasService:
                 return_schema.append(partial_schema)
 
                 # 🔹Resumen Rendicion Proveedores
-                params.origenes = [Origen.epam.value, Origen.obras.value]
+                # params.origenes = [Origen.epam.value, Origen.obras.value]
                 partial_schema = await self.sgf_resumend_rend_prov_service.sync_resumen_rend_prov_from_sgf(
                     username=params.sgf_username,
                     password=params.sgf_password,
