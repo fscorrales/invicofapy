@@ -13,14 +13,14 @@ from typing import Optional
 from pydantic import BaseModel, Field, field_validator, model_validator
 from pydantic_mongo import PydanticObjectId
 
-from ...utils import BaseFilterParams, CamelModel, get_sscc_cta_cte_path
 from ...sgf.schemas.common import Origen
+from ...utils import BaseFilterParams, CamelModel, get_sscc_cta_cte_path
+
 
 # --------------------------------------------------
 class ControlObrasParams(CamelModel):
     ejercicio_desde: int = Field(default=date.today().year)
     ejercicio_hasta: int = Field(default=date.today().year)
-    origen: Optional[Origen] = None
 
     @field_validator("ejercicio_desde", "ejercicio_hasta")
     @classmethod
@@ -39,6 +39,7 @@ class ControlObrasParams(CamelModel):
 
 # --------------------------------------------------
 class ControlObrasSyncParams(ControlObrasParams):
+    origen: Optional[Origen] = None
     siif_username: Optional[str] = None
     siif_password: Optional[str] = None
     sscc_username: Optional[str] = None

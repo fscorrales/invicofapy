@@ -188,9 +188,9 @@ class ControlObrasService:
         """
         return_schema = []
         try:
-            # 🔹 Control Recursos
+            # 🔹 Control Obras
             partial_schema = await self.compute_control_obras(params=params)
-            return_schema.append(partial_schema)
+            return_schema.extend(partial_schema)
 
         except ValidationError as e:
             logger.error(f"Validation Error: {e}")
@@ -220,7 +220,7 @@ class ControlObrasService:
 
         return export_multiple_dataframes_to_excel(
             df_sheet_pairs=[
-                (pd.DataFrame(control_obras_docs), "control_mes_cta_cte_cuit_db"),
+                (pd.DataFrame(control_obras_docs), "control_mes_cta_cte_cuit_db_new"),
                 (
                     await self.generate_icaro_carga_neto_rdeu(),
                     "icaro_carga_neto_rdeu",
@@ -374,41 +374,43 @@ class ControlObrasService:
         self,
         params: ControlObrasParams,
         groupby_cols: list = ["ejercicio", "mes", "cta_cte", "cuit"],
-    ) -> RouteReturnSchema:
-        return_schema = RouteReturnSchema()
+    ) -> List[RouteReturnSchema]:
+        return_schema = []
         try:
-            icaro = self.generate_icaro_carga_neto_rdeu(params.ejercicio)
-            icaro = icaro.loc[:, groupby_cols + ["importe"]]
-            icaro = icaro.groupby(groupby_cols)["importe"].sum()
-            icaro = icaro.reset_index()
-            icaro = icaro.rename(columns={"importe": "ejecutado_icaro"})
-            sgf = self.generate_resumen_rend_cuit(ejercicio=params.ejercicio)
-            sgf = sgf.loc[:, groupby_cols + ["importe_bruto"]]
-            sgf = sgf.groupby(groupby_cols)["importe_bruto"].sum()
-            sgf = sgf.reset_index()
-            sgf = sgf.rename(columns={"importe_bruto": "bruto_sgf"})
-            df = pd.merge(icaro, sgf, how="outer", on=groupby_cols, copy=False)
-            df[["ejecutado_icaro", "bruto_sgf"]] = df[
-                ["ejecutado_icaro", "bruto_sgf"]
-            ].fillna(0)
-            df["diferencia"] = df.ejecutado_icaro - df.bruto_sgf
-            df = pd.DataFrame(df)
-            df.reset_index(drop=True, inplace=True)
+            ejercicios = list(range(params.ejercicio_desde, params.ejercicio_hasta + 1))
+            for ejercicio in ejercicios:
+                icaro = self.generate_icaro_carga_neto_rdeu(ejercicio)
+                icaro = icaro.loc[:, groupby_cols + ["importe"]]
+                icaro = icaro.groupby(groupby_cols)["importe"].sum()
+                icaro = icaro.reset_index()
+                icaro = icaro.rename(columns={"importe": "ejecutado_icaro"})
+                sgf = self.generate_resumen_rend_cuit(ejercicio=ejercicio)
+                sgf = sgf.loc[:, groupby_cols + ["importe_bruto"]]
+                sgf = sgf.groupby(groupby_cols)["importe_bruto"].sum()
+                sgf = sgf.reset_index()
+                sgf = sgf.rename(columns={"importe_bruto": "bruto_sgf"})
+                df = pd.merge(icaro, sgf, how="outer", on=groupby_cols, copy=False)
+                df[["ejecutado_icaro", "bruto_sgf"]] = df[
+                    ["ejecutado_icaro", "bruto_sgf"]
+                ].fillna(0)
+                df["diferencia"] = df.ejecutado_icaro - df.bruto_sgf
+                df = pd.DataFrame(df)
+                df.reset_index(drop=True, inplace=True)
 
-            # 🔹 Validar datos usando Pydantic
-            validate_and_errors = validate_and_extract_data_from_df(
-                dataframe=df, model=ControlObrasReport, field_id="cuit"
-            )
+                # 🔹 Validar datos usando Pydantic
+                validate_and_errors = validate_and_extract_data_from_df(
+                    dataframe=df, model=ControlObrasReport, field_id="cuit"
+                )
 
-            return_schema = await sync_validated_to_repository(
-                repository=self.control_obras_repo,
-                validation=validate_and_errors,
-                delete_filter=None,
-                title="Control Obras",
-                logger=logger,
-                label=f"Control Obras del ejercicio {params.ejercicio}",
-            )
-            # return_schema.append(partial_schema)
+                partial_schema = await sync_validated_to_repository(
+                    repository=self.control_obras_repo,
+                    validation=validate_and_errors,
+                    delete_filter=None,
+                    title="Control Obras",
+                    logger=logger,
+                    label=f"Control Obras del ejercicio {ejercicio}",
+                )
+                return_schema.append(partial_schema)
 
         except ValidationError as e:
             logger.error(f"Validation Error: {e}")
