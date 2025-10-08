@@ -72,7 +72,7 @@ class ResumenRendProvService:
         return_schema = []
         try:
             loop = asyncio.get_running_loop()
-            origenes = params.origen.value or [v.value for v in Origen]  # adaptar según schema
+            origenes = params.origen or [v for v in Origen]  # adaptar según schema
             ejercicios = list(range(params.ejercicio_desde, params.ejercicio_hasta + 1))
             validate_list = await loop.run_in_executor(
                 None,
@@ -176,6 +176,7 @@ class ResumenRendProvService:
             resumen_rend_prov = ResumenRendProv(sgf=conn)
             for ejercicio in ejercicios:
                 for origen in origenes:
+                    origen = origen.value
                     try:
                         save_path = Path(
                                 os.path.join(

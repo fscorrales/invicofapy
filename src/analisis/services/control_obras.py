@@ -150,7 +150,6 @@ class ControlObrasService:
                 return_schema.append(partial_schema)
 
                 # 🔹Resumen Rendicion Proveedores
-                # params.origenes = [Origen.epam.value, Origen.obras.value]
                 partial_schema = await self.sgf_resumend_rend_prov_service.sync_resumen_rend_prov_from_sgf(
                     username=params.sgf_username,
                     password=params.sgf_password,

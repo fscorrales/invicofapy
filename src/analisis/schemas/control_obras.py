@@ -13,15 +13,14 @@ from typing import Optional
 from pydantic import BaseModel, Field, field_validator, model_validator
 from pydantic_mongo import PydanticObjectId
 
-from ...utils import BaseFilterParams, CamelModel, get_sqlite_path
-
+from ...utils import BaseFilterParams, CamelModel, get_sscc_cta_cte_path
+from ...sgf.schemas.common import Origen
 
 # --------------------------------------------------
 class ControlObrasParams(CamelModel):
     ejercicio_desde: int = Field(default=date.today().year)
     ejercicio_hasta: int = Field(default=date.today().year)
-    # ejercicio_from: int = date.today().year
-    # ejercicio_to: int = date.today().year
+    origen: Optional[Origen] = None
 
     @field_validator("ejercicio_desde", "ejercicio_hasta")
     @classmethod
@@ -47,7 +46,7 @@ class ControlObrasSyncParams(ControlObrasParams):
     sgf_username: Optional[str] = None
     sgf_password: Optional[str] = None
     ctas_ctes_excel_path: Optional[str] = Field(
-        default=os.path.join(get_sqlite_path(), "siif.sqlite"),
+        default=os.path.join(get_sscc_cta_cte_path(), "cta_cte.xlsx"),
         description="Ruta al archivo Ctas Ctes EXCEL",
     )
 
