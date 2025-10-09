@@ -213,21 +213,29 @@ class ControlObrasService:
     async def export_all_from_db(
         self, upload_to_google_sheets: bool = True
     ) -> StreamingResponse:
-        # ejecucion_obras.reporte_planillometro_contabilidad (planillometro_contabilidad)
-
-        control_obras_docs = await self.control_obras_repo.get_all()
+        
+        ejercicio_actual = datetime.now().year
+        ultimos_ejercicios = list(range(ejercicio_actual-2, ejercicio_actual+1))
+        control_obras_docs = await self.control_obras_repo.find_by_filter(
+            {"ejercicio": {"$in": ultimos_ejercicios}}
+        )
 
         if not control_obras_docs:
             raise HTTPException(status_code=404, detail="No se encontraron registros")
 
+        icaro = pd.DataFrame()
+        resumen_rend_cuit = pd.DataFrame()
+        for ejercicio in ultimos_ejercicios:
+            df = await self.generate_icaro_carga_neto_rdeu(ejercicio=ejercicio)
+            icaro = pd.concat([icaro, df], ignore_index=True)
+            df = await self.generate_resumen_rend_cuit(ejercicio=ejercicio)
+            resumen_rend_cuit = pd.concat([resumen_rend_cuit, df], ignore_index=True)
+
         return export_multiple_dataframes_to_excel(
             df_sheet_pairs=[
-                (pd.DataFrame(control_obras_docs), "control_mes_cta_cte_cuit_db_new"),
-                (
-                    await self.generate_icaro_carga_neto_rdeu(),
-                    "icaro_carga_neto_rdeu",
-                ),
-                (await self.generate_resumen_rend_cuit(), "resumen_rend_cuit"),
+                (pd.DataFrame(control_obras_docs), "control_mes_cta_cte_cuit_db"),
+                (icaro, "icaro_carga_neto_rdeu"),
+                (resumen_rend_cuit, "resumen_rend_cuit"),
             ],
             filename="control_obras.xlsx",
             spreadsheet_key="16v2ovmQnS1v73-WxTOK6b9Tx9DRugGc70ufpjVi-rPA",
@@ -282,10 +290,11 @@ class ControlObrasService:
         self, ejercicio: int = None
     ) -> pd.DataFrame:
         try:
-            icaro_docs = await get_icaro_carga_unified_cta_cte(ejercicio=ejercicio)
+            icaro_docs = await get_icaro_carga_unified_cta_cte()
             rdeu_docs = await get_siif_rdeu012_unified_cta_cte()
 
             icaro = pd.DataFrame(icaro_docs)
+            icaro = icaro.loc[icaro["ejercicio"] == ejercicio]
             icaro = icaro.loc[~icaro["tipo"].isin(["PA6", "REG"])]
             rdeu = pd.DataFrame(rdeu_docs).loc[:, ["nro_comprobante", "saldo", "mes"]]
             rdeu = rdeu.drop_duplicates(subset=["nro_comprobante", "mes"])
@@ -295,6 +304,7 @@ class ControlObrasService:
             rdeu = rdeu.drop(columns=["saldo"])
             rdeu = pd.concat([rdeu, icaro], copy=False)
             icaro = pd.DataFrame(icaro_docs)
+            icaro = icaro.loc[icaro["ejercicio"] == ejercicio]
             icaro = icaro.loc[icaro["tipo"].isin(["PA6"])]
             rdeu = pd.concat([rdeu, icaro], copy=False)
             icaro_carga_neto_rdeu = rdeu
@@ -306,7 +316,7 @@ class ControlObrasService:
                 months=1
             )
             rdeu["mes_hasta"] = rdeu["fecha_hasta"].dt.strftime("%m/%Y")
-            rdeu["ejercicio"] = rdeu["mes_hasta"].str[-4:]
+            rdeu["ejercicio"] = pd.to_numeric(rdeu["mes_hasta"].str[-4:])
 
             # Incorporamos los comprobantes de gastos pagados
             # en periodos posteriores (Deuda Flotante)
@@ -333,7 +343,7 @@ class ControlObrasService:
             rdeu = pd.merge(rdeu, icaro, on="nro_comprobante", copy=False)
             rdeu["importe"] = rdeu.saldo
             rdeu["tipo"] = "RDEU"
-            rdeu["id"] = rdeu["nro_comprobante"] + "C"
+            rdeu["id_carga"] = rdeu["nro_comprobante"] + "C"
             rdeu = rdeu.loc[~rdeu["actividad"].isna()]
             rdeu = rdeu.drop(columns=["fecha", "mes"])
             rdeu = rdeu.rename(columns={"fecha_hasta": "fecha", "mes_hasta": "mes"})
@@ -347,7 +357,7 @@ class ControlObrasService:
                     "cta_cte",
                     "tipo",
                     "importe",
-                    "id",
+                    "id_carga",
                     "actividad",
                     "partida",
                     "fondo_reparo",
@@ -415,7 +425,7 @@ class ControlObrasService:
                     repository=self.control_obras_repo,
                     validation=validate_and_errors,
                     delete_filter={"ejercicio": ejercicio},
-                    title="Control Obras",
+                    title=f"Control Obras del ejercicio {ejercicio}",
                     logger=logger,
                     label=f"Control Obras del ejercicio {ejercicio}",
                 )
