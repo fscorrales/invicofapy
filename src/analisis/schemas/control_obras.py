@@ -57,9 +57,10 @@ class ControlObrasReport(BaseModel):
     ejercicio: int
     mes: str
     cta_cte: str
-    grupo: str
-    recursos_siif: float
-    depositos_banco: float
+    cuit: str
+    ejecutado_icaro: float
+    bruto_sgf: float
+    diferencia: float
 
 
 # -------------------------------------------------

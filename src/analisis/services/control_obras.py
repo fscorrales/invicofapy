@@ -52,6 +52,8 @@ from ...utils import (
 from ..handlers import (
     get_banco_invico_cert_neg,
     get_resumen_rend_prov_with_desc,
+    get_icaro_carga_unified_cta_cte,
+    get_siif_rdeu012_unified_cta_cte,
 )
 from ..repositories.control_obras import ControlObrasRepositoryDependency
 from ..schemas.control_obras import (
@@ -261,7 +263,10 @@ class ControlObrasService:
             ejercicio=ejercicio, filters=filters
         )
         cert_neg = await get_banco_invico_cert_neg(ejercicio=ejercicio)
-        df = pd.concat([sgf, cert_neg], ignore_index=True)
+        if not cert_neg.empty:
+            df = pd.concat([sgf, cert_neg], ignore_index=True)
+        else:
+            df = sgf
         # Filtramos los registros de honorarios en EPAM
         df_epam = df.copy()
         keep = ["HONORARIOS"]
@@ -269,6 +274,7 @@ class ControlObrasService:
         df_epam = df_epam.loc[~df_epam.destino.str.contains("|".join(keep))]
         df = df.loc[df["origen"] != Origen.epam.value]
         df = pd.DataFrame(pd.concat([df, df_epam], ignore_index=True))
+        
         return df
 
     # --------------------------------------------------
@@ -276,8 +282,8 @@ class ControlObrasService:
         self, ejercicio: int = None
     ) -> pd.DataFrame:
         try:
-            icaro_docs = await self.icaro_carga_repo.get_all()
-            rdeu_docs = await self.siif_rdeu012_repo.get_all()
+            icaro_docs = await get_icaro_carga_unified_cta_cte(ejercicio=ejercicio)
+            rdeu_docs = await get_siif_rdeu012_unified_cta_cte()
 
             icaro = pd.DataFrame(icaro_docs)
             icaro = icaro.loc[~icaro["tipo"].isin(["PA6", "REG"])]
@@ -318,10 +324,10 @@ class ControlObrasService:
                     "actividad",
                     "partida",
                     "fondo_reparo",
-                    "certificado",
+                    "nro_certificado",
                     "avance",
                     "origen",
-                    "obra",
+                    "desc_obra",
                 ],
             ]
             rdeu = pd.merge(rdeu, icaro, on="nro_comprobante", copy=False)
@@ -345,10 +351,10 @@ class ControlObrasService:
                     "actividad",
                     "partida",
                     "fondo_reparo",
-                    "certificado",
+                    "nro_certificado",
                     "avance",
                     "origen",
-                    "obra",
+                    "desc_obra",
                     "fecha",
                     "mes",
                 ],
@@ -373,22 +379,24 @@ class ControlObrasService:
     async def compute_control_obras(
         self,
         params: ControlObrasParams,
-        groupby_cols: list = ["ejercicio", "mes", "cta_cte", "cuit"],
     ) -> List[RouteReturnSchema]:
         return_schema = []
+        groupby_cols: list = ["ejercicio", "mes", "cta_cte", "cuit"]
         try:
             ejercicios = list(range(params.ejercicio_desde, params.ejercicio_hasta + 1))
             for ejercicio in ejercicios:
-                icaro = self.generate_icaro_carga_neto_rdeu(ejercicio)
+                icaro = await self.generate_icaro_carga_neto_rdeu(ejercicio)
                 icaro = icaro.loc[:, groupby_cols + ["importe"]]
                 icaro = icaro.groupby(groupby_cols)["importe"].sum()
                 icaro = icaro.reset_index()
                 icaro = icaro.rename(columns={"importe": "ejecutado_icaro"})
-                sgf = self.generate_resumen_rend_cuit(ejercicio=ejercicio)
+                # print(f"icaro.shape: {icaro.shape} - icaro.head: {icaro.head()}")
+                sgf = await self.generate_resumen_rend_cuit(ejercicio=ejercicio)
                 sgf = sgf.loc[:, groupby_cols + ["importe_bruto"]]
                 sgf = sgf.groupby(groupby_cols)["importe_bruto"].sum()
                 sgf = sgf.reset_index()
                 sgf = sgf.rename(columns={"importe_bruto": "bruto_sgf"})
+                # print(f"sgf.shape: {sgf.shape} - sgf.head: {sgf.head()}")
                 df = pd.merge(icaro, sgf, how="outer", on=groupby_cols, copy=False)
                 df[["ejecutado_icaro", "bruto_sgf"]] = df[
                     ["ejecutado_icaro", "bruto_sgf"]
@@ -396,6 +404,7 @@ class ControlObrasService:
                 df["diferencia"] = df.ejecutado_icaro - df.bruto_sgf
                 df = pd.DataFrame(df)
                 df.reset_index(drop=True, inplace=True)
+                # print(f"df.shape: {df.shape} - df.head: {df.head()}")
 
                 # 🔹 Validar datos usando Pydantic
                 validate_and_errors = validate_and_extract_data_from_df(
@@ -405,7 +414,7 @@ class ControlObrasService:
                 partial_schema = await sync_validated_to_repository(
                     repository=self.control_obras_repo,
                     validation=validate_and_errors,
-                    delete_filter=None,
+                    delete_filter={"ejercicio": ejercicio},
                     title="Control Obras",
                     logger=logger,
                     label=f"Control Obras del ejercicio {ejercicio}",
