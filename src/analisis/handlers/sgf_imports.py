@@ -46,7 +46,7 @@ async def get_resumen_rend_prov_unified_cta_cte(
         df_2210178150 = df_2210178150.drop_duplicates(
             subset=["mes", "fecha", "beneficiario", "libramiento_sgf", "importe_bruto"]
         )
-        df = df[df["cta_cte"] != "2210178150"]
+        # df = df[df["cta_cte"] != "2210178150"]
         df = pd.concat(
             [df[df["cta_cte"] != "2210178150"], df_2210178150], ignore_index=True
         )
