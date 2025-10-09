@@ -7,6 +7,7 @@ __all__ = [
     "get_siif_comprobantes_gtos_joined",
     "get_planillometro_hist",
     "get_siif_rfp_p605b",
+    "get_siif_rdeu012_unified_cta_cte"
 ]
 
 import datetime as dt
@@ -26,6 +27,7 @@ from ...siif.repositories import (
     RfpP605bRepository,
     Ri102Repository,
     Rpa03gRepository,
+    Rdeu012Repository,
 )
 from ...sscc.repositories import CtasCtesRepository
 
@@ -262,4 +264,27 @@ async def get_siif_rfp_p605b(ejercicio: int = None, filters: dict = {}) -> pd.Da
         filters["ejercicio"] = ejercicio
     docs = await RfpP605bRepository().safe_find_by_filter(filters=filters)
     df = pd.DataFrame(docs)
+    return df
+
+# --------------------------------------------------
+async def get_siif_rdeu012_unified_cta_cte(
+    ejercicio: int = None, filters: dict = {}
+) -> pd.DataFrame:
+    """
+    Get the rdeu012 data from the repository.
+    """
+    if ejercicio is not None:
+        filters.update({"ejercicio": ejercicio})
+    docs = await Rdeu012Repository().find_by_filter(filters=filters)
+    # logger.info(f"len(docs): {len(docs)}")
+    df = pd.DataFrame(docs)
+    df.reset_index(drop=True, inplace=True)
+    if not df.empty:
+        # logger.info(f"df.shape: {df.shape} - df.head: {df.head()}")
+        ctas_ctes = pd.DataFrame(await CtasCtesRepository().get_all())
+        map_to = ctas_ctes.loc[:, ["map_to", "siif_contabilidad_cta_cte"]]
+        df = pd.merge(df, map_to, how="left", left_on="cta_cte", right_on="siif_contabilidad_cta_cte")
+        df["cta_cte"] = df["map_to"]
+        df.drop(["map_to", "siif_contabilidad_cta_cte"], axis="columns", inplace=True)
+        # logger.info(f"df.shape: {df.shape} - df.head: {df.head()}")
     return df
