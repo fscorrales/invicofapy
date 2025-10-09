@@ -3,6 +3,7 @@ __all__ = [
     "get_icaro_obras",
     "get_icaro_proveedores",
     "get_icaro_estructuras_desc",
+    "get_icaro_carga_unified_cta_cte",
 ]
 
 import pandas as pd
@@ -15,7 +16,30 @@ from ...icaro.repositories import (
     ObrasRepository,
     ProveedoresRepository,
 )
+from ...sscc.repositories import CtasCtesRepository
 
+# --------------------------------------------------
+async def get_icaro_carga_unified_cta_cte(
+    ejercicio: int = None, filters: dict = {}
+) -> pd.DataFrame:
+    """
+    Get the Icaro's Carga data from the repository.
+    """
+    if ejercicio is not None:
+        filters.update({"ejercicio": ejercicio})
+    docs = await CargaRepository().find_by_filter(filters=filters)
+    # logger.info(f"len(docs): {len(docs)}")
+    df = pd.DataFrame(docs)
+    df.reset_index(drop=True, inplace=True)
+    if not df.empty:
+        # logger.info(f"df.shape: {df.shape} - df.head: {df.head()}")
+        ctas_ctes = pd.DataFrame(await CtasCtesRepository().get_all())
+        map_to = ctas_ctes.loc[:, ["map_to", "icaro_cta_cte"]]
+        df = pd.merge(df, map_to, how="left", left_on="cta_cte", right_on="icaro_cta_cte")
+        df["cta_cte"] = df["map_to"]
+        df.drop(["map_to", "icaro_cta_cte"], axis="columns", inplace=True)
+        # logger.info(f"df.shape: {df.shape} - df.head: {df.head()}")
+    return df
 
 # --------------------------------------------------
 async def get_icaro_carga(ejercicio: int = None, filters: dict = {}) -> pd.DataFrame:
