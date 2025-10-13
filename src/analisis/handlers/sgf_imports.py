@@ -40,6 +40,19 @@ async def get_resumen_rend_prov_unified_cta_cte(
         )
         df = pd.concat([df[df["cta_cte"] != "106"], df_106], ignore_index=True)
 
+        # Filtramos los registros duplicados en la 07
+        df_07 = df.copy()
+        df_07 = df_07.loc[df_07["cta_cte"] == "130832-07"]
+        df_07 = df_07.sort_values(["libramiento_sgf", "destino"], ascending=False)
+        df_07 = df_07.drop_duplicates(
+            subset=[
+                "mes", "fecha", "beneficiario", "libramiento_sgf", "importe_bruto", 
+                "gcias", "sellos", "iibb", "suss", "invico", "seguro", "salud", 
+                "mutual", "otras", "retenciones", "importe_neto"
+            ]
+        )
+        df = pd.concat([df[df["cta_cte"] != "130832-07"], df_07], ignore_index=True)
+
         # Filtramos los registros duplicados en la 221078150
         df_2210178150 = df.copy()
         df_2210178150 = df_2210178150.loc[df_2210178150["cta_cte"] == "2210178150"]
