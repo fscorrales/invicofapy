@@ -63,7 +63,7 @@ class Rcocc31Service:
                 for ejercicio in ejercicios:
                     partial_schema = (
                         await self.rcocc31.download_and_sync_validated_to_repository(
-                            ejercicio=int(ejercicio)
+                            ejercicio=int(ejercicio), cta_contable = params.cta_contable
                         )
                     )
                     return_schema.append(partial_schema)
