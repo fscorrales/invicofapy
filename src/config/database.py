@@ -46,6 +46,7 @@ COLLECTIONS = [
     "sscc_ctas_ctes",
     "control_recursos",
     "control_obras",
+    "control_haberes",
     "control_icaro_vs_siif_anual",
     "control_icaro_vs_siif_comprobantes",
     "control_icaro_vs_siif_pa6",

@@ -7,12 +7,15 @@ __all__ = [
     "get_siif_comprobantes_gtos_joined",
     "get_planillometro_hist",
     "get_siif_rfp_p605b",
-    "get_siif_rdeu012_unified_cta_cte"
+    "get_siif_rdeu012_unified_cta_cte",
+    "get_siif_rcocc31",
+    "get_siif_comprobantes_haberes",
 ]
 
 import datetime as dt
 from typing import List, Union
 
+import numpy as np
 import pandas as pd
 from fastapi import HTTPException
 
@@ -21,13 +24,14 @@ from ...siif.repositories import (
     PlanillometroHistRepository,
     Rcg01UejpRepository,
     Rci02Repository,
+    Rcocc31Repository,
+    Rdeu012Repository,
     Rf602Repository,
     Rf610Repository,
     Rfondo07tpRepository,
     RfpP605bRepository,
     Ri102Repository,
     Rpa03gRepository,
-    Rdeu012Repository,
 )
 from ...sscc.repositories import CtasCtesRepository
 
@@ -201,6 +205,30 @@ async def get_siif_comprobantes_gtos_joined(ejercicio: int = None) -> pd.DataFra
 
 
 # --------------------------------------------------
+async def get_siif_comprobantes_gtos_unified_cta_cte(ejercicio: int) -> pd.DataFrame:
+    """
+    Get the comprobantes gtos joined data from the repository.
+    """
+    df = await get_siif_comprobantes_gtos_joined(ejercicio=ejercicio)
+    # logger.info(f"len(docs): {len(docs)}")
+    if not df.empty:
+        # logger.info(f"df.shape: {df.shape} - df.head: {df.head()}")
+        ctas_ctes = pd.DataFrame(await CtasCtesRepository().get_all())
+        map_to = ctas_ctes.loc[:, ["map_to", "siif_gastos_cta_cte"]]
+        df = pd.merge(
+            df,
+            map_to,
+            how="left",
+            left_on="cta_cte",
+            right_on="siif_gastos_cta_cte",
+        )
+        df["cta_cte"] = df["map_to"]
+        df.drop(["map_to", "siif_gastos_cta_cte"], axis="columns", inplace=True)
+        # logger.info(f"df.shape: {df.shape} - df.head: {df.head()}")
+    return df
+
+
+# --------------------------------------------------
 async def get_siif_ri102(ejercicio: int = None, filters: dict = {}) -> pd.DataFrame:
     """
     Get the ri102 data from the repository.
@@ -266,6 +294,7 @@ async def get_siif_rfp_p605b(ejercicio: int = None, filters: dict = {}) -> pd.Da
     df = pd.DataFrame(docs)
     return df
 
+
 # --------------------------------------------------
 async def get_siif_rdeu012_unified_cta_cte(
     ejercicio: int = None, filters: dict = {}
@@ -283,8 +312,102 @@ async def get_siif_rdeu012_unified_cta_cte(
         # logger.info(f"df.shape: {df.shape} - df.head: {df.head()}")
         ctas_ctes = pd.DataFrame(await CtasCtesRepository().get_all())
         map_to = ctas_ctes.loc[:, ["map_to", "siif_contabilidad_cta_cte"]]
-        df = pd.merge(df, map_to, how="left", left_on="cta_cte", right_on="siif_contabilidad_cta_cte")
+        df = pd.merge(
+            df,
+            map_to,
+            how="left",
+            left_on="cta_cte",
+            right_on="siif_contabilidad_cta_cte",
+        )
         df["cta_cte"] = df["map_to"]
         df.drop(["map_to", "siif_contabilidad_cta_cte"], axis="columns", inplace=True)
         # logger.info(f"df.shape: {df.shape} - df.head: {df.head()}")
+    return df
+
+
+# --------------------------------------------------
+async def get_siif_rcocc31(ejercicio: int = None, filters: dict = {}) -> pd.DataFrame:
+    """
+    Get the rcocc31 data from the repository.
+    """
+    if ejercicio is not None:
+        filters["ejercicio"] = ejercicio
+    docs = await Rcocc31Repository().safe_find_by_filter(filters=filters)
+    df = pd.DataFrame(docs)
+    return df
+
+
+# --------------------------------------------------
+async def get_siif_comprobantes_haberes(
+    ejercicio: str = None,
+    neto_art: bool = False,
+    neto_gcias_310: bool = False,
+) -> pd.DataFrame:
+    """
+    Get comprobantes haberes data from the repository.
+    """
+    df = await get_siif_comprobantes_gtos_joined(ejercicio=ejercicio)
+    if neto_art:
+        df = df.loc[~df["partida"].isin(["150", "151"])]
+    if neto_gcias_310:
+        filters = {"auxiliar_1__in": ["245", "310"], "tipo_comprobante": {"$ne": "APE"}}
+        gcias_310 = await get_siif_rcocc31(ejercicio=ejercicio, filters=filters)
+        gcias_310["nro_comprobante"] = (
+            gcias_310["nro_entrada"].str.zfill(5)
+            + "/"
+            + gcias_310["ejercicio"].str[-2:]
+            + "A"
+        )
+        gcias_310["importe"] = gcias_310["creditos"] * (-1)
+        gcias_310["grupo"] = "100"
+        gcias_310["partida"] = gcias_310["auxiliar_1"]
+        gcias_310["nro_origen"] = gcias_310["nro_entrada"]
+        gcias_310["nro_expte"] = "90000000" + gcias_310["ejercicio"]
+        gcias_310["glosa"] = np.where(
+            gcias_310["auxiliar_1"] == "245",
+            "RET. GCIAS. 4TA CATEGORÍA",
+            "HABERES ERRONEOS COD 310",
+        )
+        gcias_310["beneficiario"] = "INSTITUTO DE VIVIENDA DE CORRIENTES"
+        gcias_310["nro_fondo"] = None
+        gcias_310["fuente"] = "11"
+        gcias_310["cta_cte"] = "130832-04"
+        gcias_310["cuit"] = "30632351514"
+        gcias_310["clase_reg"] = "CYO"
+        gcias_310["clase_mod"] = "NOR"
+        gcias_310["clase_gto"] = "REM"
+        gcias_310["es_comprometido"] = True
+        gcias_310["es_verificado"] = True
+        gcias_310["es_aprobado"] = True
+        gcias_310["es_pagado"] = True
+        gcias_310 = gcias_310.loc[
+            :,
+            [
+                "ejercicio",
+                "mes",
+                "fecha",
+                "nro_comprobante",
+                "importe",
+                "grupo",
+                "partida",
+                "nro_entrada",
+                "nro_origen",
+                "nro_expte",
+                "glosa",
+                "beneficiario",
+                "nro_fondo",
+                "fuente",
+                "cta_cte",
+                "cuit",
+                "clase_reg",
+                "clase_mod",
+                "clase_gto",
+                "es_comprometido",
+                "es_verificado",
+                "es_aprobado",
+                "es_pagado",
+            ],
+        ]
+        df = pd.concat([df, gcias_310])
+
     return df
