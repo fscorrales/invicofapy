@@ -136,14 +136,6 @@ class ControlHaberesService:
                         )
                         return_schema.append(partial_schema)
 
-                # 🔹 Rcocc31
-                self.siif_rcocc31_handler = Rcocc31(siif=connect_siif)
-                for ejercicio in ejercicios:
-                    partial_schema = await self.siif_rcocc31_handler.download_and_sync_validated_to_repository(
-                        ejercicio=int(ejercicio), cta_contable="2122-1-2"
-                    )
-                    return_schema.append(partial_schema)
-
                 # 🔹Rdeu012
                 # Obtenemos los meses a descargar
                 start = datetime.strptime(str(params.ejercicio_desde), "%Y")
@@ -163,6 +155,14 @@ class ControlHaberesService:
                 for mes in meses:
                     partial_schema = await self.siif_rdeu012_handler.download_and_sync_validated_to_repository(
                         mes=str(mes)
+                    )
+                    return_schema.append(partial_schema)
+
+                # 🔹 Rcocc31
+                self.siif_rcocc31_handler = Rcocc31(siif=connect_siif)
+                for ejercicio in ejercicios:
+                    partial_schema = await self.siif_rcocc31_handler.download_and_sync_validated_to_repository(
+                        ejercicio=int(ejercicio), cta_contable="2122-1-2"
                     )
                     return_schema.append(partial_schema)
 
