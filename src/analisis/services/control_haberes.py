@@ -209,15 +209,15 @@ class ControlHaberesService:
         """
         return_schema = []
         try:
-            # 🔹 Control Obras
-            partial_schema = await self.compute_control_obras(params=params)
+            # 🔹 Control Haberes
+            partial_schema = await self.compute_control_haberes(params=params)
             return_schema.extend(partial_schema)
 
         except ValidationError as e:
             logger.error(f"Validation Error: {e}")
             raise HTTPException(
                 status_code=400,
-                detail="Invalid response format from Control de Obras",
+                detail="Invalid response format from Control de Haberes",
             )
         except Exception as e:
             logger.error(f"Error in compute_all: {e}")
@@ -248,13 +248,13 @@ class ControlHaberesService:
             comprobantes_haberes = pd.concat(
                 [comprobantes_haberes, df], ignore_index=True
             )
-            df = await self.get_banco_invico_unified_cta_cte(ejercicio=ejercicio)
+            df = await get_banco_invico_unified_cta_cte(ejercicio=ejercicio)
             banco_invico = pd.concat([banco_invico, df], ignore_index=True)
 
         return export_multiple_dataframes_to_excel(
             df_sheet_pairs=[
-                (pd.DataFrame(control_haberes_docs), "control_mensual"),
-                (comprobantes_haberes, "siif_comprobantes_haberes_neto_rdeu"),
+                (pd.DataFrame(control_haberes_docs), "control_mes_db"),
+                (comprobantes_haberes, "siif_comprobantes_haberes"),
                 (banco_invico, "banco_invico"),
             ],
             filename="control_haberes.xlsx",
@@ -418,13 +418,13 @@ class ControlHaberesService:
             logger.error(f"Validation Error: {e}")
             raise HTTPException(
                 status_code=400,
-                detail="Invalid response format from Control Obras",
+                detail="Invalid response format from Control Haberes",
             )
         except Exception as e:
-            logger.error(f"Error in compute_obras: {e}")
+            logger.error(f"Error in compute_haberes: {e}")
             raise HTTPException(
                 status_code=500,
-                detail="Error in compute_obras",
+                detail="Error in compute_haberes",
             )
         finally:
             return return_schema

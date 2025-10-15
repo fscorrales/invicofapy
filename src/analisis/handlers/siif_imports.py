@@ -346,7 +346,8 @@ async def get_siif_comprobantes_haberes(
     """
     Get comprobantes haberes data from the repository.
     """
-    df = await get_siif_comprobantes_gtos_joined(ejercicio=ejercicio)
+    df = await get_siif_comprobantes_gtos_unified_cta_cte(ejercicio=ejercicio)
+    df = df.loc[df["cta_cte"] == "130832-04"]
     if neto_art:
         df = df.loc[~df["partida"].isin(["150", "151"])]
     if neto_gcias_310:
@@ -355,14 +356,14 @@ async def get_siif_comprobantes_haberes(
         gcias_310["nro_comprobante"] = (
             gcias_310["nro_entrada"].str.zfill(5)
             + "/"
-            + gcias_310["ejercicio"].str[-2:]
+            + gcias_310["ejercicio"].astype(str).str[-2:]
             + "A"
         )
         gcias_310["importe"] = gcias_310["creditos"] * (-1)
         gcias_310["grupo"] = "100"
         gcias_310["partida"] = gcias_310["auxiliar_1"]
         gcias_310["nro_origen"] = gcias_310["nro_entrada"]
-        gcias_310["nro_expte"] = "90000000" + gcias_310["ejercicio"]
+        gcias_310["nro_expte"] = "90000000" + gcias_310["ejercicio"].astype(str)
         gcias_310["glosa"] = np.where(
             gcias_310["auxiliar_1"] == "245",
             "RET. GCIAS. 4TA CATEGORÍA",
