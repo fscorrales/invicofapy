@@ -343,7 +343,7 @@ class ControlHaberesService:
             rdeu = rdeu.drop_duplicates(subset=["nro_comprobante", "mes", "saldo"])
             rdeu["importe"] = rdeu["saldo"]
             rdeu["clase_reg"] = "CYO"
-            rdeu["clase_nor"] = "NOR"
+            rdeu["clase_mod"] = "NOR"
             rdeu["clase_gto"] = "RDEU"
             rdeu["es_comprometido"] = True
             rdeu["es_verificado"] = True
