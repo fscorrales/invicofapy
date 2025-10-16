@@ -248,14 +248,14 @@ class ControlHaberesService:
             comprobantes_haberes = pd.concat(
                 [comprobantes_haberes, df], ignore_index=True
             )
-            df = await get_banco_invico_unified_cta_cte(ejercicio=ejercicio)
+            df = await self.generate_banco_invico(ejercicio=ejercicio)
             banco_invico = pd.concat([banco_invico, df], ignore_index=True)
 
         return export_multiple_dataframes_to_excel(
             df_sheet_pairs=[
-                (pd.DataFrame(control_haberes_docs), "control_mes_db"),
-                (comprobantes_haberes, "siif_comprobantes_haberes"),
-                (banco_invico, "banco_invico"),
+                (pd.DataFrame(control_haberes_docs), "control_mensual_db"),
+                (comprobantes_haberes, "siif_comprobantes_haberes_db"),
+                (banco_invico, "sscc_haberes_db"),
             ],
             filename="control_haberes.xlsx",
             spreadsheet_key="1A9ypUkwm4kfLqUAwr6-55crcFElisOO9fOdI6iflMAc",
@@ -295,7 +295,7 @@ class ControlHaberesService:
             rdeu = rdeu.drop_duplicates(subset=["nro_comprobante", "mes", "saldo"])
             rdeu["importe"] = rdeu["saldo"] * (-1)
             rdeu["clase_reg"] = "CYO"
-            rdeu["clase_nor"] = "NOR"
+            rdeu["clase_mod"] = "NOR"
             rdeu["clase_gto"] = "RDEU"
             rdeu["es_comprometido"] = True
             rdeu["es_verificado"] = True
@@ -367,6 +367,22 @@ class ControlHaberesService:
             )
 
     # --------------------------------------------------
+    async def generate_banco_invico(self, ejercicio: int):
+        df = await get_banco_invico_unified_cta_cte(ejercicio=ejercicio)
+        df = df.loc[df['movimiento'] != 'DEPOSITO']
+        df = df.loc[df['cta_cte'] == '130832-04']
+        keep = ['GCIAS', 'GANANCIAS']
+        df = df.loc[~df.concepto.str.contains('|'.join(keep))]
+        df['importe'] = df['importe'] * (-1)
+        dep_transf_int = ['034', '004']
+        dep_otros = ['003', '055', '005', '013']
+        df = df.loc[~df['cod_imputacion'].isin(
+            dep_transf_int + dep_otros
+            )]
+        df.reset_index(drop=True, inplace=True)
+        return df
+
+    # --------------------------------------------------
     async def compute_control_haberes(
         self,
         params: ControlHaberesParams,
@@ -382,7 +398,7 @@ class ControlHaberesService:
                 siif = siif.reset_index()
                 siif = siif.rename(columns={"importe": "ejecutado_siif"})
                 # print(f"siif.shape: {siif.shape} - siif.head: {siif.head()}")
-                sscc = await get_banco_invico_unified_cta_cte(ejercicio=ejercicio)
+                sscc = await self.generate_banco_invico(ejercicio = ejercicio)
                 sscc = sscc.loc[:, groupby_cols + ["importe"]]
                 sscc = sscc.groupby(groupby_cols)["importe"].sum()
                 sscc = sscc.reset_index()
