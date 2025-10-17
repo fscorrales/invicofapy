@@ -267,9 +267,12 @@ class ControlHaberesService:
         self, ejercicio: int = None
     ) -> pd.DataFrame:
         try:
-            comprobantes_haberes = await get_siif_comprobantes_haberes(
-                ejercicio=ejercicio, neto_art=True, neto_gcias_310=True
+            comprobantes_haberes_total = await get_siif_comprobantes_haberes(
+                ejercicio=None, neto_art=True, neto_gcias_310=True
             )
+            comprobantes_haberes_ejercicio = comprobantes_haberes_total.loc[
+                comprobantes_haberes_total["ejercicio"] == ejercicio
+            ]
             rdeu_docs = await get_siif_rdeu012_unified_cta_cte()
 
             rdeu = pd.DataFrame(rdeu_docs)
@@ -285,7 +288,7 @@ class ControlHaberesService:
             rdeu = rdeu.drop_duplicates(subset=["nro_comprobante", "mes"])
             semi_table = pd.merge(
                 rdeu,
-                comprobantes_haberes,
+                comprobantes_haberes_ejercicio,
                 how="inner",
                 copy=False,
                 on="nro_comprobante",
@@ -302,7 +305,7 @@ class ControlHaberesService:
             rdeu["es_aprobado"] = True
             rdeu["es_pagado"] = True
             rdeu = rdeu.drop(columns=["saldo"])
-            comprobantes_haberes_neto_rdeu = pd.concat([comprobantes_haberes, rdeu])
+            comprobantes_haberes_neto_rdeu = pd.concat([comprobantes_haberes_ejercicio, rdeu])
 
             # Ajustamos la Deuda Flotante Pagada
             rdeu = pd.DataFrame(rdeu_docs)
@@ -333,7 +336,7 @@ class ControlHaberesService:
             )
             semi_table = pd.merge(
                 rdeu,
-                comprobantes_haberes,
+                comprobantes_haberes_total,
                 how="inner",
                 copy=False,
                 on="nro_comprobante",

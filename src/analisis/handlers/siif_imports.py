@@ -205,7 +205,7 @@ async def get_siif_comprobantes_gtos_joined(ejercicio: int = None) -> pd.DataFra
 
 
 # --------------------------------------------------
-async def get_siif_comprobantes_gtos_unified_cta_cte(ejercicio: int) -> pd.DataFrame:
+async def get_siif_comprobantes_gtos_unified_cta_cte(ejercicio: int = None) -> pd.DataFrame:
     """
     Get the comprobantes gtos joined data from the repository.
     """
