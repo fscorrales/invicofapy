@@ -27,10 +27,12 @@ from ...utils import (
 )
 from ..repositories import (
     FacturerosRepository,
+    HonorariosRepository,
 )
-from ..schemas import FacturerosReport
+from ..schemas import FacturerosReport, HonorariosReport
 
 
+# --------------------------------------------------
 def validate_mdb_file(path):
     if not os.path.exists(path):
         raise argparse.ArgumentTypeError(f"El archivo {path} no existe")
@@ -80,6 +82,7 @@ class SlaveMongoMigrator:
 
         # Repositorios por colección
         self.factureros_repo = FacturerosRepository()
+        self.honorarios_repo = HonorariosRepository()
 
     # --------------------------------------------------
     def from_mdb(self, table_name: str) -> pd.DataFrame:
@@ -130,8 +133,7 @@ class SlaveMongoMigrator:
         validate_and_errors = validate_and_extract_data_from_df(
             dataframe=df, model=FacturerosReport, field_id="razon_social"
         )
-        # await self.programas_repo.delete_all()
-        # await self.programas_repo.save_all(df.to_dict(orient="records"))
+
         return await sync_validated_to_repository(
             repository=self.factureros_repo,
             validation=validate_and_errors,
@@ -142,10 +144,56 @@ class SlaveMongoMigrator:
         )
 
     # --------------------------------------------------
+    async def migrate_honorarios_factureros(self) -> pd.DataFrame:
+        """ "Migrate table PRECARIZADOS"""
+        if sys.platform.startswith("win32"):
+            df = self.from_mdb("LIQUIDACIONHONORARIOS")
+            df.rename(
+                columns={
+                    "Fecha": "fecha",
+                    "Proveedor": "razon_social",
+                    "Sellos": "sellos",
+                    "Seguro": "seguro",
+                    "Tipo": "tipo",
+                    "Comprobante": "nro_comprobante",
+                    "MontoBruto": "importe_bruto",
+                    "IIBB": "iibb",
+                    "LibramientoPago": "lp",
+                    "OtraRetencion": "otras_retenciones",
+                    "Anticipo": "anticipo",
+                    "Descuento": "descuento",
+                    "Actividad": "actividad",
+                    "Partida": "partida",
+                },
+                inplace=True,
+            )
+
+        df["ejercicio"] = df["fecha"].dt.year
+        df["mes"] = df["fecha"].dt.strftime("%m/%Y")
+        df["mutual"] = 0
+        df["embargo"] = 0
+        keep = ["NoSIIF"]
+        df = df.loc[~df.nro_comprobante.str.contains("|".join(keep))]
+
+        # Validar datos usando Pydantic
+        validate_and_errors = validate_and_extract_data_from_df(
+            dataframe=df, model=HonorariosReport, field_id="razon_social"
+        )
+
+        return await sync_validated_to_repository(
+            repository=self.honorarios_repo,
+            validation=validate_and_errors,
+            delete_filter=None,
+            title="SLAVE Honorarios Factureros Migration",
+            logger=logger,
+            label="Tabla Honorarios Factureros de Slave",
+        )
+
+    # --------------------------------------------------
     async def migrate_all(self) -> List[RouteReturnSchema]:
         return_schema = []
         return_schema.append(await self.migrate_factureros())
-        # return_schema.append(await self.migrate_honorarios_factureros())
+        return_schema.append(await self.migrate_honorarios_factureros())
         return return_schema
 
 
@@ -168,7 +216,8 @@ async def main():
         mdb_path=args.file,
     )
 
-    await migrator.migrate_factureros()
+    ans = await migrator.migrate_honorarios_factureros()
+    print("Migración de PRECARIZADOS completada:", ans)
 
 
 # --------------------------------------------------
