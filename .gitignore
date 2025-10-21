@@ -23,6 +23,7 @@ __pycache__/
 
 # Access mdb files
 *.mdb
+*.accdb
 
 # Distribution / packaging
 .Python

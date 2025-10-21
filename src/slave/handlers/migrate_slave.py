@@ -34,9 +34,9 @@ from ..schemas import FacturerosReport
 def validate_mdb_file(path):
     if not os.path.exists(path):
         raise argparse.ArgumentTypeError(f"El archivo {path} no existe")
-    if not path.endswith(".mdb"):
+    if not path.endswith(".mdb") and not path.endswith(".accdb"):
         raise argparse.ArgumentTypeError(
-            f"El archivo {path} no parece ser un archivo Access (.mdb)"
+            f"El archivo {path} no parece ser un archivo Access"
         )
     # try:
     #     sqlite3.connect(path)
@@ -54,7 +54,7 @@ def get_args():
     path = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 
     parser = argparse.ArgumentParser(
-        description="Migrate from old Slave.mdb to new DB",
+        description="Migrate from old Slave to new DB",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
 
@@ -62,9 +62,9 @@ def get_args():
         "-f",
         "--file",
         metavar="mdb_file",
-        default=os.path.join(path, "Slave.mdb"),
+        default=os.path.join(path, "Slave.accdb"),
         type=validate_mdb_file,
-        help="Path al archivo Access de Slave.mdb",
+        help="Path al archivo Access de Slave",
     )
 
     args = parser.parse_args()
