@@ -77,8 +77,8 @@ def get_args():
 # --------------------------------------------------
 class SlaveMongoMigrator:
     # --------------------------------------------------
-    def __init__(self, mdb_path: str):
-        self.mdb_path = mdb_path
+    def __init__(self, access_path: str):
+        self.access_path = access_path
 
         # Repositorios por colección
         self.factureros_repo = FacturerosRepository()
@@ -92,7 +92,7 @@ class SlaveMongoMigrator:
         """
         conn_str = (
             r"DRIVER={Microsoft Access Driver (*.mdb, *.accdb)};"
-            f"DBQ={self.mdb_path};"
+            f"DBQ={self.access_path};"
         )
         # with pyodbc.connect(conn_str) as conn:
         #     query = f"SELECT * FROM [{table_name}]"
@@ -107,7 +107,7 @@ class SlaveMongoMigrator:
                 print(
                     "⚠️ Versión antigua de Access detectada. Intentando leer con mdbtools..."
                 )
-                cmd = ["mdb-export", self.mdb_path, table_name]
+                cmd = ["mdb-export", self.access_path, table_name]
                 output = subprocess.check_output(cmd, text=True)
                 return pd.read_csv(StringIO(output))
             else:
@@ -213,7 +213,7 @@ async def main():
     args = get_args()
 
     migrator = SlaveMongoMigrator(
-        mdb_path=args.file,
+        access_path=args.file,
     )
 
     ans = await migrator.migrate_honorarios_factureros()

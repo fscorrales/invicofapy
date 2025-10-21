@@ -91,7 +91,7 @@ def get_r_icaro_path():
 
 # --------------------------------------------------
 def get_slave_path():
-    dir_path = r"\\192.168.0.149\Compartida CONTABLE\Slave"
+    dir_path = r"\\pcfinanciera31\Compartida ERIKA\Slave"
     return dir_path
 
 
