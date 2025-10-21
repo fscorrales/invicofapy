@@ -21,6 +21,9 @@ __pycache__/
 *.sqlite
 *.db
 
+# Access mdb files
+*.mdb
+
 # Distribution / packaging
 .Python
 build/

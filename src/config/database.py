@@ -42,6 +42,7 @@ COLLECTIONS = [
     "icaro_retenciones",
     "icaro_certificados",
     "icaro_resumen_rend_obras",
+    "slave_factureros",
     "sscc_banco_invico",
     "sscc_ctas_ctes",
     "control_recursos",
