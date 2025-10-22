@@ -13,7 +13,7 @@ from typing import Optional
 from pydantic import BaseModel, Field, field_validator, model_validator
 from pydantic_mongo import PydanticObjectId
 
-from ...utils import BaseFilterParams, CamelModel, get_sscc_cta_cte_path
+from ...utils import BaseFilterParams, CamelModel, get_slave_path, get_sscc_cta_cte_path
 
 
 # --------------------------------------------------
@@ -42,9 +42,15 @@ class ControlHonorariosSyncParams(ControlHonorariosParams):
     siif_password: Optional[str] = None
     sscc_username: Optional[str] = None
     sscc_password: Optional[str] = None
+    sgf_username: Optional[str] = None
+    sgf_password: Optional[str] = None
     ctas_ctes_excel_path: Optional[str] = Field(
         default=os.path.join(get_sscc_cta_cte_path(), "cta_cte.xlsx"),
         description="Ruta al archivo Ctas Ctes EXCEL",
+    )
+    slave_access_path: Optional[str] = Field(
+        default=os.path.join(get_slave_path(), "Slave.accdb"),
+        description="Ruta al archivo Slave.accdb",
     )
 
 

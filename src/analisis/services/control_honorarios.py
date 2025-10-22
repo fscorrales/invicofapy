@@ -29,6 +29,7 @@ from playwright.async_api import async_playwright
 from pydantic import ValidationError
 
 from ...config import logger
+from ...sgf.services import ResumenRendProvServiceDependency
 from ...siif.handlers import (
     Rcg01Uejp,
     Rpa03g,
@@ -40,6 +41,7 @@ from ...siif.repositories import (
     Rpa03gRepositoryDependency,
 )
 from ...siif.schemas import GrupoPartidaSIIF
+from ...slave.handlers import SlaveMongoMigrator
 from ...sscc.services import BancoINVICOServiceDependency, CtasCtesServiceDependency
 from ...utils import (
     BaseFilterParams,
@@ -73,13 +75,14 @@ class ControlHonorariosService:
     siif_rcg01_uejp_handler: Rcg01Uejp = field(init=False)  # No se pasa como argumento
     siif_rpa03g_repo: Rpa03gRepositoryDependency
     siif_rcocc31_handler: Rpa03g = field(init=False)  # No se pasa como argumento
+    sgf_resumend_rend_prov_service: ResumenRendProvServiceDependency
 
     # -------------------------------------------------
-    async def sync_control_haberes_from_source(
+    async def sync_control_honorarios_from_source(
         self,
         params: ControlHonorariosSyncParams = None,
     ) -> List[RouteReturnSchema]:
-        """Downloads a report from SIIF, processes it, validates the data,
+        """Downloads a report from all sources, processes it, validates the data,
         and stores it in MongoDB if valid.
 
         Args:
@@ -93,6 +96,8 @@ class ControlHonorariosService:
             or params.siif_password is None
             or params.sscc_username is None
             or params.sscc_password is None
+            or params.sgf_username is None
+            or params.sgf_password is None
         ):
             raise HTTPException(
                 status_code=401,
@@ -128,36 +133,6 @@ class ControlHonorariosService:
                         )
                         return_schema.append(partial_schema)
 
-                # 🔹Rdeu012
-                # Obtenemos los meses a descargar
-                start = datetime.strptime(str(params.ejercicio_desde), "%Y")
-                end = (
-                    datetime.strptime("12/" + str(params.ejercicio_hasta), "%m/%Y")
-                    if params.ejercicio_hasta < datetime.now().year
-                    else datetime.now().replace(day=1)
-                )
-
-                meses = []
-                current = start
-                while current <= end:
-                    meses.append(current.strftime("%m/%Y"))
-                    current += relativedelta(months=1)
-
-                self.siif_rdeu012_handler = Rdeu012(siif=connect_siif)
-                for mes in meses:
-                    partial_schema = await self.siif_rdeu012_handler.download_and_sync_validated_to_repository(
-                        mes=str(mes)
-                    )
-                    return_schema.append(partial_schema)
-
-                # 🔹 Rcocc31
-                self.siif_rcocc31_handler = Rcocc31(siif=connect_siif)
-                for ejercicio in ejercicios:
-                    partial_schema = await self.siif_rcocc31_handler.download_and_sync_validated_to_repository(
-                        ejercicio=int(ejercicio), cta_contable="2122-1-2"
-                    )
-                    return_schema.append(partial_schema)
-
                 # 🔹Banco INVICO
                 partial_schema = (
                     await self.sscc_banco_invico_service.sync_banco_invico_from_sscc(
@@ -175,6 +150,18 @@ class ControlHonorariosService:
                     )
                 )
                 return_schema.append(partial_schema)
+
+                # 🔹Resumen Rendicion Proveedores
+                partial_schema = await self.sgf_resumend_rend_prov_service.sync_resumen_rend_prov_from_sgf(
+                    username=params.sgf_username,
+                    password=params.sgf_password,
+                    params=params,
+                )
+                return_schema.extend(partial_schema)
+
+                # 🔹 Slave
+                migrator = SlaveMongoMigrator(access_path=params.slave_access_path)
+                return_schema.extend(await migrator.migrate_all())
 
             except ValidationError as e:
                 logger.error(f"Validation Error: {e}")
@@ -194,7 +181,7 @@ class ControlHonorariosService:
 
     # -------------------------------------------------
     async def compute_all(
-        self, params: ControlHaberesParams
+        self, params: ControlHonorariosParams
     ) -> List[RouteReturnSchema]:
         """
         Compute all controls for the given params.
@@ -380,7 +367,7 @@ class ControlHonorariosService:
     # --------------------------------------------------
     async def compute_control_haberes(
         self,
-        params: ControlHaberesParams,
+        params: ControlHonorariosParams,
     ) -> List[RouteReturnSchema]:
         return_schema = []
         groupby_cols: list = ["ejercicio", "mes"]
@@ -412,7 +399,7 @@ class ControlHonorariosService:
 
                 # 🔹 Validar datos usando Pydantic
                 validate_and_errors = validate_and_extract_data_from_df(
-                    dataframe=df, model=ControlHaberesReport, field_id="cuit"
+                    dataframe=df, model=ControlHonorariosReport, field_id="cuit"
                 )
 
                 partial_schema = await sync_validated_to_repository(
@@ -443,7 +430,7 @@ class ControlHonorariosService:
     # -------------------------------------------------
     async def get_control_haberes_from_db(
         self, params: BaseFilterParams
-    ) -> List[ControlHaberesDocument]:
+    ) -> List[ControlHonorariosDocument]:
         return await self.control_honorarios_repo.safe_find_with_filter_params(
             params=params,
             error_title="Error retrieving Control Haberes from the database",
