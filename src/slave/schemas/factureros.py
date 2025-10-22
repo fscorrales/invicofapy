@@ -21,7 +21,7 @@ class FacturerosParams(BaseModel):
 
 # -------------------------------------------------
 class FacturerosReport(BaseModel):
-    razon_social: str
+    beneficiario: str
     actividad: str
     partida: str
 
@@ -33,7 +33,7 @@ class FacturerosDocument(FacturerosReport):
 
 # -------------------------------------------------
 class FacturerosFilter(BaseFilterParams):
-    razon_social: Optional[str] = None
+    beneficiario: Optional[str] = None
     actividad: Optional[str] = None
     partida: Optional[str] = None
 

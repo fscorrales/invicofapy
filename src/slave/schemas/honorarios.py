@@ -27,7 +27,7 @@ class HonorariosReport(BaseModel):
     fecha: datetime
     nro_comprobante: str
     tipo: str
-    razon_social: str
+    beneficiario: str
     actividad: str
     partida: str
     importe_bruto: float
@@ -49,7 +49,7 @@ class HonorariosDocument(HonorariosReport):
 
 # -------------------------------------------------
 class HonorariosFilter(BaseFilterParams):
-    razon_social: Optional[str] = None
+    beneficiario: Optional[str] = None
     actividad: Optional[str] = None
     partida: Optional[str] = None
 

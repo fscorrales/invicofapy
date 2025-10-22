@@ -120,7 +120,7 @@ class SlaveMongoMigrator:
             df = self.from_mdb("PRECARIZADOS")
             df.rename(
                 columns={
-                    "Agentes": "razon_social",
+                    "Agentes": "beneficiario",
                     "Actividad": "actividad",
                     "Partida": "partida",
                 },
@@ -131,7 +131,7 @@ class SlaveMongoMigrator:
 
         # Validar datos usando Pydantic
         validate_and_errors = validate_and_extract_data_from_df(
-            dataframe=df, model=FacturerosReport, field_id="razon_social"
+            dataframe=df, model=FacturerosReport, field_id="beneficiario"
         )
 
         return await sync_validated_to_repository(
@@ -151,7 +151,7 @@ class SlaveMongoMigrator:
             df.rename(
                 columns={
                     "Fecha": "fecha",
-                    "Proveedor": "razon_social",
+                    "Proveedor": "beneficiario",
                     "Sellos": "sellos",
                     "Seguro": "seguro",
                     "Tipo": "tipo",
@@ -177,7 +177,7 @@ class SlaveMongoMigrator:
 
         # Validar datos usando Pydantic
         validate_and_errors = validate_and_extract_data_from_df(
-            dataframe=df, model=HonorariosReport, field_id="razon_social"
+            dataframe=df, model=HonorariosReport, field_id="beneficiario"
         )
 
         return await sync_validated_to_repository(
