@@ -16,8 +16,9 @@ pandas = "^2.2.3"
 xlrd = "^2.0.1"
 motor = "^3.7.0"
 pydantic-settings = "^2.9.1"
-fastapi-jwt = {extras = ["authlib"], version = "^0.3.0"}
-passlib = {extras = ["bcrypt"], version = "^1.7.4"}
+fastapi-jwt = {extras = ["authlib"], version = "0.3.*"}
+bcrypt = "4.*"
+passlib = { extras = ["bcrypt"], version = "^1.7" }
 pydantic-mongo = "^3.1.0"
 pywinauto = "^0.6.9"
 gspread = "^6.2.1"
