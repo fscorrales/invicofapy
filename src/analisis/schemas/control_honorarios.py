@@ -1,8 +1,10 @@
 __all__ = [
     "ControlHonorariosParams",
     "ControlHonorariosSyncParams",
-    "ControlHonorariosReport",
-    "ControlHonorariosDocument",
+    "ControlHonorariosSIIFvsSlaveReport",
+    "ControlHonorariosSIIFvsSlaveDocument",
+    "ControlHonorariosSGFvsSlaveReport",
+    "ControlHonorariosSGFvsSlaveDocument",
     "ControlHonorariosFilter",
 ]
 
@@ -57,17 +59,41 @@ class ControlHonorariosSyncParams(ControlHonorariosParams):
 
 
 # -------------------------------------------------
-class ControlHonorariosReport(BaseModel):
+class ControlHonorariosSIIFvsSlaveReport(BaseModel):
     ejercicio: int
-    mes: str
-    ejecutado_siif: float
-    pagado_sscc: float
-    diferencia: float
-    dif_acum: float
+    siif_nro: str
+    slave_nro: str
+    err_nro: bool
+    siif_importe: float
+    slave_importe: float
+    err_importe: bool
+    siif_mes: str
+    slave_mes: str
+    err_mes: bool
 
 
 # -------------------------------------------------
-class ControlHonorariosDocument(ControlHonorariosReport):
+class ControlHonorariosSIIFvsSlaveDocument(ControlHonorariosSIIFvsSlaveReport):
+    id: PydanticObjectId = Field(alias="_id")
+
+
+# -------------------------------------------------
+class ControlHonorariosSGFvsSlaveReport(BaseModel):
+    ejercicio: int
+    mes: str
+    cta_cte: str
+    beneficiario: str
+    importe_bruto: float
+    iibb: float
+    sellos: float
+    seguro: float
+    otras: float
+    retenciones: float
+    importe_neto: float
+
+
+# -------------------------------------------------
+class ControlHonorariosSGFvsSlaveDocument(ControlHonorariosSGFvsSlaveReport):
     id: PydanticObjectId = Field(alias="_id")
 
 

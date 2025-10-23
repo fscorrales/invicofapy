@@ -10,6 +10,7 @@ __all__ = [
     "get_siif_rdeu012_unified_cta_cte",
     "get_siif_rcocc31",
     "get_siif_comprobantes_haberes",
+    "get_siif_comprobantes_honorarios",
 ]
 
 import datetime as dt
@@ -205,7 +206,9 @@ async def get_siif_comprobantes_gtos_joined(ejercicio: int = None) -> pd.DataFra
 
 
 # --------------------------------------------------
-async def get_siif_comprobantes_gtos_unified_cta_cte(ejercicio: int = None) -> pd.DataFrame:
+async def get_siif_comprobantes_gtos_unified_cta_cte(
+    ejercicio: int = None,
+) -> pd.DataFrame:
     """
     Get the comprobantes gtos joined data from the repository.
     """
@@ -411,4 +414,22 @@ async def get_siif_comprobantes_haberes(
         ]
         df = pd.concat([df, gcias_310])
 
+    return df
+
+
+# --------------------------------------------------
+async def get_siif_comprobantes_honorarios(
+    ejercicio: str = None,
+) -> pd.DataFrame:
+    """
+    Get comprobantes honorarios factureros data from the repository.
+    """
+    df = await get_siif_comprobantes_gtos_unified_cta_cte(ejercicio=ejercicio)
+    df = df.loc[df["cuit"] == "30632351514"]
+    df = df.loc[df["grupo"] == "300"]
+    df = df.loc[df["partida"] != "384"]
+    df = df.loc[df["cta_cte"].isin(["130832-05", "130832-07"])]
+    keep = ["HONOR", "RECON", "LOC"]
+    df = df.loc[df.glosa.str.contains("|".join(keep))]
+    df = df.reset_index(drop=True)
     return df

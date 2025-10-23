@@ -16,13 +16,12 @@ Google Sheet:
 
 __all__ = ["ControlHonorariosService", "ControlHonorariosServiceDependency"]
 
-
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Annotated, List
 
+import numpy as np
 import pandas as pd
-from dateutil.relativedelta import relativedelta
 from fastapi import Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from playwright.async_api import async_playwright
@@ -44,23 +43,25 @@ from ...siif.schemas import GrupoPartidaSIIF
 from ...slave.handlers import SlaveMongoMigrator
 from ...sscc.services import BancoINVICOServiceDependency, CtasCtesServiceDependency
 from ...utils import (
-    BaseFilterParams,
     RouteReturnSchema,
-    export_dataframe_as_excel_response,
     export_multiple_dataframes_to_excel,
     sync_validated_to_repository,
     validate_and_extract_data_from_df,
 )
 from ..handlers import (
     get_banco_invico_unified_cta_cte,
-    get_siif_comprobantes_haberes,
-    get_siif_rdeu012_unified_cta_cte,
+    get_resumen_rend_honorarios,
+    get_siif_comprobantes_honorarios,
+    get_slave_honorarios,
 )
-from ..repositories.control_honorarios import ControlHonorariosRepositoryDependency
+from ..repositories.control_honorarios import (
+    ControlHonorariosSGFvsSlaveRepositoryDependency,
+    ControlHonorariosSIIFvsSlaveRepositoryDependency,
+)
 from ..schemas.control_honorarios import (
-    ControlHonorariosDocument,
     ControlHonorariosParams,
-    ControlHonorariosReport,
+    ControlHonorariosSGFvsSlaveReport,
+    ControlHonorariosSIIFvsSlaveReport,
     ControlHonorariosSyncParams,
 )
 
@@ -68,7 +69,8 @@ from ..schemas.control_honorarios import (
 # --------------------------------------------------
 @dataclass
 class ControlHonorariosService:
-    control_honorarios_repo: ControlHonorariosRepositoryDependency
+    control_siif_vs_slave_repo: ControlHonorariosSIIFvsSlaveRepositoryDependency
+    control_sgf_vs_slave_repo: ControlHonorariosSGFvsSlaveRepositoryDependency
     sscc_banco_invico_service: BancoINVICOServiceDependency
     sscc_ctas_ctes_service: CtasCtesServiceDependency
     siif_rcg01_uejp_repo: Rcg01UejpRepositoryDependency
@@ -188,15 +190,19 @@ class ControlHonorariosService:
         """
         return_schema = []
         try:
-            # 🔹 Control Haberes
-            partial_schema = await self.compute_control_haberes(params=params)
+            # 🔹 Control Honorarios
+            partial_schema = await self.compute_control_siif_vs_slave(params=params)
+            return_schema.extend(partial_schema)
+            partial_schema = await self.compute_control_sgf_vs_slave(
+                params=params, only_importe_bruto=False, only_diff=False
+            )
             return_schema.extend(partial_schema)
 
         except ValidationError as e:
             logger.error(f"Validation Error: {e}")
             raise HTTPException(
                 status_code=400,
-                detail="Invalid response format from Control de Haberes",
+                detail="Invalid response format from Control de Honorarios",
             )
         except Exception as e:
             logger.error(f"Error in compute_all: {e}")
@@ -213,202 +219,289 @@ class ControlHonorariosService:
     ) -> StreamingResponse:
         ejercicio_actual = datetime.now().year
         ultimos_ejercicios = list(range(ejercicio_actual - 2, ejercicio_actual + 1))
-        control_haberes_docs = await self.control_honorarios_repo.find_by_filter(
+        control_siif_vs_slave_docs = (
+            await self.control_siif_vs_slave_repo.find_by_filter(
+                {"ejercicio": {"$in": ultimos_ejercicios}}
+            )
+        )
+        control_sgf_vs_slave_docs = await self.control_sgf_vs_slave_repo.find_by_filter(
             {"ejercicio": {"$in": ultimos_ejercicios}}
         )
 
-        if not control_haberes_docs:
+        if not control_siif_vs_slave_docs and not control_sgf_vs_slave_docs:
             raise HTTPException(status_code=404, detail="No se encontraron registros")
 
-        comprobantes_haberes = pd.DataFrame()
-        banco_invico = pd.DataFrame()
-        for ejercicio in ultimos_ejercicios:
-            df = await self.generate_comprobantes_haberes_neto_rdeu(ejercicio=ejercicio)
-            comprobantes_haberes = pd.concat(
-                [comprobantes_haberes, df], ignore_index=True
-            )
-            df = await self.generate_banco_invico(ejercicio=ejercicio)
-            banco_invico = pd.concat([banco_invico, df], ignore_index=True)
+        # comprobantes_haberes = pd.DataFrame()
+        # banco_invico = pd.DataFrame()
+        # for ejercicio in ultimos_ejercicios:
+        #     df = await self.generate_comprobantes_haberes_neto_rdeu(ejercicio=ejercicio)
+        #     comprobantes_haberes = pd.concat(
+        #         [comprobantes_haberes, df], ignore_index=True
+        #     )
+        #     df = await self.generate_banco_invico(ejercicio=ejercicio)
+        #     banco_invico = pd.concat([banco_invico, df], ignore_index=True)
 
         return export_multiple_dataframes_to_excel(
             df_sheet_pairs=[
-                (pd.DataFrame(control_haberes_docs), "control_mensual_db"),
-                (comprobantes_haberes, "siif_comprobantes_haberes_db"),
-                (banco_invico, "sscc_haberes_db"),
+                (pd.DataFrame(control_siif_vs_slave_docs), "new_siif_vs_slave_db"),
+                (pd.DataFrame(control_sgf_vs_slave_docs), "new_sgf_vs_slave_db"),
+                # (comprobantes_haberes, "siif_comprobantes_haberes_db"),
+                # (banco_invico, "sscc_haberes_db"),
             ],
-            filename="control_haberes.xlsx",
-            spreadsheet_key="1A9ypUkwm4kfLqUAwr6-55crcFElisOO9fOdI6iflMAc",
+            filename="control_honorarios.xlsx",
+            spreadsheet_key="1fQhp1CdESnvqzrp3QMV5bFSHmGdi7SNoaBRWtmw-JgA",
             upload_to_google_sheets=upload_to_google_sheets,
         )
 
     # --------------------------------------------------
-    async def generate_comprobantes_haberes_neto_rdeu(
-        self, ejercicio: int = None
+    async def siif_summarize(
+        self,
+        ejercicio: int = None,
+        groupby_cols: List[str] = ["ejercicio", "mes", "nro_comprobante", "cta_cte"],
     ) -> pd.DataFrame:
-        try:
-            comprobantes_haberes_total = await get_siif_comprobantes_haberes(
-                ejercicio=None, neto_art=True, neto_gcias_310=True
-            )
-            comprobantes_haberes_ejercicio = comprobantes_haberes_total.loc[
-                comprobantes_haberes_total["ejercicio"] == ejercicio
-            ]
-            rdeu_docs = await get_siif_rdeu012_unified_cta_cte()
+        """
+        Summarize and aggregate SIIF comprobante data.
 
-            rdeu = pd.DataFrame(rdeu_docs)
-            rdeu = rdeu.drop(
-                columns=[
-                    "mes_hasta",
-                    "fecha_aprobado",
-                    "fecha_desde",
-                    "fecha_hasta",
-                    "org_fin",
-                ]
-            )
-            rdeu = rdeu.drop_duplicates(subset=["nro_comprobante", "mes"])
-            semi_table = pd.merge(
-                rdeu,
-                comprobantes_haberes_ejercicio,
-                how="inner",
-                copy=False,
-                on="nro_comprobante",
-            )
-            in_both = rdeu["nro_comprobante"].isin(semi_table["nro_comprobante"])
-            rdeu = rdeu[in_both]
-            rdeu = rdeu.drop_duplicates(subset=["nro_comprobante", "mes", "saldo"])
-            rdeu["importe"] = rdeu["saldo"] * (-1)
-            rdeu["clase_reg"] = "CYO"
-            rdeu["clase_mod"] = "NOR"
-            rdeu["clase_gto"] = "RDEU"
-            rdeu["es_comprometido"] = True
-            rdeu["es_verificado"] = True
-            rdeu["es_aprobado"] = True
-            rdeu["es_pagado"] = True
-            rdeu = rdeu.drop(columns=["saldo"])
-            comprobantes_haberes_neto_rdeu = pd.concat(
-                [comprobantes_haberes_ejercicio, rdeu]
-            )
+        This method imports SIIF comprobante data using the `import_siif_comprobantes` method and summarizes it by aggregating
+        it based on the specified grouping columns. It returns a DataFrame containing the summarized data.
 
-            # Ajustamos la Deuda Flotante Pagada
-            rdeu = pd.DataFrame(rdeu_docs)
-            rdeu = rdeu.drop_duplicates(subset=["nro_comprobante"], keep="last")
-            rdeu["fecha_hasta"] = rdeu["fecha_hasta"] + pd.tseries.offsets.DateOffset(
-                months=1
-            )
-            rdeu["mes_hasta"] = rdeu["fecha_hasta"].dt.strftime("%m/%Y")
-            rdeu["ejercicio"] = pd.to_numeric(rdeu["mes_hasta"].str[-4:])
+        Args:
+            groupby_cols (List[str], optional): A list of column names used for grouping and summarizing the data.
+                Defaults to ['ejercicio', 'mes', 'nro_comprobante', 'cta_cte'].
 
-            # Incorporamos los comprobantes de gastos pagados
-            # en periodos posteriores (Deuda Flotante)
-            if ejercicio is not None:
-                if isinstance(ejercicio, list):
-                    rdeu = rdeu.loc[rdeu["ejercicio"].isin(ejercicio)]
-                else:
-                    rdeu = rdeu.loc[rdeu["ejercicio"].isin([ejercicio])]
-                    rdeu["fecha"] = rdeu["fecha_hasta"]
-            rdeu["mes"] = rdeu["mes_hasta"]
-            rdeu = rdeu.drop(
-                columns=[
-                    "mes_hasta",
-                    "fecha_aprobado",
-                    "fecha_desde",
-                    "fecha_hasta",
-                    "org_fin",
-                ]
-            )
-            semi_table = pd.merge(
-                rdeu,
-                comprobantes_haberes_total,
-                how="inner",
-                copy=False,
-                on="nro_comprobante",
-            )
-            in_both = rdeu["nro_comprobante"].isin(semi_table["nro_comprobante"])
-            rdeu = rdeu[in_both]
-            rdeu = rdeu.drop_duplicates(subset=["nro_comprobante", "mes", "saldo"])
-            rdeu["importe"] = rdeu["saldo"]
-            rdeu["clase_reg"] = "CYO"
-            rdeu["clase_mod"] = "NOR"
-            rdeu["clase_gto"] = "RDEU"
-            rdeu["es_comprometido"] = True
-            rdeu["es_verificado"] = True
-            rdeu["es_aprobado"] = True
-            rdeu["es_pagado"] = True
-            rdeu = rdeu.drop(columns=["saldo"])
+        Returns:
+            pd.DataFrame: A DataFrame containing summarized SIIF comprobante data.
 
-            if isinstance(ejercicio, list):
-                rdeu = rdeu.loc[rdeu["ejercicio"].isin(ejercicio)]
-            else:
-                rdeu = rdeu.loc[rdeu["ejercicio"].isin([ejercicio])]
-            df = pd.concat([comprobantes_haberes_neto_rdeu, rdeu])
-            return df
-        except Exception as e:
-            logger.error(
-                f"Error retrieving SIIF's Comprobantes Haberes Neto Deuda Flotante Data from database: {e}"
-            )
-            raise HTTPException(
-                status_code=500,
-                detail="Error retrieving SIIF's Comprobantes Haberes Neto Deuda Flotante Data from the database",
-            )
-
-    # --------------------------------------------------
-    async def generate_banco_invico(self, ejercicio: int):
-        df = await get_banco_invico_unified_cta_cte(ejercicio=ejercicio)
-        df = df.loc[df["movimiento"] != "DEPOSITO"]
-        df = df.loc[df["cta_cte"] == "130832-04"]
-        keep = ["GCIAS", "GANANCIAS"]
-        df = df.loc[~df.concepto.str.contains("|".join(keep))]
-        df["importe"] = df["importe"] * (-1)
-        dep_transf_int = ["034", "004"]
-        dep_otros = ["003", "055", "005", "013"]
-        df = df.loc[~df["cod_imputacion"].isin(dep_transf_int + dep_otros)]
-        df.reset_index(drop=True, inplace=True)
+        Notes:
+            - Data import: Imports comprobante data from the SIIF system using the `import_siif_comprobantes` method.
+            - Data aggregation: Aggregates the imported data by grouping it based on the specified columns and calculating
+            the sum of numeric columns.
+            - Reset index: Resets the DataFrame index for consistency.
+        """
+        df = await get_siif_comprobantes_honorarios(ejercicio=ejercicio)
+        df = df.groupby(groupby_cols).sum(numeric_only=True)
+        df = df.reset_index()
+        df = df.fillna(0)
         return df
 
     # --------------------------------------------------
-    async def compute_control_haberes(
+    async def slave_summarize(
+        self,
+        ejercicio: int = None,
+        groupby_cols: List[str] = ["ejercicio", "mes", "nro_comprobante", "cta_cte"],
+        only_importe_bruto=False,
+    ) -> pd.DataFrame:
+        """
+        Summarize financial data from the "slave" system.
+
+        This method summarizes financial data from the "slave" system by performing aggregation based on the specified
+        grouping columns. It returns a DataFrame containing the summarized data.
+
+        Args:
+            groupby_cols (List[str], optional): List of column names to group the data by. Defaults to
+                ['ejercicio', 'mes', 'nro_comprobante', 'cta_cte'].
+            only_importe_bruto (bool, optional): If True, includes only the 'importe_bruto' column in the resulting DataFrame.
+                Defaults to False.
+
+        Returns:
+            pd.DataFrame: A DataFrame containing summarized financial data from the "slave" system.
+
+        Notes:
+            - Data aggregation: Aggregates financial data based on the specified grouping columns.
+            - Optional column selection: Allows including only the 'importe_bruto' column if 'only_importe_bruto' is True.
+            - Missing values: Fills missing values with 0.
+        """
+        df = await get_slave_honorarios(ejercicio=ejercicio)
+        df = df.rename(columns={"otras_retenciones": "otras"})
+        df["otras"] = (
+            df["otras"]
+            + df["anticipo"]
+            + df["descuento"]
+            + df["embargo"]
+            + df["mutual"]
+        )
+        df["sellos"] = df["sellos"] + df["lp"]
+        df = df.drop(columns=["anticipo", "descuento", "embargo", "lp", "mutual"])
+        df["retenciones"] = df["iibb"] + df["sellos"] + df["seguro"] + df["otras"]
+        df["importe_neto"] = df["importe_bruto"] - df["retenciones"]
+        if only_importe_bruto:
+            df = df.loc[:, groupby_cols + ["importe_bruto"]]
+        if "cta_cte" in groupby_cols:
+            cta_cte = await get_siif_comprobantes_honorarios(ejercicio=ejercicio)
+            cta_cte = cta_cte.loc[:, ["nro_comprobante", "cta_cte"]]
+            df = df.merge(cta_cte, on="nro_comprobante", how="left")
+            df = df.fillna(0)
+        df = df.groupby(groupby_cols).sum(numeric_only=True)
+        df = df.reset_index()
+        df = df.fillna(0)
+        return df
+
+    # --------------------------------------------------
+    async def sgf_summarize(
+        self,
+        ejercicio: int = None,
+        groupby_cols: List[str] = ["ejercicio", "mes", "cuit", "beneficiario"],
+        only_importe_bruto=False,
+        dep_emb: bool = True,
+    ) -> pd.DataFrame:
+        """
+        Summarize SGF (Sistema de Gestión Financiera) data.
+
+        This method summarizes financial data from SGF for specific grouping columns. It returns the summarized data as
+        a DataFrame.
+
+        Args:
+            groupby_cols (List[str], optional): A list of column names to group the data by. Defaults to
+                ['ejercicio', 'mes', 'cuit', 'beneficiario'].
+            only_importe_bruto (bool, optional): If True, only the 'importe_bruto' column is included in the resulting
+                DataFrame. Defaults to False.
+
+        Returns:
+            pd.DataFrame: A DataFrame containing the summarized SGF financial data based on the specified grouping columns.
+
+        Notes:
+            - Data import: Imports financial data from SGF using the `import_resumen_rend_honorarios` method from the
+            superclass.
+            - DataFrame transformation: Groups the data by the specified columns and calculates the sum for numeric
+            columns. If 'only_importe_bruto' is True, the DataFrame is filtered to include only 'importe_bruto'.
+        """
+        df = await get_resumen_rend_honorarios(ejercicio=ejercicio)
+        if dep_emb:
+            filters = {"cod_imputacion": "049"}
+            banco = await get_banco_invico_unified_cta_cte(
+                ejercicio=ejercicio, filters=filters
+            )
+            banco = banco.loc[banco["cta_cte"] == "130832-05"]
+            banco["importe_bruto"] = banco["importe"] * (-1)
+            banco["importe_neto"] = 0
+            banco["otras"] = banco["importe_bruto"]
+            banco["retenciones"] = banco["importe_bruto"]
+            banco["destino"] = "EMBARGO POR ALIMENTOS"
+            banco["beneficiario"] = "EMBARGO POR ALIMENTOS"
+            banco.rename(
+                columns={
+                    "libramiento": "libramiento_sgf",
+                },
+                inplace=True,
+            )
+            banco = banco.loc[
+                :,
+                [
+                    "ejercicio",
+                    "mes",
+                    "fecha",
+                    "beneficiario",
+                    "destino",
+                    "cta_cte",
+                    "libramiento_sgf",
+                    "movimiento",
+                    "importe_bruto",
+                    "otras",
+                    "retenciones",
+                    "importe_neto",
+                ],
+            ]
+            df = pd.concat([df, banco])
+            df = df.fillna(0)
+
+        df["otras"] = (
+            df["otras"]
+            + df["gcias"]
+            + df["suss"]
+            + df["invico"]
+            + df["salud"]
+            + df["mutual"]
+        )
+        df = df.drop(["gcias", "suss", "invico", "salud", "mutual"], axis=1)
+        if only_importe_bruto:
+            df = df.loc[:, groupby_cols + ["importe_bruto"]]
+        df = df.groupby(groupby_cols).sum(numeric_only=True)
+        df = df.reset_index()
+        return df
+
+    # --------------------------------------------------
+    async def compute_control_siif_vs_slave(
         self,
         params: ControlHonorariosParams,
     ) -> List[RouteReturnSchema]:
         return_schema = []
-        groupby_cols: list = ["ejercicio", "mes"]
+        groupby_cols = ["ejercicio", "mes", "nro_comprobante"]
         try:
             ejercicios = list(range(params.ejercicio_desde, params.ejercicio_hasta + 1))
             for ejercicio in ejercicios:
-                siif = await self.generate_comprobantes_haberes_neto_rdeu(ejercicio)
-                siif = siif.loc[:, groupby_cols + ["importe"]]
-                siif = siif.groupby(groupby_cols)["importe"].sum()
+                siif = await self.siif_summarize(
+                    ejercicio=ejercicio, groupby_cols=groupby_cols
+                )
                 siif = siif.reset_index()
-                siif = siif.rename(columns={"importe": "ejecutado_siif"})
+                siif = siif.rename(
+                    columns={
+                        "importe": "siif_importe",
+                        "nro_comprobante": "siif_nro",
+                        "mes": "siif_mes",
+                    }
+                )
                 # print(f"siif.shape: {siif.shape} - siif.head: {siif.head()}")
-                sscc = await self.generate_banco_invico(ejercicio=ejercicio)
-                sscc = sscc.loc[:, groupby_cols + ["importe"]]
-                sscc = sscc.groupby(groupby_cols)["importe"].sum()
-                sscc = sscc.reset_index()
-                sscc = sscc.rename(columns={"importe": "pagado_sscc"})
+                slave = await self.slave_summarize(
+                    groupby_cols=groupby_cols, only_importe_bruto=True
+                )
+                slave = slave.rename(
+                    columns={
+                        "importe_bruto": "slave_importe",
+                        "nro_comprobante": "slave_nro",
+                        "mes": "slave_mes",
+                    }
+                )
                 # print(f"sscc.shape: {sscc.shape} - sscc.head: {sscc.head()}")
-                df = pd.merge(siif, sscc, how="outer", on=groupby_cols, copy=False)
-                df[["ejecutado_siif", "pagado_sscc"]] = df[
-                    ["ejecutado_siif", "pagado_sscc"]
-                ].fillna(0)
-                df["diferencia"] = df.ejecutado_siif - df.pagado_sscc
-                df = df.sort_values(by=["ejercicio", "mes"])
-                df = pd.DataFrame(df)
-                df["dif_acum"] = df["diferencia"].cumsum()
-                df.reset_index(drop=True, inplace=True)
+                df = pd.merge(
+                    siif,
+                    slave,
+                    how="outer",
+                    left_on=["ejercicio", "siif_nro"],
+                    right_on=["ejercicio", "slave_nro"],
+                    copy=False,
+                )
+                df = df.fillna(0)
+                df["err_nro"] = df["siif_nro"] != df["slave_nro"]
+                df["err_importe"] = ~np.isclose(
+                    df["siif_importe"] - df["slave_importe"], 0
+                )
+                df["err_mes"] = df["siif_mes"] != df["slave_mes"]
+                df = df.loc[
+                    :,
+                    [
+                        "ejercicio",
+                        "siif_nro",
+                        "slave_nro",
+                        "err_nro",
+                        "siif_importe",
+                        "slave_importe",
+                        "err_importe",
+                        "siif_mes",
+                        "slave_mes",
+                        "err_mes",
+                    ],
+                ]
+                df = df.query("err_nro | err_mes | err_importe")
+                df = df.sort_values(
+                    by=["err_nro", "err_importe", "err_mes"], ascending=False
+                )
+                df = df.reset_index(drop=True)
                 # print(f"df.shape: {df.shape} - df.head: {df.head()}")
 
                 # 🔹 Validar datos usando Pydantic
                 validate_and_errors = validate_and_extract_data_from_df(
-                    dataframe=df, model=ControlHonorariosReport, field_id="cuit"
+                    dataframe=df,
+                    model=ControlHonorariosSIIFvsSlaveReport,
+                    field_id="siif_nro",
                 )
 
                 partial_schema = await sync_validated_to_repository(
-                    repository=self.control_honorarios_repo,
+                    repository=self.control_siif_vs_slave_repo,
                     validation=validate_and_errors,
                     delete_filter={"ejercicio": ejercicio},
-                    title=f"Control Haberes del ejercicio {ejercicio}",
+                    title=f"Control SIIF vs Slave del ejercicio {ejercicio}",
                     logger=logger,
-                    label=f"Control Haberes del ejercicio {ejercicio}",
+                    label=f"Control SIIF vs Slave del ejercicio {ejercicio}",
                 )
                 return_schema.append(partial_schema)
 
@@ -416,39 +509,89 @@ class ControlHonorariosService:
             logger.error(f"Validation Error: {e}")
             raise HTTPException(
                 status_code=400,
-                detail="Invalid response format from Control Haberes",
+                detail="Invalid response format from SIIF vs Slave Control Honorarios",
             )
         except Exception as e:
-            logger.error(f"Error in compute_haberes: {e}")
+            logger.error(f"Error in SIIF vs Slave Control Honorarios: {e}")
             raise HTTPException(
                 status_code=500,
-                detail="Error in compute_haberes",
+                detail="Error in SIIF vs Slave Control Honorarios",
             )
         finally:
             return return_schema
 
-    # -------------------------------------------------
-    async def get_control_haberes_from_db(
-        self, params: BaseFilterParams
-    ) -> List[ControlHonorariosDocument]:
-        return await self.control_honorarios_repo.safe_find_with_filter_params(
-            params=params,
-            error_title="Error retrieving Control Haberes from the database",
-        )
+    # --------------------------------------------------
+    async def compute_control_sgf_vs_slave(
+        self, params: ControlHonorariosParams, only_importe_bruto=False, only_diff=False
+    ) -> List[RouteReturnSchema]:
+        return_schema = []
+        groupby_cols = ["ejercicio", "mes", "cta_cte", "beneficiario"]
+        try:
+            ejercicios = list(range(params.ejercicio_desde, params.ejercicio_hasta + 1))
+            for ejercicio in ejercicios:
+                sgf = await self.sgf_summarize(
+                    ejercicio=ejercicio,
+                    groupby_cols=groupby_cols,
+                    only_importe_bruto=only_importe_bruto,
+                )
+                slave = await self.slave_summarize(
+                    ejercicio=ejercicio,
+                    groupby_cols=groupby_cols,
+                    only_importe_bruto=only_importe_bruto,
+                )
+                slave = slave.set_index(groupby_cols)
+                sgf = sgf.set_index(groupby_cols)
+                # Obtener los índices faltantes en slave
+                missing_indices = sgf.index.difference(slave.index)
+                # Reindexar el DataFrame slave con los índices faltantes
+                slave = slave.reindex(slave.index.union(missing_indices))
+                sgf = sgf.reindex(slave.index)
+                slave = slave.fillna(0)
+                sgf = sgf.fillna(0)
+                df = slave.subtract(sgf)
+                df = df.reset_index()
+                # Reindexamos el DataFrame
+                slave = slave.reset_index()
+                df = df.reindex(columns=slave.columns)
+                if only_diff:
+                    # Seleccionar solo las columnas numéricas
+                    numeric_cols = df.select_dtypes(include=np.number).columns
+                    # Filtrar el DataFrame utilizando las columnas numéricas válidas
+                    # df = df[df[numeric_cols].sum(axis=1) != 0]
+                    df = df[~np.isclose(df[numeric_cols].sum(axis=1), 0)]
+                    df = df.reset_index(drop=True)
 
-    # -------------------------------------------------
-    async def export_control_haberes_from_db(
-        self, upload_to_google_sheets: bool = True
-    ) -> StreamingResponse:
-        df = pd.DataFrame(await self.control_honorarios_repo.get_all())
+                # 🔹 Validar datos usando Pydantic
+                validate_and_errors = validate_and_extract_data_from_df(
+                    dataframe=df,
+                    model=ControlHonorariosSGFvsSlaveReport,
+                    field_id="beneficiario",
+                )
 
-        return export_dataframe_as_excel_response(
-            df,
-            filename="control_haberes.xlsx",
-            sheet_name="control_mensual",
-            upload_to_google_sheets=upload_to_google_sheets,
-            google_sheet_key="1A9ypUkwm4kfLqUAwr6-55crcFElisOO9fOdI6iflMAc",
-        )
+                partial_schema = await sync_validated_to_repository(
+                    repository=self.control_sgf_vs_slave_repo,
+                    validation=validate_and_errors,
+                    delete_filter={"ejercicio": ejercicio},
+                    title=f"Control SGF vs Slave del ejercicio {ejercicio}",
+                    logger=logger,
+                    label=f"Control SGF vs Slave del ejercicio {ejercicio}",
+                )
+                return_schema.append(partial_schema)
+
+        except ValidationError as e:
+            logger.error(f"Validation Error: {e}")
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid response format from SGF vs Slave Control Honorarios",
+            )
+        except Exception as e:
+            logger.error(f"Error in SGF vs Slave Control Honorarios: {e}")
+            raise HTTPException(
+                status_code=500,
+                detail="Error in SGF vs Slave Control Honorarios",
+            )
+        finally:
+            return return_schema
 
 
 ControlHonorariosServiceDependency = Annotated[ControlHonorariosService, Depends()]

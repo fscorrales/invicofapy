@@ -1,6 +1,7 @@
 __all__ = [
     "get_resumen_rend_prov_unified_cta_cte",
     "get_resumen_rend_prov_with_desc",
+    "get_resumen_rend_honorarios",
 ]
 
 
@@ -46,9 +47,22 @@ async def get_resumen_rend_prov_unified_cta_cte(
         df_07 = df_07.sort_values(["libramiento_sgf", "destino"], ascending=False)
         df_07 = df_07.drop_duplicates(
             subset=[
-                "mes", "fecha", "beneficiario", "libramiento_sgf", "importe_bruto", 
-                "gcias", "sellos", "iibb", "suss", "invico", "seguro", "salud", 
-                "mutual", "otras", "retenciones", "importe_neto"
+                "mes",
+                "fecha",
+                "beneficiario",
+                "libramiento_sgf",
+                "importe_bruto",
+                "gcias",
+                "sellos",
+                "iibb",
+                "suss",
+                "invico",
+                "seguro",
+                "salud",
+                "mutual",
+                "otras",
+                "retenciones",
+                "importe_neto",
             ]
         )
         df = pd.concat([df[df["cta_cte"] != "130832-07"], df_07], ignore_index=True)
@@ -59,9 +73,22 @@ async def get_resumen_rend_prov_unified_cta_cte(
         df_03 = df_03.sort_values(["libramiento_sgf", "destino"], ascending=False)
         df_03 = df_03.drop_duplicates(
             subset=[
-                "mes", "fecha", "beneficiario", "libramiento_sgf", "importe_bruto", 
-                "gcias", "sellos", "iibb", "suss", "invico", "seguro", "salud", 
-                "mutual", "otras", "retenciones", "importe_neto"
+                "mes",
+                "fecha",
+                "beneficiario",
+                "libramiento_sgf",
+                "importe_bruto",
+                "gcias",
+                "sellos",
+                "iibb",
+                "suss",
+                "invico",
+                "seguro",
+                "salud",
+                "mutual",
+                "otras",
+                "retenciones",
+                "importe_neto",
             ]
         )
         df = pd.concat([df[df["cta_cte"] != "130832-03"], df_03], ignore_index=True)
@@ -95,6 +122,58 @@ async def get_resumen_rend_prov_with_desc(
         sgf = await get_resumen_rend_prov_unified_cta_cte(
             ejercicio=ejercicio, filters=filters
         )
+        prov = pd.DataFrame(await ProveedoresRepository().get_all())
+        prov = prov.loc[:, ["cuit", "desc_proveedor"]]
+        df = pd.merge(
+            left=sgf,
+            right=prov,
+            left_on="beneficiario",
+            right_on="desc_proveedor",
+            how="left",
+        )
+        df.drop(["desc_proveedor"], axis="columns", inplace=True)
+        return df
+    except Exception as e:
+        logger.error(
+            f"Error retrieving Resumen Rend Prov with Desc Proveedor Data from database: {e}"
+        )
+    raise HTTPException(
+        status_code=500,
+        detail="Error Resumen Rend Prov with Desc Proveedor Data from the database",
+    )
+
+
+# --------------------------------------------------
+async def get_resumen_rend_honorarios(
+    ejercicio: int = None, filters: dict = {}
+) -> pd.DataFrame:
+    try:
+        filters = {
+            "$and": [
+                {
+                    "destino": {
+                        "$in": [
+                            "HONORARIOS - FUNCIONAMIENTO",
+                            "COMISIONES - FUNCIONAMIENTO",
+                            "HONORARIOS - EPAM",
+                        ],
+                    }
+                },
+                {"origen": {"$ne": "OBRAS"}},
+            ]
+        }
+        # filters = {
+        #     "origen__ne": "OBRAS",
+        #     "destino__in": [
+        #         "HONORARIOS - FUNCIONAMIENTO",
+        #         "COMISIONES - FUNCIONAMIENTO",
+        #         "HONORARIOS - EPAM",
+        #     ],
+        # }
+        sgf = await get_resumen_rend_prov_unified_cta_cte(
+            ejercicio=ejercicio, filters=filters
+        )
+        sgf = sgf.loc[sgf["cta_cte"].isin(["130832-05", "130832-07"])]
         prov = pd.DataFrame(await ProveedoresRepository().get_all())
         prov = prov.loc[:, ["cuit", "desc_proveedor"]]
         df = pd.merge(

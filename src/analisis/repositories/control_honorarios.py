@@ -1,5 +1,6 @@
 __all__ = [
-    "ControlHonorariosRepositoryDependency",
+    "ControlHonorariosSIIFvsSlaveRepositoryDependency",
+    "ControlHonorariosSGFvsSlaveRepositoryDependency",
 ]
 
 from typing import Annotated
@@ -8,16 +9,32 @@ from fastapi import Depends
 
 from ...config import BaseRepository
 from ..schemas.control_honorarios import (
-    ControlHonorariosReport,
+    ControlHonorariosSGFvsSlaveReport,
+    ControlHonorariosSIIFvsSlaveReport,
 )
 
 
 # -------------------------------------------------
-class ControlHonorariosRepository(BaseRepository[ControlHonorariosReport]):
-    collection_name = "control_honorarios"
-    model = ControlHonorariosReport
+class ControlHonorariosSIIFvsSlaveRepository(
+    BaseRepository[ControlHonorariosSIIFvsSlaveReport]
+):
+    collection_name = "control_honorarios_siif_vs_slave"
+    model = ControlHonorariosSIIFvsSlaveReport
 
 
-ControlHonorariosRepositoryDependency = Annotated[
-    ControlHonorariosRepository, Depends()
+ControlHonorariosSIIFvsSlaveRepositoryDependency = Annotated[
+    ControlHonorariosSIIFvsSlaveRepository, Depends()
+]
+
+
+# -------------------------------------------------
+class ControlHonorariosSGFvsSlaveRepository(
+    BaseRepository[ControlHonorariosSGFvsSlaveReport]
+):
+    collection_name = "control_honorarios_sgf_vs_slave"
+    model = ControlHonorariosSGFvsSlaveReport
+
+
+ControlHonorariosSGFvsSlaveRepositoryDependency = Annotated[
+    ControlHonorariosSGFvsSlaveRepository, Depends()
 ]
