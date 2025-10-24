@@ -87,10 +87,14 @@ class GoogleSheets:
                 worksheet = sheet.worksheet(wks_name)
             except gspread.exceptions.WorksheetNotFound:
                 worksheet = sheet.add_worksheet(title=wks_name, rows="100", cols="20")
-
-            worksheet.clear()
-            worksheet.update([df.columns.values.tolist()] + df.values.tolist())
-            print(f"✅ Data uploaded successfully to '{wks_name}'")
+            if df.empty:
+                delete_range = f"{wks_name}!A2:ZZ100000"
+                sheet.values_clear(delete_range)
+                print(f"❌ Data deleted from '{wks_name}' because DF was empty")
+            else:
+                worksheet.clear()
+                worksheet.update([df.columns.values.tolist()] + df.values.tolist())
+                print(f"✅ Data uploaded successfully to '{wks_name}'")
         except Exception as e:
             print(f"❌ Error uploading data: {e}")
             raise

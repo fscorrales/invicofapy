@@ -171,20 +171,21 @@ def export_multiple_dataframes_to_excel(
         # 1️⃣ Sanitizar y preparar DataFrames
         sanitized_pairs = []
         for df, sheet_name in df_sheet_pairs:
-            df = sanitize_dataframe_for_json_with_datetime(df)
-            df = df.drop(columns=["_id"], errors="ignore")
+            if not df.empty:
+                df = sanitize_dataframe_for_json_with_datetime(df)
+                df = df.drop(columns=["_id"], errors="ignore")
             sanitized_pairs.append((df, sheet_name))
 
         # 2️⃣ Subir a Google Sheets
         if upload_to_google_sheets and spreadsheet_key:
             gs = GoogleSheets()
             for df, sheet_name in sanitized_pairs:
-                if not df.empty:
-                    gs.to_google_sheets(
-                        df=df,
-                        spreadsheet_key=spreadsheet_key,
-                        wks_name=sheet_name,
-                    )
+                # if not df.empty:
+                gs.to_google_sheets(
+                    df=df,
+                    spreadsheet_key=spreadsheet_key,
+                    wks_name=sheet_name,
+                )
 
         # 3️⃣ Escribir a Excel
         buffer = BytesIO()
