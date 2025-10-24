@@ -246,9 +246,9 @@ class ControlHonorariosService:
 
         return export_multiple_dataframes_to_excel(
             df_sheet_pairs=[
-                (pd.DataFrame(control_siif_vs_slave_docs), "new_siif_vs_slave_db"),
+                (pd.DataFrame(control_siif_vs_slave_docs), "siif_vs_slave_db"),
                 (pd.DataFrame(control_sgf_vs_slave_docs), "new_sgf_vs_slave_db"),
-                (siif, "new_siif_db"),
+                (siif, "siif_db"),
                 (slave, "new_slave_db"),
                 (sgf, "new_sgf_db"),
             ],
@@ -295,6 +295,11 @@ class ControlHonorariosService:
         add_cta_cte: bool = False,
     ) -> pd.DataFrame:
         df = await get_slave_honorarios(ejercicio=ejercicio)
+        print(
+            df.loc[
+                (df.mes == "01/2025") & (df.beneficiario == "ACEVEDO DIANA LAURA")
+            ].head()
+        )
         df = df.rename(columns={"otras_retenciones": "otras"})
         df["otras"] = (
             df["otras"]
@@ -310,8 +315,14 @@ class ControlHonorariosService:
         if add_cta_cte:
             cta_cte = await get_siif_comprobantes_honorarios(ejercicio=ejercicio)
             cta_cte = cta_cte.loc[:, ["nro_comprobante", "cta_cte"]]
+            cta_cte = cta_cte.drop_duplicates()
             df = df.merge(cta_cte, on="nro_comprobante", how="left")
             df = df.fillna(0)
+        print(
+            df.loc[
+                (df.mes == "01/2025") & (df.beneficiario == "ACEVEDO DIANA LAURA")
+            ].head()
+        )
         return df
 
     # --------------------------------------------------
