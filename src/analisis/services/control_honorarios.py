@@ -295,11 +295,6 @@ class ControlHonorariosService:
         add_cta_cte: bool = False,
     ) -> pd.DataFrame:
         df = await get_slave_honorarios(ejercicio=ejercicio)
-        print(
-            df.loc[
-                (df.mes == "01/2025") & (df.beneficiario == "ACEVEDO DIANA LAURA")
-            ].head()
-        )
         df = df.rename(columns={"otras_retenciones": "otras"})
         df["otras"] = (
             df["otras"]
@@ -318,11 +313,6 @@ class ControlHonorariosService:
             cta_cte = cta_cte.drop_duplicates()
             df = df.merge(cta_cte, on="nro_comprobante", how="left")
             df = df.fillna(0)
-        print(
-            df.loc[
-                (df.mes == "01/2025") & (df.beneficiario == "ACEVEDO DIANA LAURA")
-            ].head()
-        )
         return df
 
     # --------------------------------------------------
