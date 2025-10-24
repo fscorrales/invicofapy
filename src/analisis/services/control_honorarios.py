@@ -585,6 +585,7 @@ class ControlHonorariosService:
                 if only_diff:
                     # Seleccionar solo las columnas numéricas
                     numeric_cols = df.select_dtypes(include=np.number).columns
+                    print(f"numeric_cols: {numeric_cols}")
                     # Filtrar el DataFrame utilizando las columnas numéricas válidas
                     # df = df[df[numeric_cols].sum(axis=1) != 0]
                     df = df[np.abs(df[numeric_cols].sum(axis=1)) > 0.01]
