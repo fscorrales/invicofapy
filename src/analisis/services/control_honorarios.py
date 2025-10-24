@@ -231,22 +231,26 @@ class ControlHonorariosService:
         if not control_siif_vs_slave_docs and not control_sgf_vs_slave_docs:
             raise HTTPException(status_code=404, detail="No se encontraron registros")
 
-        # comprobantes_haberes = pd.DataFrame()
-        # banco_invico = pd.DataFrame()
-        # for ejercicio in ultimos_ejercicios:
-        #     df = await self.generate_comprobantes_haberes_neto_rdeu(ejercicio=ejercicio)
-        #     comprobantes_haberes = pd.concat(
-        #         [comprobantes_haberes, df], ignore_index=True
-        #     )
-        #     df = await self.generate_banco_invico(ejercicio=ejercicio)
-        #     banco_invico = pd.concat([banco_invico, df], ignore_index=True)
+        siif = pd.DataFrame()
+        slave = pd.DataFrame()
+        sgf = pd.DataFrame()
+        for ejercicio in ultimos_ejercicios:
+            df = await get_siif_comprobantes_honorarios(ejercicio=ejercicio)
+            siif = pd.concat([siif, df], ignore_index=True)
+            df = await self.generate_slave_honorarios(
+                ejercicio=ejercicio, add_cta_cte=True
+            )
+            slave = pd.concat([slave, df], ignore_index=True)
+            df = await self.generate_sgf_honorarios(ejercicio=ejercicio, dep_emb=True)
+            sgf = pd.concat([sgf, df], ignore_index=True)
 
         return export_multiple_dataframes_to_excel(
             df_sheet_pairs=[
                 (pd.DataFrame(control_siif_vs_slave_docs), "new_siif_vs_slave_db"),
                 (pd.DataFrame(control_sgf_vs_slave_docs), "new_sgf_vs_slave_db"),
-                # (comprobantes_haberes, "siif_comprobantes_haberes_db"),
-                # (banco_invico, "sscc_haberes_db"),
+                (siif, "new_siif_db"),
+                (slave, "new_slave_db"),
+                (sgf, "new_sgf_db"),
             ],
             filename="control_honorarios.xlsx",
             spreadsheet_key="1fQhp1CdESnvqzrp3QMV5bFSHmGdi7SNoaBRWtmw-JgA",
@@ -285,6 +289,32 @@ class ControlHonorariosService:
         return df
 
     # --------------------------------------------------
+    async def generate_slave_honorarios(
+        self,
+        ejercicio: int = None,
+        add_cta_cte: bool = False,
+    ) -> pd.DataFrame:
+        df = await get_slave_honorarios(ejercicio=ejercicio)
+        df = df.rename(columns={"otras_retenciones": "otras"})
+        df["otras"] = (
+            df["otras"]
+            + df["anticipo"]
+            + df["descuento"]
+            + df["embargo"]
+            + df["mutual"]
+        )
+        df["sellos"] = df["sellos"] + df["lp"]
+        df = df.drop(columns=["anticipo", "descuento", "embargo", "lp", "mutual"])
+        df["retenciones"] = df["iibb"] + df["sellos"] + df["seguro"] + df["otras"]
+        df["importe_neto"] = df["importe_bruto"] - df["retenciones"]
+        if add_cta_cte:
+            cta_cte = await get_siif_comprobantes_honorarios(ejercicio=ejercicio)
+            cta_cte = cta_cte.loc[:, ["nro_comprobante", "cta_cte"]]
+            df = df.merge(cta_cte, on="nro_comprobante", how="left")
+            df = df.fillna(0)
+        return df
+
+    # --------------------------------------------------
     async def slave_summarize(
         self,
         ejercicio: int = None,
@@ -311,60 +341,22 @@ class ControlHonorariosService:
             - Optional column selection: Allows including only the 'importe_bruto' column if 'only_importe_bruto' is True.
             - Missing values: Fills missing values with 0.
         """
-        df = await get_slave_honorarios(ejercicio=ejercicio)
-        df = df.rename(columns={"otras_retenciones": "otras"})
-        df["otras"] = (
-            df["otras"]
-            + df["anticipo"]
-            + df["descuento"]
-            + df["embargo"]
-            + df["mutual"]
+        df = await self.generate_slave_honorarios(
+            ejercicio=ejercicio, add_cta_cte="cta_cte" in groupby_cols
         )
-        df["sellos"] = df["sellos"] + df["lp"]
-        df = df.drop(columns=["anticipo", "descuento", "embargo", "lp", "mutual"])
-        df["retenciones"] = df["iibb"] + df["sellos"] + df["seguro"] + df["otras"]
-        df["importe_neto"] = df["importe_bruto"] - df["retenciones"]
         if only_importe_bruto:
             df = df.loc[:, groupby_cols + ["importe_bruto"]]
-        if "cta_cte" in groupby_cols:
-            cta_cte = await get_siif_comprobantes_honorarios(ejercicio=ejercicio)
-            cta_cte = cta_cte.loc[:, ["nro_comprobante", "cta_cte"]]
-            df = df.merge(cta_cte, on="nro_comprobante", how="left")
-            df = df.fillna(0)
         df = df.groupby(groupby_cols).sum(numeric_only=True)
         df = df.reset_index()
         df = df.fillna(0)
         return df
 
     # --------------------------------------------------
-    async def sgf_summarize(
+    async def generate_sgf_honorarios(
         self,
         ejercicio: int = None,
-        groupby_cols: List[str] = ["ejercicio", "mes", "cuit", "beneficiario"],
-        only_importe_bruto=False,
         dep_emb: bool = True,
     ) -> pd.DataFrame:
-        """
-        Summarize SGF (Sistema de Gestión Financiera) data.
-
-        This method summarizes financial data from SGF for specific grouping columns. It returns the summarized data as
-        a DataFrame.
-
-        Args:
-            groupby_cols (List[str], optional): A list of column names to group the data by. Defaults to
-                ['ejercicio', 'mes', 'cuit', 'beneficiario'].
-            only_importe_bruto (bool, optional): If True, only the 'importe_bruto' column is included in the resulting
-                DataFrame. Defaults to False.
-
-        Returns:
-            pd.DataFrame: A DataFrame containing the summarized SGF financial data based on the specified grouping columns.
-
-        Notes:
-            - Data import: Imports financial data from SGF using the `import_resumen_rend_honorarios` method from the
-            superclass.
-            - DataFrame transformation: Groups the data by the specified columns and calculates the sum for numeric
-            columns. If 'only_importe_bruto' is True, the DataFrame is filtered to include only 'importe_bruto'.
-        """
         df = await get_resumen_rend_honorarios(ejercicio=ejercicio)
         if dep_emb:
             filters = {"cod_imputacion": "049"}
@@ -403,7 +395,6 @@ class ControlHonorariosService:
             ]
             df = pd.concat([df, banco])
             df = df.fillna(0)
-
         df["otras"] = (
             df["otras"]
             + df["gcias"]
@@ -413,6 +404,38 @@ class ControlHonorariosService:
             + df["mutual"]
         )
         df = df.drop(["gcias", "suss", "invico", "salud", "mutual"], axis=1)
+        return df
+
+    # --------------------------------------------------
+    async def sgf_summarize(
+        self,
+        ejercicio: int = None,
+        groupby_cols: List[str] = ["ejercicio", "mes", "cuit", "beneficiario"],
+        only_importe_bruto=False,
+        dep_emb: bool = True,
+    ) -> pd.DataFrame:
+        """
+        Summarize SGF (Sistema de Gestión Financiera) data.
+
+        This method summarizes financial data from SGF for specific grouping columns. It returns the summarized data as
+        a DataFrame.
+
+        Args:
+            groupby_cols (List[str], optional): A list of column names to group the data by. Defaults to
+                ['ejercicio', 'mes', 'cuit', 'beneficiario'].
+            only_importe_bruto (bool, optional): If True, only the 'importe_bruto' column is included in the resulting
+                DataFrame. Defaults to False.
+
+        Returns:
+            pd.DataFrame: A DataFrame containing the summarized SGF financial data based on the specified grouping columns.
+
+        Notes:
+            - Data import: Imports financial data from SGF using the `import_resumen_rend_honorarios` method from the
+            superclass.
+            - DataFrame transformation: Groups the data by the specified columns and calculates the sum for numeric
+            columns. If 'only_importe_bruto' is True, the DataFrame is filtered to include only 'importe_bruto'.
+        """
+        df = await self.generate_sgf_honorarios(ejercicio=ejercicio)
         if only_importe_bruto:
             df = df.loc[:, groupby_cols + ["importe_bruto"]]
         df = df.groupby(groupby_cols).sum(numeric_only=True)
@@ -537,14 +560,14 @@ class ControlHonorariosService:
                     groupby_cols=groupby_cols,
                     only_importe_bruto=only_importe_bruto,
                 )
-                print(f"sgf.shape: {sgf.shape} - sgf.head: {sgf.head()}")
+                # print(f"sgf.shape: {sgf.shape} - sgf.head: {sgf.head()}")
                 slave = await self.slave_summarize(
                     ejercicio=ejercicio,
                     groupby_cols=groupby_cols,
                     only_importe_bruto=only_importe_bruto,
                 )
                 slave = slave.set_index(groupby_cols)
-                print(f"slave.shape: {slave.shape} - slave.head: {slave.head()}")
+                # print(f"slave.shape: {slave.shape} - slave.head: {slave.head()}")
                 sgf = sgf.set_index(groupby_cols)
                 # Obtener los índices faltantes en slave
                 missing_indices = sgf.index.difference(slave.index)
