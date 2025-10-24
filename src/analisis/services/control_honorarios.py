@@ -432,7 +432,6 @@ class ControlHonorariosService:
                 siif = await self.siif_summarize(
                     ejercicio=ejercicio, groupby_cols=groupby_cols
                 )
-                siif = siif.reset_index()
                 siif = siif.rename(
                     columns={
                         "importe": "siif_importe",
@@ -442,7 +441,7 @@ class ControlHonorariosService:
                 )
                 # print(f"siif.shape: {siif.shape} - siif.head: {siif.head()}")
                 slave = await self.slave_summarize(
-                    groupby_cols=groupby_cols, only_importe_bruto=True
+                    ejercicio=ejercicio, groupby_cols=groupby_cols, only_importe_bruto=True
                 )
                 slave = slave.rename(
                     columns={
@@ -451,7 +450,7 @@ class ControlHonorariosService:
                         "mes": "slave_mes",
                     }
                 )
-                # print(f"sscc.shape: {sscc.shape} - sscc.head: {sscc.head()}")
+                # print(f"slave.shape: {slave.shape} - slave.head: {slave.head()}")
                 df = pd.merge(
                     siif,
                     slave,
@@ -462,8 +461,8 @@ class ControlHonorariosService:
                 )
                 df = df.fillna(0)
                 df["err_nro"] = df["siif_nro"] != df["slave_nro"]
-                df["err_importe"] = ~np.isclose(
-                    df["siif_importe"] - df["slave_importe"], 0
+                df["err_importe"] = np.where(
+                    np.abs(df["siif_importe"] - df["slave_importe"]) > 0.01, True, False
                 )
                 df["err_mes"] = df["siif_mes"] != df["slave_mes"]
                 df = df.loc[
@@ -481,6 +480,7 @@ class ControlHonorariosService:
                         "err_mes",
                     ],
                 ]
+                # print(f"df.shape: {df.shape} - df.head: {df.head()}")
                 df = df.query("err_nro | err_mes | err_importe")
                 df = df.sort_values(
                     by=["err_nro", "err_importe", "err_mes"], ascending=False
@@ -494,6 +494,7 @@ class ControlHonorariosService:
                     model=ControlHonorariosSIIFvsSlaveReport,
                     field_id="siif_nro",
                 )
+                # print(f"validate_and_errors: {validate_and_errors}")
 
                 partial_schema = await sync_validated_to_repository(
                     repository=self.control_siif_vs_slave_repo,

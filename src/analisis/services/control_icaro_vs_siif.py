@@ -267,25 +267,26 @@ class ControlIcaroVsSIIFService:
                 gs_service = GoogleSheets()
                 if not control_anual_df.empty:
                     control_anual_df.drop(columns=["_id"], inplace=True)
-                    gs_service.to_google_sheets(
-                        df=control_anual_df,
-                        spreadsheet_key="1KKeeoop_v_Nf21s7eFp4sS6SmpxRZQ9DPa1A5wVqnZ0",
-                        wks_name="control_ejecucion_anual_db",
-                    )
+                gs_service.to_google_sheets(
+                    df=control_anual_df,
+                    spreadsheet_key="1KKeeoop_v_Nf21s7eFp4sS6SmpxRZQ9DPa1A5wVqnZ0",
+                    wks_name="control_ejecucion_anual_db",
+                )
                 if not control_comprobantes_df.empty:
                     control_comprobantes_df.drop(columns=["_id"], inplace=True)
-                    gs_service.to_google_sheets(
-                        df=control_comprobantes_df,
-                        spreadsheet_key="1KKeeoop_v_Nf21s7eFp4sS6SmpxRZQ9DPa1A5wVqnZ0",
-                        wks_name="control_comprobantes_db",
-                    )
-                if not control_pa6_df.empty:
+                gs_service.to_google_sheets(
+                    df=control_comprobantes_df,
+                    spreadsheet_key="1KKeeoop_v_Nf21s7eFp4sS6SmpxRZQ9DPa1A5wVqnZ0",
+                    wks_name="control_comprobantes_db",
+                )
+                if not control_pa6_df.empty: 
                     control_pa6_df.drop(columns=["_id"], inplace=True)
-                    gs_service.to_google_sheets(
-                        df=control_pa6_df,
-                        spreadsheet_key="1KKeeoop_v_Nf21s7eFp4sS6SmpxRZQ9DPa1A5wVqnZ0",
-                        wks_name="control_pa6_db",
-                    )
+                gs_service.to_google_sheets(
+                    df=control_pa6_df,
+                    spreadsheet_key="1KKeeoop_v_Nf21s7eFp4sS6SmpxRZQ9DPa1A5wVqnZ0",
+                    wks_name="control_pa6_db",
+                )
+
 
             # 4️⃣ Escribimos a un buffer Excel en memoria
             buffer = BytesIO()
