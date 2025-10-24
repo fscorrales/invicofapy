@@ -194,7 +194,7 @@ class ControlHonorariosService:
             partial_schema = await self.compute_control_siif_vs_slave(params=params)
             return_schema.extend(partial_schema)
             partial_schema = await self.compute_control_sgf_vs_slave(
-                params=params, only_importe_bruto=False, only_diff=False
+                params=params, only_importe_bruto=False, only_diff=True
             )
             return_schema.extend(partial_schema)
 
