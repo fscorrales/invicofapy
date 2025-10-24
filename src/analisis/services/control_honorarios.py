@@ -247,10 +247,10 @@ class ControlHonorariosService:
         return export_multiple_dataframes_to_excel(
             df_sheet_pairs=[
                 (pd.DataFrame(control_siif_vs_slave_docs), "siif_vs_slave_db"),
-                (pd.DataFrame(control_sgf_vs_slave_docs), "new_sgf_vs_slave_db"),
+                (pd.DataFrame(control_sgf_vs_slave_docs), "sgf_vs_slave_db"),
                 (siif, "siif_db"),
-                (slave, "new_slave_db"),
-                (sgf, "new_sgf_db"),
+                (slave, "slave_db"),
+                (sgf, "sgf_db"),
             ],
             filename="control_honorarios.xlsx",
             spreadsheet_key="1fQhp1CdESnvqzrp3QMV5bFSHmGdi7SNoaBRWtmw-JgA",
@@ -446,7 +446,7 @@ class ControlHonorariosService:
             - DataFrame transformation: Groups the data by the specified columns and calculates the sum for numeric
             columns. If 'only_importe_bruto' is True, the DataFrame is filtered to include only 'importe_bruto'.
         """
-        df = await self.generate_sgf_honorarios(ejercicio=ejercicio)
+        df = await self.generate_sgf_honorarios(ejercicio=ejercicio, dep_emb=dep_emb)
         if only_importe_bruto:
             df = df.loc[:, groupby_cols + ["importe_bruto"]]
         df = df.groupby(groupby_cols).sum(numeric_only=True)
@@ -597,7 +597,7 @@ class ControlHonorariosService:
                     numeric_cols = df.select_dtypes(include=np.number).columns
                     # Filtrar el DataFrame utilizando las columnas numéricas válidas
                     # df = df[df[numeric_cols].sum(axis=1) != 0]
-                    df = df[~np.isclose(df[numeric_cols].sum(axis=1), 0)]
+                    df = df[~(np.abs(df[numeric_cols].sum(axis=1)) > 0.01)]
                     df = df.reset_index(drop=True)
 
                 # 🔹 Validar datos usando Pydantic
