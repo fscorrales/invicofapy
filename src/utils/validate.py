@@ -117,6 +117,7 @@ async def sync_validated_to_repository(
     """
 
     schema = RouteReturnSchema()
+    schema.title = title
 
     if validation.validated:
         if logger:
@@ -141,7 +142,6 @@ async def sync_validated_to_repository(
                 f"{label} → Eliminados: {deleted_count} | Insertados: {len(inserted.inserted_ids)}"
             )
 
-        schema.title = title
         schema.deleted += deleted_count
         schema.added += len(validation.validated)
         schema.errors += validation.errors
