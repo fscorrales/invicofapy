@@ -441,7 +441,9 @@ class ControlHonorariosService:
                 )
                 # print(f"siif.shape: {siif.shape} - siif.head: {siif.head()}")
                 slave = await self.slave_summarize(
-                    ejercicio=ejercicio, groupby_cols=groupby_cols, only_importe_bruto=True
+                    ejercicio=ejercicio,
+                    groupby_cols=groupby_cols,
+                    only_importe_bruto=True,
                 )
                 slave = slave.rename(
                     columns={
@@ -535,12 +537,14 @@ class ControlHonorariosService:
                     groupby_cols=groupby_cols,
                     only_importe_bruto=only_importe_bruto,
                 )
+                print(f"sgf.shape: {sgf.shape} - sgf.head: {sgf.head()}")
                 slave = await self.slave_summarize(
                     ejercicio=ejercicio,
                     groupby_cols=groupby_cols,
                     only_importe_bruto=only_importe_bruto,
                 )
                 slave = slave.set_index(groupby_cols)
+                print(f"slave.shape: {slave.shape} - slave.head: {slave.head()}")
                 sgf = sgf.set_index(groupby_cols)
                 # Obtener los índices faltantes en slave
                 missing_indices = sgf.index.difference(slave.index)
