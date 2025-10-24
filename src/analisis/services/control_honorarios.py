@@ -587,7 +587,7 @@ class ControlHonorariosService:
                     numeric_cols = df.select_dtypes(include=np.number).columns
                     # Filtrar el DataFrame utilizando las columnas numéricas válidas
                     # df = df[df[numeric_cols].sum(axis=1) != 0]
-                    df = df[~(np.abs(df[numeric_cols].sum(axis=1)) > 0.01)]
+                    df = df[~np.isclose(df[numeric_cols].sum(axis=1), 0)]
                     df = df.reset_index(drop=True)
 
                 # 🔹 Validar datos usando Pydantic
