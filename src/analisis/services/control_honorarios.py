@@ -238,10 +238,12 @@ class ControlHonorariosService:
             df = await get_siif_comprobantes_honorarios(ejercicio=ejercicio)
             siif = pd.concat([siif, df], ignore_index=True)
             df = await self.generate_slave_honorarios(
-                ejercicio=ejercicio, add_cta_cte=True
+                ejercicio=ejercicio, add_cta_cte=True, group_retenciones=False
             )
             slave = pd.concat([slave, df], ignore_index=True)
-            df = await self.generate_sgf_honorarios(ejercicio=ejercicio, dep_emb=True)
+            df = await self.generate_sgf_honorarios(
+                ejercicio=ejercicio, dep_emb=True, group_retenciones=False
+            )
             sgf = pd.concat([sgf, df], ignore_index=True)
 
         return export_multiple_dataframes_to_excel(
@@ -293,20 +295,22 @@ class ControlHonorariosService:
         self,
         ejercicio: int = None,
         add_cta_cte: bool = False,
+        group_retenciones: bool = True,
     ) -> pd.DataFrame:
         df = await get_slave_honorarios(ejercicio=ejercicio)
-        df = df.rename(columns={"otras_retenciones": "otras"})
-        df["otras"] = (
-            df["otras"]
-            + df["anticipo"]
-            + df["descuento"]
-            + df["embargo"]
-            + df["mutual"]
-        )
-        df["sellos"] = df["sellos"] + df["lp"]
-        df = df.drop(columns=["anticipo", "descuento", "embargo", "lp", "mutual"])
-        df["retenciones"] = df["iibb"] + df["sellos"] + df["seguro"] + df["otras"]
-        df["importe_neto"] = df["importe_bruto"] - df["retenciones"]
+        if group_retenciones:
+            df = df.rename(columns={"otras_retenciones": "otras"})
+            df["otras"] = (
+                df["otras"]
+                + df["anticipo"]
+                + df["descuento"]
+                + df["embargo"]
+                + df["mutual"]
+            )
+            df["sellos"] = df["sellos"] + df["lp"]
+            df = df.drop(columns=["anticipo", "descuento", "embargo", "lp", "mutual"])
+            df["retenciones"] = df["iibb"] + df["sellos"] + df["seguro"] + df["otras"]
+            df["importe_neto"] = df["importe_bruto"] - df["retenciones"]
         if add_cta_cte:
             cta_cte = await get_siif_comprobantes_honorarios(ejercicio=ejercicio)
             cta_cte = cta_cte.loc[:, ["nro_comprobante", "cta_cte"]]
@@ -357,6 +361,7 @@ class ControlHonorariosService:
         self,
         ejercicio: int = None,
         dep_emb: bool = True,
+        group_retenciones: bool = True,
     ) -> pd.DataFrame:
         df = await get_resumen_rend_honorarios(ejercicio=ejercicio)
         if dep_emb:
@@ -396,15 +401,16 @@ class ControlHonorariosService:
             ]
             df = pd.concat([df, banco])
             df = df.fillna(0)
-        df["otras"] = (
-            df["otras"]
-            + df["gcias"]
-            + df["suss"]
-            + df["invico"]
-            + df["salud"]
-            + df["mutual"]
-        )
-        df = df.drop(["gcias", "suss", "invico", "salud", "mutual"], axis=1)
+        if group_retenciones:
+            df["otras"] = (
+                df["otras"]
+                + df["gcias"]
+                + df["suss"]
+                + df["invico"]
+                + df["salud"]
+                + df["mutual"]
+            )
+            df = df.drop(["gcias", "suss", "invico", "salud", "mutual"], axis=1)
         return df
 
     # --------------------------------------------------
