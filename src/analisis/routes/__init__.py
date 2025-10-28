@@ -2,6 +2,7 @@ __all__ = ["control_router", "reporte_router"]
 
 from fastapi import APIRouter
 
+from .control_escribanos import control_escribanos_router
 from .control_haberes import control_haberes_router
 from .control_honorarios import control_honorarios_router
 from .control_icaro_vs_siif import control_icaro_vs_siif_router
@@ -16,6 +17,7 @@ control_router.include_router(control_icaro_vs_siif_router)
 control_router.include_router(control_obras_router)
 control_router.include_router(control_haberes_router)
 control_router.include_router(control_honorarios_router)
+control_router.include_router(control_escribanos_router)
 
 reporte_router = APIRouter(prefix="/reporte", tags=["Reportes"])
 reporte_router.include_router(reporte_formulacion_presupuesto_router)

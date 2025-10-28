@@ -54,6 +54,8 @@ COLLECTIONS = [
     "control_icaro_vs_siif_anual",
     "control_icaro_vs_siif_comprobantes",
     "control_icaro_vs_siif_pa6",
+    "control_escribanos_siif_vs_sgf",
+    "control_escribanos_sgf_vs_sscc",
     "reporte_modulos_basicos_icaro",
 ]
 
