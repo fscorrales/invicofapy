@@ -70,15 +70,12 @@ class ControlEscribanosSGFvsSSCCDocument(ControlEscribanosSGFvsSSCCReport):
 class ControlEscribanosSIIFvsSGFReport(BaseModel):
     ejercicio: int
     mes: str
-    cta_cte: str
-    beneficiario: str
-    importe_bruto: float
-    iibb: float
-    sellos: float
-    seguro: float
-    otras: float
-    retenciones: float
-    importe_neto: float
+    cuit: str
+    carga_fei: float
+    pagos_fei: float
+    fei_impagos: float
+    pagos_sgf: float
+    dif_pagos: float
 
 
 # -------------------------------------------------
