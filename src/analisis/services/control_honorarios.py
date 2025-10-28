@@ -76,7 +76,7 @@ class ControlHonorariosService:
     siif_rcg01_uejp_repo: Rcg01UejpRepositoryDependency
     siif_rcg01_uejp_handler: Rcg01Uejp = field(init=False)  # No se pasa como argumento
     siif_rpa03g_repo: Rpa03gRepositoryDependency
-    siif_rcocc31_handler: Rpa03g = field(init=False)  # No se pasa como argumento
+    siif_rpa03g_handler: Rpa03g = field(init=False)  # No se pasa como argumento
     sgf_resumend_rend_prov_service: ResumenRendProvServiceDependency
 
     # -------------------------------------------------
@@ -127,10 +127,10 @@ class ControlHonorariosService:
                     return_schema.append(partial_schema)
 
                 # 🔹 Rpa03g
-                self.siif_rcocc31_handler = Rpa03g(siif=connect_siif)
+                self.siif_rpa03g_handler = Rpa03g(siif=connect_siif)
                 for ejercicio in ejercicios:
                     for grupo in [g.value for g in GrupoPartidaSIIF]:
-                        partial_schema = await self.siif_rcocc31_handler.download_and_sync_validated_to_repository(
+                        partial_schema = await self.siif_rpa03g_handler.download_and_sync_validated_to_repository(
                             ejercicio=int(ejercicio), grupo_partida=grupo
                         )
                         return_schema.append(partial_schema)
