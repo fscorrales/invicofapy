@@ -174,7 +174,7 @@ class ControlEscribanosService:
             )
             return_schema.extend(partial_schema)
             partial_schema = await self.compute_control_siif_vs_sgf(
-                params=params, only_importe_bruto=False, only_diff=True
+                params=params, only_diff=True
             )
             return_schema.extend(partial_schema)
 
@@ -222,11 +222,11 @@ class ControlEscribanosService:
 
         return export_multiple_dataframes_to_excel(
             df_sheet_pairs=[
-                (pd.DataFrame(control_siif_vs_sgf_docs), "new_siif_vs_sgf_db"),
-                (pd.DataFrame(control_sgf_vs_sscc_docs), "new_sgf_vs_sscc_db"),
-                (siif, "new_siif_db"),
-                (sscc, "new_sscc_db"),
-                (sgf, "new_sgf_db"),
+                (pd.DataFrame(control_siif_vs_sgf_docs), "siif_vs_sgf_db"),
+                (pd.DataFrame(control_sgf_vs_sscc_docs), "sgf_vs_sscc_db"),
+                (siif, "siif_db"),
+                (sscc, "sscc_db"),
+                (sgf, "sgf_db"),
             ],
             filename="control_escribanos.xlsx",
             spreadsheet_key="1Tz3uvUGBL8ZDSFsYRBP8hgIis-hlhs_sQ6V5bI4LaTg",
@@ -239,7 +239,6 @@ class ControlEscribanosService:
         ejercicio: int = None,
     ) -> pd.DataFrame:
         filters = {
-            "auxiliar_1__in": ["245", "310"],
             "tipo_comprobante": {"$ne": "APE"},
             "cta_contable": "2113-2-9",
         }
@@ -321,8 +320,7 @@ class ControlEscribanosService:
         data based on the specified grouping columns. The resulting DataFrame contains the summary
         of renditions data related to the SGF for further analysis.
         """
-        filters = {}
-        df = await self.generate_sgf_escribanos(ejercicio=ejercicio, filters=filters)
+        df = await self.generate_sgf_escribanos(ejercicio=ejercicio)
         df = df.drop(
             [
                 "origen",
@@ -385,7 +383,7 @@ class ControlEscribanosService:
         provided groupby columns. The resulting DataFrame contains the summarized and
         filtered bank data for further analysis.
         """
-        df = self.generate_banco_escribanos(ejercicio=ejercicio)
+        df = await self.generate_banco_escribanos(ejercicio=ejercicio)
         df = df.drop(["es_cheque"], axis=1)
         df = df.groupby(groupby_cols).sum(numeric_only=True)
         df = df.reset_index()
@@ -402,9 +400,9 @@ class ControlEscribanosService:
         try:
             ejercicios = list(range(params.ejercicio_desde, params.ejercicio_hasta + 1))
             for ejercicio in ejercicios:
-                sgf = await self.sgf_summarize(groupby_cols=groupby_cols)
+                sgf = await self.sgf_summarize(groupby_cols=groupby_cols, ejercicio=ejercicio)
                 sgf = sgf.set_index(groupby_cols)
-                sscc = await self.sscc_summarize(groupby_cols=groupby_cols)
+                sscc = await self.sscc_summarize(groupby_cols=groupby_cols, ejercicio=ejercicio)
                 sscc = sscc.set_index(groupby_cols)
                 # Obtener los índices faltantes en sgf
                 missing_indices = sscc.index.difference(sgf.index)
@@ -470,9 +468,9 @@ class ControlEscribanosService:
         try:
             ejercicios = list(range(params.ejercicio_desde, params.ejercicio_hasta + 1))
             for ejercicio in ejercicios:
-                siif = await self.siif_summarize(groupby_cols=groupby_cols).copy()
+                siif = await self.siif_summarize(groupby_cols=groupby_cols, ejercicio=ejercicio)
                 siif = siif.set_index(groupby_cols)
-                sgf = await self.sgf_summarize(groupby_cols=groupby_cols).copy()
+                sgf = await self.sgf_summarize(groupby_cols=groupby_cols, ejercicio=ejercicio)
                 sgf = sgf.rename(columns={"importe_neto": "pagos_sgf"})
                 sgf = sgf.set_index(groupby_cols)
                 # Obtener los índices faltantes en siif
