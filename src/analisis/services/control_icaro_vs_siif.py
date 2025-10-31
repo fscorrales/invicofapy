@@ -487,7 +487,7 @@ class ControlIcaroVsSIIFService:
                 "partida",
             ]
             siif = await self.get_siif_comprobantes(ejercicio=params.ejercicio)
-            logger.info(f"siif_gtos.shape: {siif.shape} - siif_gtos.head: {siif.head()}")
+            # logger.info(f"siif_gtos.shape: {siif.shape} - siif_gtos.head: {siif.head()}")
             siif.loc[
                 (siif.clase_reg == "REG") & (siif.nro_fondo.isnull()), "clase_reg"
             ] = "CYO"
