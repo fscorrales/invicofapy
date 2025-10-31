@@ -174,7 +174,7 @@ class ControlEscribanosService:
             )
             return_schema.extend(partial_schema)
             partial_schema = await self.compute_control_siif_vs_sgf(
-                params=params, only_diff=True
+                params=params, only_diff=False
             )
             return_schema.extend(partial_schema)
 
@@ -251,6 +251,7 @@ class ControlEscribanosService:
             }
         )
         df["fei_impagos"] = df["carga_fei"] - df["pagos_fei"]
+        df["cuit"] = np.where(df["cuit"].str.len() == 11, df["cuit"], "00000000000")
         return df
 
     # --------------------------------------------------
@@ -342,7 +343,7 @@ class ControlEscribanosService:
             axis=1,
         )
         # Rellena los valores nulos solo en la columna específica
-        df["cuit"] = df["cuit"].fillna(0)
+        df["cuit"] = df["cuit"].fillna("0")
         df = df.groupby(groupby_cols).sum(numeric_only=True)
         df = df.reset_index()
         return df
@@ -469,30 +470,53 @@ class ControlEscribanosService:
             ejercicios = list(range(params.ejercicio_desde, params.ejercicio_hasta + 1))
             for ejercicio in ejercicios:
                 siif = await self.siif_summarize(groupby_cols=groupby_cols, ejercicio=ejercicio)
-                siif = siif.set_index(groupby_cols)
+                # siif = siif.set_index(groupby_cols)
                 sgf = await self.sgf_summarize(groupby_cols=groupby_cols, ejercicio=ejercicio)
                 sgf = sgf.rename(columns={"importe_neto": "pagos_sgf"})
+                # sgf = sgf.set_index(groupby_cols)
+                # print("Tipos siif:\n", siif[groupby_cols].dtypes)
+                # print("Tipos sgf:\n", sgf[groupby_cols].dtypes)
+
+                # print("Ejemplo siif:\n", siif.head(3))
+                # print("Ejemplo sgf:\n", sgf.head(3))
+                # print(f"sgf.shape: {sgf.shape} - sgf.head: {sgf.head()}")
+                # # Obtener los índices faltantes en siif
+                # missing_indices = sgf.index.difference(siif.index)
+                # # Reindexar el DataFrame siif con los índices faltantes
+                # siif = siif.reindex(siif.index.union(missing_indices))
+                # sgf = sgf.reindex(siif.index)
+                # siif = siif.fillna(0)
+                # sgf = sgf.fillna(0)
+                # 🔹 Convertir a índices
+                siif = siif.set_index(groupby_cols)
                 sgf = sgf.set_index(groupby_cols)
-                # Obtener los índices faltantes en siif
-                missing_indices = sgf.index.difference(siif.index)
-                # Reindexar el DataFrame siif con los índices faltantes
-                siif = siif.reindex(siif.index.union(missing_indices))
-                sgf = sgf.reindex(siif.index)
-                siif = siif.fillna(0)
-                sgf = sgf.fillna(0)
-                df = siif.merge(sgf, how="outer", on=groupby_cols)
+
+                # 🔹 Merge completo (outer join)
+                # print("🟢 siif index:", len(siif))
+                # print("🔵 sgf index:", len(sgf))
+                # print("🟠 Intersección:", len(siif.index.intersection(sgf.index)))
+                # print("🔴 sgf no en siif:", len(sgf.index.difference(siif.index)))
+                # print("🔴 siif no en sgf:", len(siif.index.difference(sgf.index)))
+                df = siif.merge(sgf, how="outer", left_index=True, right_index=True)
                 df = df.reset_index()
                 df = df.fillna(0)
-                df["dif_pagos"] = df["pagos_fei"] - df["pagos_sgf"]
+                
+                # sgf_no_en_siif = df[df['_merge'] == 'right_only']
+                # print(f"🔴 SGF no en SIIF: {len(sgf_no_en_siif)} registros")
+                # print(sgf_no_en_siif)
+
+                # df = pd.merge(siif, sgf, how="outer", on=groupby_cols)
                 if only_diff:
                     # Seleccionar solo las columnas numéricas
                     numeric_cols = df.select_dtypes(include=np.number).columns.drop(
                         "ejercicio"
                     )
+                    print(f"numeric_cols: {numeric_cols}")
                     # Filtrar el DataFrame utilizando las columnas numéricas válidas
                     # df = df[df[numeric_cols].sum(axis=1) != 0]
                     df = df[np.abs(df[numeric_cols].sum(axis=1)) > 0.01]
                     df = df.reset_index(drop=True)
+                df["dif_pagos"] = df["pagos_fei"] - df["pagos_sgf"]
 
                 # 🔹 Validar datos usando Pydantic
                 validate_and_errors = validate_and_extract_data_from_df(

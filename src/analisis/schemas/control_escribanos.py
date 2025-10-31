@@ -68,14 +68,14 @@ class ControlEscribanosSGFvsSSCCDocument(ControlEscribanosSGFvsSSCCReport):
 
 # -------------------------------------------------
 class ControlEscribanosSIIFvsSGFReport(BaseModel):
-    ejercicio: int
-    mes: str
-    cuit: str
-    carga_fei: float
-    pagos_fei: float
-    fei_impagos: float
-    pagos_sgf: float
-    dif_pagos: float
+    ejercicio: Optional[int] = None
+    mes: Optional[str] = None
+    cuit: Optional[str] = None
+    carga_fei: Optional[float] = None
+    pagos_fei: Optional[float] = None
+    fei_impagos: Optional[float] = None
+    pagos_sgf: Optional[float] = None
+    dif_pagos: Optional[float] = None
 
 
 # -------------------------------------------------
