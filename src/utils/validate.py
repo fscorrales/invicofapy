@@ -117,7 +117,17 @@ async def sync_validated_to_repository(
     """
 
     schema = RouteReturnSchema()
+    
+    if not delete_filter:
+        deleted_count = await repository.delete_all()
+    else:
+        deleted_count = await repository.count_by_fields(delete_filter)
+        await repository.delete_by_fields(delete_filter)
+
     schema.title = title
+    schema.errors += validation.errors
+    schema.deleted += deleted_count
+
 
     if validation.validated:
         if logger:
@@ -125,12 +135,6 @@ async def sync_validated_to_repository(
                 f"Procesando {label}. Registros válidos: {len(validation.validated)}. "
                 f"Errores: {len(validation.errors)}"
             )
-
-        if not delete_filter:
-            deleted_count = await repository.delete_all()
-        else:
-            deleted_count = await repository.count_by_fields(delete_filter)
-            await repository.delete_by_fields(delete_filter)
 
         # docs = jsonable_encoder(validation.validated)
         # docs = [doc.dict() for doc in validation.validated]  # si son Pydantic models
@@ -142,9 +146,7 @@ async def sync_validated_to_repository(
                 f"{label} → Eliminados: {deleted_count} | Insertados: {len(inserted.inserted_ids)}"
             )
 
-        schema.deleted += deleted_count
         schema.added += len(validation.validated)
-        schema.errors += validation.errors
 
     return schema
 
