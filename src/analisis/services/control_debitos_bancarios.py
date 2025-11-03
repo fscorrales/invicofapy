@@ -317,32 +317,22 @@ class ControlDebitosBancariosService:
         try:
             ejercicios = list(range(params.ejercicio_desde, params.ejercicio_hasta + 1))
             for ejercicio in ejercicios:
-                siif = await self.siif_summarize(
-                    ejercicio=ejercicio,
-                    groupby_cols=groupby_cols,
-                )
+                siif = await self.siif_summarize(groupby_cols=groupby_cols)
                 siif = siif.rename(columns={"importe": "ejecutado_siif"})
-                print(f"sgf.shape: {siif.shape} - sgf.head: {siif.head()}")
-                sscc = await self.sscc_summarize(
-                    ejercicio=ejercicio,
-                    groupby_cols=groupby_cols,
-                )
-                sscc = sscc.rename(columns={"importe": "debitos_sscc"})
-                print(f"slave.shape: {sscc.shape} - slave.head: {sscc.head()}")
                 siif = siif.set_index(groupby_cols)
+                sscc = await self.sscc_summarize(groupby_cols=groupby_cols)
+                sscc = sscc.rename(columns={"importe": "debitos_sscc"})
                 sscc = sscc.set_index(groupby_cols)
-                # Obtener los índices faltantes en slave
-                missing_indices = siif.index.difference(sscc.index)
-                # Reindexar el DataFrame slave con los índices faltantes
-                sscc = sscc.reindex(sscc.index.union(missing_indices))
-                siif = siif.reindex(sscc.index)
-                sscc = sscc.fillna(0)
+                # Obtener los índices faltantes en siif
+                missing_indices = sscc.index.difference(siif.index)
+                # Reindexar el DataFrame siif con los índices faltantes
+                siif = siif.reindex(siif.index.union(missing_indices))
+                sscc = sscc.reindex(siif.index)
                 siif = siif.fillna(0)
-                df = sscc.subtract(siif)
+                sscc = sscc.fillna(0)
+                df = siif.merge(sscc, how="outer", on=groupby_cols)
                 df = df.reset_index()
-                # Reindexamos el DataFrame
-                sscc = sscc.reset_index()
-                df = df.reindex(columns=sscc.columns)
+                df = df.fillna(0)
                 df["diferencia"] = df["ejecutado_siif"] - df["debitos_sscc"]
                 if only_diff:
                     # Seleccionar solo las columnas numéricas
