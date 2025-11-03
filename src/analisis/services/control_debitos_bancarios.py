@@ -317,10 +317,14 @@ class ControlDebitosBancariosService:
         try:
             ejercicios = list(range(params.ejercicio_desde, params.ejercicio_hasta + 1))
             for ejercicio in ejercicios:
-                siif = await self.siif_summarize(groupby_cols=groupby_cols)
+                siif = await self.siif_summarize(
+                    ejercicio=ejercicio, groupby_cols=groupby_cols
+                )
                 siif = siif.rename(columns={"importe": "ejecutado_siif"})
                 siif = siif.set_index(groupby_cols)
-                sscc = await self.sscc_summarize(groupby_cols=groupby_cols)
+                sscc = await self.sscc_summarize(
+                    ejercicio=ejercicio, groupby_cols=groupby_cols
+                )
                 sscc = sscc.rename(columns={"importe": "debitos_sscc"})
                 sscc = sscc.set_index(groupby_cols)
                 # Obtener los índices faltantes en siif
