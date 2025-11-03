@@ -38,7 +38,6 @@ class ControlDebitosBancariosParams(CamelModel):
 
 # --------------------------------------------------
 class ControlDebitosBancariosSyncParams(ControlDebitosBancariosParams):
-    origen: Optional[Origen] = None
     siif_username: Optional[str] = None
     siif_password: Optional[str] = None
     sscc_username: Optional[str] = None
