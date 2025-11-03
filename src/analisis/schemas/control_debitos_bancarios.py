@@ -51,15 +51,11 @@ class ControlDebitosBancariosSyncParams(ControlDebitosBancariosParams):
 # -------------------------------------------------
 class ControlDebitosBancariosReport(BaseModel):
     ejercicio: int
-    siif_nro: str
-    slave_nro: str
-    err_nro: bool
-    siif_importe: float
-    slave_importe: float
-    err_importe: bool
-    siif_mes: str
-    slave_mes: str
-    err_mes: bool
+    mes: str
+    cta_cte: str
+    ejecutado_siif: float
+    debitos_sscc: float
+    diferencia: float
 
 
 # -------------------------------------------------

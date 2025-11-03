@@ -321,14 +321,16 @@ class ControlDebitosBancariosService:
                     ejercicio=ejercicio,
                     groupby_cols=groupby_cols,
                 )
+                siif = siif.rename(columns={"importe": "ejecutado_siif"})
                 # print(f"sgf.shape: {sgf.shape} - sgf.head: {sgf.head()}")
                 sscc = await self.sscc_summarize(
                     ejercicio=ejercicio,
                     groupby_cols=groupby_cols,
                 )
-                sscc = sscc.set_index(groupby_cols)
+                sscc = sscc.rename(columns={"importe": "debitos_sscc"})
                 # print(f"slave.shape: {slave.shape} - slave.head: {slave.head()}")
                 siif = siif.set_index(groupby_cols)
+                sscc = sscc.set_index(groupby_cols)
                 # Obtener los índices faltantes en slave
                 missing_indices = siif.index.difference(sscc.index)
                 # Reindexar el DataFrame slave con los índices faltantes
@@ -341,6 +343,7 @@ class ControlDebitosBancariosService:
                 # Reindexamos el DataFrame
                 sscc = sscc.reset_index()
                 df = df.reindex(columns=sscc.columns)
+                df["diferencia"] = df["ejecutado_siif"] - df["debitos_sscc"]
                 if only_diff:
                     # Seleccionar solo las columnas numéricas
                     numeric_cols = df.select_dtypes(include=np.number).columns.drop(
@@ -355,7 +358,7 @@ class ControlDebitosBancariosService:
                 validate_and_errors = validate_and_extract_data_from_df(
                     dataframe=df,
                     model=ControlDebitosBancariosReport,
-                    field_id="beneficiario",
+                    field_id="mes",
                 )
 
                 partial_schema = await sync_validated_to_repository(
