@@ -1,3 +1,4 @@
+from .control_debitos_bancarios import *
 from .control_escribanos import *
 from .control_haberes import *
 from .control_honorarios import *

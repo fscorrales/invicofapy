@@ -5,6 +5,7 @@ __all__ = [
     "get_siif_ri102",
     "get_siif_rci02_unified_cta_cte",
     "get_siif_comprobantes_gtos_joined",
+    "get_siif_comprobantes_gtos_unified_cta_cte",
     "get_planillometro_hist",
     "get_siif_rfp_p605b",
     "get_siif_rdeu012_unified_cta_cte",
@@ -149,7 +150,9 @@ async def get_siif_desc_pres(
 
 
 # --------------------------------------------------
-async def get_siif_comprobantes_gtos_joined(ejercicio: int = None) -> pd.DataFrame:
+async def get_siif_comprobantes_gtos_joined(
+    ejercicio: int = None, partidas: list = []
+) -> pd.DataFrame:
     """
     Join gto_rpa03g (gtos_gpo_part) with rcg01_uejp (gtos)
     """
@@ -158,15 +161,18 @@ async def get_siif_comprobantes_gtos_joined(ejercicio: int = None) -> pd.DataFra
             docs_gtos_gpo_part = await Rpa03gRepository().get_all()
             docs_gtos = await Rcg01UejpRepository().get_all()
         else:
+            filters = {
+                "ejercicio": int(ejercicio),
+            }
+            docs_gtos = await Rcg01UejpRepository().find_by_filter(filters=filters)
+            if len(partidas) > 0:
+                filters.update(
+                    {
+                        "partida__in": partidas,
+                    }
+                )
             docs_gtos_gpo_part = await Rpa03gRepository().find_by_filter(
-                filters={
-                    "ejercicio": int(ejercicio),
-                }
-            )
-            docs_gtos = await Rcg01UejpRepository().find_by_filter(
-                filters={
-                    "ejercicio": int(ejercicio),
-                }
+                filters=filters
             )
         df_gtos_gpo_part = pd.DataFrame(docs_gtos_gpo_part)
         df_gtos = pd.DataFrame(docs_gtos)
@@ -207,12 +213,12 @@ async def get_siif_comprobantes_gtos_joined(ejercicio: int = None) -> pd.DataFra
 
 # --------------------------------------------------
 async def get_siif_comprobantes_gtos_unified_cta_cte(
-    ejercicio: int = None,
+    ejercicio: int = None, partidas: list = []
 ) -> pd.DataFrame:
     """
     Get the comprobantes gtos joined data from the repository.
     """
-    df = await get_siif_comprobantes_gtos_joined(ejercicio=ejercicio)
+    df = await get_siif_comprobantes_gtos_joined(ejercicio=ejercicio, partidas=partidas)
     # logger.info(f"len(docs): {len(docs)}")
     if not df.empty:
         # logger.info(f"df.shape: {df.shape} - df.head: {df.head()}")

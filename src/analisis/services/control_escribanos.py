@@ -401,9 +401,13 @@ class ControlEscribanosService:
         try:
             ejercicios = list(range(params.ejercicio_desde, params.ejercicio_hasta + 1))
             for ejercicio in ejercicios:
-                sgf = await self.sgf_summarize(groupby_cols=groupby_cols, ejercicio=ejercicio)
+                sgf = await self.sgf_summarize(
+                    groupby_cols=groupby_cols, ejercicio=ejercicio
+                )
                 sgf = sgf.set_index(groupby_cols)
-                sscc = await self.sscc_summarize(groupby_cols=groupby_cols, ejercicio=ejercicio)
+                sscc = await self.sscc_summarize(
+                    groupby_cols=groupby_cols, ejercicio=ejercicio
+                )
                 sscc = sscc.set_index(groupby_cols)
                 # Obtener los índices faltantes en sgf
                 missing_indices = sscc.index.difference(sgf.index)
@@ -469,9 +473,13 @@ class ControlEscribanosService:
         try:
             ejercicios = list(range(params.ejercicio_desde, params.ejercicio_hasta + 1))
             for ejercicio in ejercicios:
-                siif = await self.siif_summarize(groupby_cols=groupby_cols, ejercicio=ejercicio)
+                siif = await self.siif_summarize(
+                    groupby_cols=groupby_cols, ejercicio=ejercicio
+                )
                 # siif = siif.set_index(groupby_cols)
-                sgf = await self.sgf_summarize(groupby_cols=groupby_cols, ejercicio=ejercicio)
+                sgf = await self.sgf_summarize(
+                    groupby_cols=groupby_cols, ejercicio=ejercicio
+                )
                 sgf = sgf.rename(columns={"importe_neto": "pagos_sgf"})
                 # sgf = sgf.set_index(groupby_cols)
                 # print("Tipos siif:\n", siif[groupby_cols].dtypes)
@@ -500,7 +508,7 @@ class ControlEscribanosService:
                 df = siif.merge(sgf, how="outer", left_index=True, right_index=True)
                 df = df.reset_index()
                 df = df.fillna(0)
-                
+
                 # sgf_no_en_siif = df[df['_merge'] == 'right_only']
                 # print(f"🔴 SGF no en SIIF: {len(sgf_no_en_siif)} registros")
                 # print(sgf_no_en_siif)
