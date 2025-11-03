@@ -259,7 +259,7 @@ class ControlDebitosBancariosService:
             ```
         """
         df = await self.generate_siif_debitos_bancarios(ejercicio=ejercicio)
-        df = df.groupby(groupby_cols).sum(numeric_only=True)
+        df = df.groupby(groupby_cols)["importe"].sum()
         df = df.reset_index()
         df = df.fillna(0)
         return df
@@ -301,7 +301,7 @@ class ControlDebitosBancariosService:
         filtered bank data for further analysis.
         """
         df = await self.generate_banco_debitos(ejercicio=ejercicio)
-        df = df.groupby(groupby_cols).sum(numeric_only=True)
+        df = df.groupby(groupby_cols)["importe"].sum()
         df = df.reset_index()
         df["importe"] = df["importe"] * -1
         return df
@@ -322,13 +322,13 @@ class ControlDebitosBancariosService:
                     groupby_cols=groupby_cols,
                 )
                 siif = siif.rename(columns={"importe": "ejecutado_siif"})
-                # print(f"sgf.shape: {sgf.shape} - sgf.head: {sgf.head()}")
+                print(f"sgf.shape: {siif.shape} - sgf.head: {siif.head()}")
                 sscc = await self.sscc_summarize(
                     ejercicio=ejercicio,
                     groupby_cols=groupby_cols,
                 )
                 sscc = sscc.rename(columns={"importe": "debitos_sscc"})
-                # print(f"slave.shape: {slave.shape} - slave.head: {slave.head()}")
+                print(f"slave.shape: {sscc.shape} - slave.head: {sscc.head()}")
                 siif = siif.set_index(groupby_cols)
                 sscc = sscc.set_index(groupby_cols)
                 # Obtener los índices faltantes en slave
