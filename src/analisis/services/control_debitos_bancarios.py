@@ -211,9 +211,9 @@ class ControlDebitosBancariosService:
 
         return export_multiple_dataframes_to_excel(
             df_sheet_pairs=[
-                (pd.DataFrame(control_debitos_bancarios_docs), "new_siif_vs_sscc_db"),
-                (siif, "new_siif_db"),
-                (sscc, "new_sgf_db"),
+                (pd.DataFrame(control_debitos_bancarios_docs), "siif_vs_sscc_db"),
+                (siif, "siif_db"),
+                (sscc, "sscc_db"),
             ],
             filename="control_debitos_bancarios.xlsx",
             spreadsheet_key="1i9vQ-fw_MkuHRE_YKa_diaVDu5RsiBE1UPTNAsmxLS4",
@@ -228,7 +228,7 @@ class ControlDebitosBancariosService:
         df = await get_siif_comprobantes_gtos_unified_cta_cte(
             ejercicio=ejercicio, partidas=["355"]
         )
-        df = df.reset_index()
+        df = df.reset_index(drop=True)
         return df
 
     # --------------------------------------------------
@@ -271,7 +271,7 @@ class ControlDebitosBancariosService:
     ) -> pd.DataFrame:
         codigos_imputacion = ["031"]
         filters = {
-            "cod_imputacion": {"$nin": codigos_imputacion},
+            "cod_imputacion": {"$in": codigos_imputacion},
         }
         df = await get_banco_invico_unified_cta_cte(
             ejercicio=ejercicio, filters=filters
