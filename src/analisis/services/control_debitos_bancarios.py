@@ -46,7 +46,6 @@ from ...utils import (
 )
 from ..handlers import (
     get_banco_invico_unified_cta_cte,
-    get_resumen_rend_honorarios,
     get_siif_comprobantes_gtos_unified_cta_cte,
 )
 from ..repositories.control_debitos_bancarios import (
