@@ -192,10 +192,10 @@ class ControlAporteEmpresarioService:
             df_sheet_pairs=[
                 (
                     pd.DataFrame(control_aporte_empresario_docs),
-                    "new_siif_recurso_vs_retencion_337_db",
+                    "recursos_vs_retenciones_db",
                 ),
-                (siif_recurso, "new_siif_recurso_3_percent_db"),
-                (siif_retencion, "nes_siif_retencion_337_db"),
+                (siif_recurso, "recursos_db"),
+                (siif_retencion, "retenciones_db"),
             ],
             filename="control_aporte_empresario.xlsx",
             spreadsheet_key="1bZnvl9YkHC-N1HbIbnFNrqU3Iq03PG81u7fdHe_v_pw",
@@ -219,7 +219,7 @@ class ControlAporteEmpresarioService:
         The resulting DataFrame contains information regarding 3% resources related to INVICO.
         """
         filters = {
-            "es_invicio": True,
+            "es_invico": True,
             "es_verificado": True,
         }
         df = await get_siif_rci02_unified_cta_cte(ejercicio=ejercicio, filters=filters)
@@ -280,10 +280,9 @@ class ControlAporteEmpresarioService:
             "cta_contable": "1112-2-6",
         }
         siif_banco = await get_siif_rcocc31(ejercicio=ejercicio, filters=filters)
-        siif_banco = siif_banco.loc[
-            siif_banco["tipo_comprobante"] != "APE",
-            ["ejercicio", "nro_entrada", "auxiliar_1"],
+        siif_banco = siif_banco.loc[:, ["ejercicio", "nro_entrada", "auxiliar_1"],
         ]
+        # print(f"siif_banco.shape: {siif_banco.shape} - siif_banco.head: {siif_banco.head()}")
         siif_banco = siif_banco.rename(columns={"auxiliar_1": "cta_cte"})
         filters = {
             "tipo_comprobante": {"$ne": "APE"},
@@ -310,6 +309,7 @@ class ControlAporteEmpresarioService:
             }
         )
         df = siif_337.merge(siif_banco, how="left", on=["ejercicio", "nro_entrada"])
+        # print(f"df.shape: {df.shape} - df.head: {df.head()}")
         ctas_ctes = pd.DataFrame(await CtasCtesRepository().get_all())
         map_to = ctas_ctes.loc[:, ["map_to", "siif_contabilidad_cta_cte"]]
         df = pd.merge(
@@ -381,6 +381,7 @@ class ControlAporteEmpresarioService:
                 siif_recursos = await self.siif_summarize_recursos(
                     groupby_cols=groupby_cols, ejercicio=ejercicio
                 )
+                # print(f"siif_recursos.shape: {siif_recursos.shape} - siif_recursos.head: {siif_recursos.head()}")
                 siif_recursos = siif_recursos.set_index(groupby_cols)
                 siif_retenciones = await self.siif_summarize_retenciones(
                     groupby_cols=groupby_cols, ejercicio=ejercicio
@@ -391,22 +392,15 @@ class ControlAporteEmpresarioService:
                 siif_retenciones = siif_retenciones.rename(
                     columns={"retencion_pagada": "retencion"}
                 )
+                siif_retenciones["retencion"] = siif_retenciones["retencion"] * (-1)
+                # print(
+                #     f"siif_retenciones.shape: {siif_retenciones.shape} - siif_retenciones.head: {siif_retenciones.head()}"
+                # )
                 siif_retenciones = siif_retenciones.set_index(groupby_cols)
-                # Obtener los índices faltantes en sgf
-                missing_indices = siif_retenciones.index.difference(siif_recursos.index)
-                # Reindexar el DataFrame sgf con los índices faltantes
-                siif_recursos = siif_recursos.reindex(
-                    siif_recursos.index.union(missing_indices)
-                )
-                siif_retenciones = siif_retenciones.reindex(siif_recursos.index)
-                siif_recursos = siif_recursos.fillna(0)
-                siif_retenciones = siif_retenciones.fillna(0)
-                df = siif_recursos.subtract(siif_retenciones)
+                df = siif_recursos.merge(siif_retenciones, how="outer", left_index=True, right_index=True)
                 df = df.reset_index()
                 df = df.fillna(0)
-                # Reindexamos el DataFrame
-                siif_recursos = siif_recursos.reset_index()
-                df = df.reindex(columns=siif_recursos.columns)
+                # print(f"df.shape: {df.shape} - df.head: {df.head()}")
                 if only_diff:
                     # Seleccionar solo las columnas numéricas
                     numeric_cols = df.select_dtypes(include=np.number).columns.drop(
