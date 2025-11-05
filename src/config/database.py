@@ -47,6 +47,7 @@ COLLECTIONS = [
     "sscc_banco_invico",
     "sscc_ctas_ctes",
     "control_recursos",
+    "control_aporte_empresario",
     "control_obras",
     "control_haberes",
     "control_honorarios_siif_vs_slave",
