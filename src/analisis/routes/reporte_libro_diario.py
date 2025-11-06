@@ -36,15 +36,32 @@ async def sync_libro_diario_from_source(
 
 # -------------------------------------------------
 @reporte_libro_diario_router.get(
-    "/export_libro_diario",
-    summary="Descarga el Libro Diario como archivo .xlsx y exporta a Google Sheets",
+    "/export",
+    summary="Descarga todos los reportes como archivo .xlsx y exporta a Google Sheets",
     response_description="Archivo Excel con los registros solicitados",
 )
-async def export_planillometro_contabilidad(
+async def export_all_from_db(
     service: ReporteLibroDiarioServiceDependency,
     params: Annotated[ReporteLibroDiarioParams, Depends()],
     upload_to_google_sheets: bool = Query(True, alias="uploadToGoogleSheets"),
 ):
-    return await service.export_libro_diario_from_db(
-        upload_to_google_sheets=upload_to_google_sheets, params=params
+    return await service.export_all_from_db(
+        upload_to_google_sheets=upload_to_google_sheets,
+        params=params
     )
+
+
+# # -------------------------------------------------
+# @reporte_libro_diario_router.get(
+#     "/export_libro_diario",
+#     summary="Descarga el Libro Diario como archivo .xlsx y exporta a Google Sheets",
+#     response_description="Archivo Excel con los registros solicitados",
+# )
+# async def export_libro_diario(
+#     service: ReporteLibroDiarioServiceDependency,
+#     params: Annotated[ReporteLibroDiarioParams, Depends()],
+#     upload_to_google_sheets: bool = Query(True, alias="uploadToGoogleSheets"),
+# ):
+#     return await service.export_libro_diario_from_db(
+#         upload_to_google_sheets=upload_to_google_sheets, params=params
+#     )

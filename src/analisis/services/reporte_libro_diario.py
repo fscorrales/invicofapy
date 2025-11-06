@@ -114,13 +114,9 @@ class ReporteLibroDiarioService:
                     logger.warning(f"Logout falló o browser ya cerrado: {e}")
                 return return_schema
 
-    # -------------------------------------------------
-    async def export_libro_diario_from_db(
-        self,
-        upload_to_google_sheets: bool = True,
-        params: ReporteLibroDiarioParams = None,
-    ) -> StreamingResponse:
-        libro_diario_df = await get_siif_rcocc31(ejercicio=params.ejercicio)
+    # --------------------------------------------------
+    async def generate_libro_diario(self, ejercicio: int) -> pd.DataFrame:
+        libro_diario_df = await get_siif_rcocc31(ejercicio=ejercicio)
 
         if libro_diario_df.empty:
             raise HTTPException(status_code=404, detail="No se encontraron registros")
@@ -150,10 +146,48 @@ class ReporteLibroDiarioService:
             ],
         ]
 
+        return libro_diario_df
+
+    # -------------------------------------------------
+    async def export_all_from_db(
+        self,
+        upload_to_google_sheets: bool = True,
+        params: ReporteLibroDiarioParams = None,
+    ) -> StreamingResponse:
+
+        ultimos_ejercicios = list(range(params.ejercicio-1, params.ejercicio + 1))
+
         return export_multiple_dataframes_to_excel(
             df_sheet_pairs=[
                 (
-                    libro_diario_df,
+                    pd.DataFrame(
+                        await get_siif_rvicon03(
+                            filters={"ejercicio": {"$in": ultimos_ejercicios}}
+                        )
+                    ),
+                    "sumas_y_saldos_db",
+                ),
+                (
+                    await self.generate_libro_diario(ejercicio=params.ejercicio),
+                    "libro_diario_db",
+                ),
+            ],
+            filename="reportes_libro_diario.xlsx",
+            spreadsheet_key="18eKGv_JTmeolG029g-LpUIxGPPhqRN0KUVhU44q8Tw0",
+            upload_to_google_sheets=upload_to_google_sheets,
+        )
+
+    # -------------------------------------------------
+    async def export_libro_diario_from_db(
+        self,
+        upload_to_google_sheets: bool = True,
+        params: ReporteLibroDiarioParams = None,
+    ) -> StreamingResponse:
+
+        return export_multiple_dataframes_to_excel(
+            df_sheet_pairs=[
+                (
+                    await self.generate_libro_diario(ejercicio=params.ejercicio),
                     "libro_diario_db",
                 ),
             ],
