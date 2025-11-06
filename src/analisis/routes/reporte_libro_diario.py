@@ -30,7 +30,7 @@ async def sync_libro_diario_from_source(
         params.siif_password = settings.SIIF_PASSWORD
 
     return await service.sync_libro_diario_from_source(
-        username=params.siif_username, password=params.siif_password, params=params
+        params=params
     )
 
 

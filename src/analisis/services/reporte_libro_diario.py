@@ -51,7 +51,7 @@ class ReporteLibroDiarioService:
     siif_rvicon03_handler: Rvicon03 = field(init=False)  # No se pasa como argumento
 
     # -------------------------------------------------
-    async def sync_reporte_libro_diario_from_source(
+    async def sync_libro_diario_from_source(
         self,
         params: ReporteLibroDiarioSyncParams = None,
     ) -> List[RouteReturnSchema]:
@@ -88,12 +88,9 @@ class ReporteLibroDiarioService:
 
                 # 🔹 Rcocc31
                 self.siif_rcocc31_handler = Rcocc31(siif=connect_siif)
-                cuentas_contables = (
-                    await get_siif_rvicon03(ejercicio=params.ejercicio)["cta_contable"]
-                    .unique()
-                    .tolist()
-                )
-                print(cuentas_contables)
+                cuentas_contables = await get_siif_rvicon03(ejercicio=params.ejercicio)
+                cuentas_contables = cuentas_contables["cta_contable"].unique()
+                logger.info(f"Se Bajaran las siguientes cuentas contables: {cuentas_contables}")
                 for cta_contable in cuentas_contables:
                     partial_schema = await self.siif_rcocc31_handler.download_and_sync_validated_to_repository(
                         ejercicio=params.ejercicio,
@@ -123,15 +120,40 @@ class ReporteLibroDiarioService:
         upload_to_google_sheets: bool = True,
         params: ReporteLibroDiarioParams = None,
     ) -> StreamingResponse:
-        reporte_libro_diario_docs = await get_siif_rcocc31(ejercicio=params.ejercicio)
+        libro_diario_df = await get_siif_rcocc31(ejercicio=params.ejercicio)
 
-        if not reporte_libro_diario_docs:
+        if libro_diario_df.empty:
             raise HTTPException(status_code=404, detail="No se encontraron registros")
+
+        libro_diario_df["nro_entrada"] = pd.to_numeric(libro_diario_df["nro_entrada"], errors="coerce")
+        libro_diario_df = libro_diario_df.sort_values(
+            ["nro_entrada", "debitos", "creditos", "cta_contable"], 
+            ascending=[True, False, False, True]
+        )
+        libro_diario_df["nro_entrada"] = libro_diario_df["nro_entrada"].astype(str)
+        libro_diario_df = libro_diario_df.loc[
+            :,
+            [
+                "ejercicio",
+                "mes",
+                "fecha",
+                "fecha_aprobado",
+                "nro_entrada",
+                "nro_original",
+                "cta_contable",
+                "tipo_comprobante",
+                "debitos",
+                "creditos",
+                "saldo",
+                "auxiliar_1",
+                "auxiliar_2",
+            ],
+        ]
 
         return export_multiple_dataframes_to_excel(
             df_sheet_pairs=[
                 (
-                    pd.DataFrame(reporte_libro_diario_docs),
+                    libro_diario_df,
                     "libro_diario_db",
                 ),
             ],
