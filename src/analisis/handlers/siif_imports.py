@@ -9,6 +9,7 @@ __all__ = [
     "get_planillometro_hist",
     "get_siif_rfp_p605b",
     "get_siif_rdeu012_unified_cta_cte",
+    "get_siif_rvicon03",
     "get_siif_rcocc31",
     "get_siif_comprobantes_haberes",
     "get_siif_comprobantes_honorarios",
@@ -34,6 +35,7 @@ from ...siif.repositories import (
     RfpP605bRepository,
     Ri102Repository,
     Rpa03gRepository,
+    Rvicon03Repository,
 )
 from ...sscc.repositories import CtasCtesRepository
 
@@ -331,6 +333,18 @@ async def get_siif_rdeu012_unified_cta_cte(
         df["cta_cte"] = df["map_to"]
         df.drop(["map_to", "siif_contabilidad_cta_cte"], axis="columns", inplace=True)
         # logger.info(f"df.shape: {df.shape} - df.head: {df.head()}")
+    return df
+
+
+# --------------------------------------------------
+async def get_siif_rvicon03(ejercicio: int = None, filters: dict = {}) -> pd.DataFrame:
+    """
+    Get the rvicon03 data from the repository.
+    """
+    if ejercicio is not None:
+        filters["ejercicio"] = ejercicio
+    docs = await Rvicon03Repository().safe_find_by_filter(filters=filters)
+    df = pd.DataFrame(docs)
     return df
 
 
