@@ -188,7 +188,7 @@ class ControlBancoService:
         df = await get_banco_invico_unified_cta_cte(ejercicio=ejercicio)
         # Neteamos las transferencias internas
         df["cod_imputacion"] = np.where(
-            df["cod_imputacion"] == "004" | df["cod_imputacion"] == "034",
+            df["cod_imputacion"].isin(["004", "034"]),
             "000",
             df["cod_imputacion"],
         )
