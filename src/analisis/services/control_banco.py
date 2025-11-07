@@ -17,6 +17,7 @@ __all__ = ["ControlBancoService", "ControlBancoServiceDependency"]
 from dataclasses import dataclass, field
 from typing import Annotated, List
 
+import numpy as np
 import pandas as pd
 from fastapi import Depends, HTTPException
 from fastapi.responses import StreamingResponse
@@ -180,11 +181,22 @@ class ControlBancoService:
         return df
 
     # --------------------------------------------------
-    async def generate_banco_debitos(
+    async def generate_banco_sscc(
         self,
         ejercicio: int = None,
     ) -> pd.DataFrame:
         df = await get_banco_invico_unified_cta_cte(ejercicio=ejercicio)
+        # Neteamos las transferencias internas
+        df["cod_imputacion"] = np.where(
+            df["cod_imputacion"] == "004" | df["cod_imputacion"] == "034",
+            "000",
+            df["cod_imputacion"],
+        )
+        df["imputacion"] = np.where(
+            df["cod_imputacion"] == "000",
+            "TRANSFERENCIAS INTERNAS (NETAS)",
+            df["imputacion"],
+        )
         return df
 
     # -------------------------------------------------
@@ -196,7 +208,7 @@ class ControlBancoService:
         return export_multiple_dataframes_to_excel(
             df_sheet_pairs=[
                 (
-                    await self.generate_banco_debitos(ejercicio=params.ejercicio),
+                    await self.generate_banco_sscc(ejercicio=params.ejercicio),
                     "sscc_db",
                 ),
                 (
