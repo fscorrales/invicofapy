@@ -45,7 +45,7 @@ from ..schemas.control_banco import (
     ControlBancoParams,
     ControlBancoSyncParams,
 )
-
+from ...sscc.repositories import CtasCtesRepository
 
 # --------------------------------------------------
 @dataclass
@@ -155,11 +155,25 @@ class ControlBancoService:
 
         # Agregamos la columna cta_cte desde auxiliar_1 de la cuenta 1112-2-6
         ctas_ctes_df = df.loc[
-            df["cta_contable"] == "1112-2-6", ["nro_entrada", "auxiliar_1"].unique()
+            df["cta_contable"] == "1112-2-6", ["nro_entrada", "auxiliar_1"]
         ].copy()
+        ctas_ctes_df = ctas_ctes_df.drop_duplicates()
         ctas_ctes_df = ctas_ctes_df.rename(columns={"auxiliar_1": "cta_cte"})
         df = df.merge(ctas_ctes_df, on="nro_entrada", how="left")
-        # df = df.loc[df["cta_contable"] != "1112-2-6"]
+        df = df.loc[df["cta_contable"] != "1112-2-6"]
+
+        # Mapeamos las cuentas corrientes
+        ctas_ctes = pd.DataFrame(await CtasCtesRepository().get_all())
+        map_to = ctas_ctes.loc[:, ["map_to", "siif_contabilidad_cta_cte"]]
+        df = pd.merge(
+            df,
+            map_to,
+            how="left",
+            left_on="cta_cte",
+            right_on="siif_contabilidad_cta_cte",
+        )
+        df["cta_cte"] = df["map_to"]
+        df.drop(["map_to", "siif_contabilidad_cta_cte"], axis="columns", inplace=True)
 
         df["nro_entrada"] = pd.to_numeric(df["nro_entrada"], errors="coerce")
         df = df.sort_values(
