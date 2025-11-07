@@ -183,6 +183,7 @@ class ControlBancoService:
                 "saldo",
                 "auxiliar_1",
                 "auxiliar_2",
+                "cta_cte",
             ],
         ]
 
