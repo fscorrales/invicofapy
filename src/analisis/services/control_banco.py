@@ -153,6 +153,14 @@ class ControlBancoService:
             )
         ]
 
+        # Agregamos la columna cta_cte desde auxiliar_1 de la cuenta 1112-2-6
+        ctas_ctes_df = df.loc[
+            df["cta_contable"] == "1112-2-6", ["nro_entrada", "auxiliar_1"].unique()
+        ].copy()
+        ctas_ctes_df = ctas_ctes_df.rename(columns={"auxiliar_1": "cta_cte"})
+        df = df.merge(ctas_ctes_df, on="nro_entrada", how="left")
+        # df = df.loc[df["cta_contable"] != "1112-2-6"]
+
         df["nro_entrada"] = pd.to_numeric(df["nro_entrada"], errors="coerce")
         df = df.sort_values(
             ["nro_entrada", "debitos", "creditos", "cta_contable"],
