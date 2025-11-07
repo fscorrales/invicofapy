@@ -13,10 +13,8 @@ Google Sheet:
 __all__ = ["ReporteLibroDiarioService", "ReporteLibroDiarioServiceDependency"]
 
 from dataclasses import dataclass, field
-from datetime import datetime
 from typing import Annotated, List
 
-import numpy as np
 import pandas as pd
 from fastapi import Depends, HTTPException
 from fastapi.responses import StreamingResponse
@@ -90,7 +88,9 @@ class ReporteLibroDiarioService:
                 self.siif_rcocc31_handler = Rcocc31(siif=connect_siif)
                 cuentas_contables = await get_siif_rvicon03(ejercicio=params.ejercicio)
                 cuentas_contables = cuentas_contables["cta_contable"].unique()
-                logger.info(f"Se Bajaran las siguientes cuentas contables: {cuentas_contables}")
+                logger.info(
+                    f"Se Bajaran las siguientes cuentas contables: {cuentas_contables}"
+                )
                 for cta_contable in cuentas_contables:
                     partial_schema = await self.siif_rcocc31_handler.download_and_sync_validated_to_repository(
                         ejercicio=params.ejercicio,
@@ -121,10 +121,12 @@ class ReporteLibroDiarioService:
         if libro_diario_df.empty:
             raise HTTPException(status_code=404, detail="No se encontraron registros")
 
-        libro_diario_df["nro_entrada"] = pd.to_numeric(libro_diario_df["nro_entrada"], errors="coerce")
+        libro_diario_df["nro_entrada"] = pd.to_numeric(
+            libro_diario_df["nro_entrada"], errors="coerce"
+        )
         libro_diario_df = libro_diario_df.sort_values(
-            ["nro_entrada", "debitos", "creditos", "cta_contable"], 
-            ascending=[True, False, False, True]
+            ["nro_entrada", "debitos", "creditos", "cta_contable"],
+            ascending=[True, False, False, True],
         )
         libro_diario_df["nro_entrada"] = libro_diario_df["nro_entrada"].astype(str)
         libro_diario_df = libro_diario_df.loc[
@@ -154,8 +156,7 @@ class ReporteLibroDiarioService:
         upload_to_google_sheets: bool = True,
         params: ReporteLibroDiarioParams = None,
     ) -> StreamingResponse:
-
-        ultimos_ejercicios = list(range(params.ejercicio-1, params.ejercicio + 1))
+        ultimos_ejercicios = list(range(params.ejercicio - 1, params.ejercicio + 1))
 
         return export_multiple_dataframes_to_excel(
             df_sheet_pairs=[
@@ -183,7 +184,6 @@ class ReporteLibroDiarioService:
         upload_to_google_sheets: bool = True,
         params: ReporteLibroDiarioParams = None,
     ) -> StreamingResponse:
-
         return export_multiple_dataframes_to_excel(
             df_sheet_pairs=[
                 (

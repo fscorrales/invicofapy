@@ -29,9 +29,7 @@ async def sync_libro_diario_from_source(
         params.siif_username = settings.SIIF_USERNAME
         params.siif_password = settings.SIIF_PASSWORD
 
-    return await service.sync_libro_diario_from_source(
-        params=params
-    )
+    return await service.sync_libro_diario_from_source(params=params)
 
 
 # -------------------------------------------------
@@ -46,8 +44,7 @@ async def export_all_from_db(
     upload_to_google_sheets: bool = Query(True, alias="uploadToGoogleSheets"),
 ):
     return await service.export_all_from_db(
-        upload_to_google_sheets=upload_to_google_sheets,
-        params=params
+        upload_to_google_sheets=upload_to_google_sheets, params=params
     )
 
 
