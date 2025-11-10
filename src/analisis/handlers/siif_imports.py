@@ -4,6 +4,7 @@ __all__ = [
     "get_siif_desc_pres",
     "get_siif_ri102",
     "get_siif_rci02_unified_cta_cte",
+    "get_siif_rcg01_uejp",
     "get_siif_comprobantes_gtos_joined",
     "get_siif_comprobantes_gtos_unified_cta_cte",
     "get_planillometro_hist",
@@ -150,6 +151,16 @@ async def get_siif_desc_pres(
     )
     return df
 
+# --------------------------------------------------
+async def get_siif_rcg01_uejp(ejercicio: int = None, filters: dict = {}) -> pd.DataFrame:
+    """
+    Get the rcg01_uejp data from the repository.
+    """
+    if ejercicio is not None:
+        filters["ejercicio"] = ejercicio
+    docs = await Rcg01UejpRepository().safe_find_by_filter(filters=filters)
+    df = pd.DataFrame(docs)
+    return df
 
 # --------------------------------------------------
 async def get_siif_comprobantes_gtos_joined(

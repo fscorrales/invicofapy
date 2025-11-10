@@ -40,6 +40,7 @@ from ..handlers import (
     get_banco_invico_unified_cta_cte,
     get_siif_rcocc31,
     get_siif_rvicon03,
+    get_siif_rcg01_uejp,
 )
 from ..schemas.control_banco import (
     ControlBancoParams,
@@ -153,6 +154,16 @@ class ControlBancoService:
             )
         ]
 
+        # Neteamos los PA6 pagados y ya regularizados
+        gastos_df = await get_siif_rcg01_uejp(ejercicio=ejercicio)
+        pa6_pagados = gastos_df["nro_fondo"].unique().tolist()
+        pa6_pagados_df = df.loc[(df["tipo_comprobante"] == "PAP") & (df["nro_original"].isin(pa6_pagados))].copy()
+        pa6_pagados_df["tipo_comprobante"] = "FSC"
+        pa6_pagados_df["debitos"] = pa6_pagados_df["debitos"] * (-1)
+        pa6_pagados_df["creditos"] = pa6_pagados_df["creditos"] * (-1)
+        pa6_pagados_df["saldo"] = pa6_pagados_df["creditos"] * (-1)
+        df = pd.concat([df, pa6_pagados_df])
+
         # Agregamos la columna cta_cte desde auxiliar_1 de la cuenta 1112-2-6
         ctas_ctes_df = df.loc[
             df["cta_contable"] == "1112-2-6", ["nro_entrada", "auxiliar_1"]
@@ -174,6 +185,11 @@ class ControlBancoService:
         )
         df["cta_cte"] = df["map_to"]
         df.drop(["map_to", "siif_contabilidad_cta_cte"], axis="columns", inplace=True)
+
+        # Agregamos descripción a las cuentas contables
+        ctas_contables_df = await get_siif_rvicon03(ejercicio=ejercicio)
+        ctas_contables_df = ctas_contables_df.loc[:, ["cta_contable", "desc_cta_contable"]]
+        df = pd.merge(df, ctas_contables_df, how="left", on="cta_contable")
 
         df["nro_entrada"] = pd.to_numeric(df["nro_entrada"], errors="coerce")
         df = df.sort_values(
@@ -198,6 +214,7 @@ class ControlBancoService:
                 "auxiliar_1",
                 "auxiliar_2",
                 "cta_cte",
+                "desc_cta_contable",
             ],
         ]
 
@@ -219,6 +236,11 @@ class ControlBancoService:
             df["cod_imputacion"] == "000",
             "TRANSFERENCIAS INTERNAS (NETAS)",
             df["imputacion"],
+        )
+
+        df = df.sort_values(
+            ["fecha", "movimiento"],
+            ascending=[True, True],
         )
         return df
 
