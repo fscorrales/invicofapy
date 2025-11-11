@@ -2,6 +2,8 @@ __all__ = [
     "ControlBancoParams",
     "ControlBancoSyncParams",
     "ControlBancoFilter",
+    "ControlBancoReport",
+    "ControlBancoDocument",
 ]
 
 import os
@@ -9,6 +11,7 @@ from datetime import date
 from typing import Optional
 
 from pydantic import BaseModel, Field, field_validator
+from pydantic_mongo import PydanticObjectId
 
 from ...utils import BaseFilterParams, get_sscc_cta_cte_path
 
@@ -39,6 +42,22 @@ class ControlBancoSyncParams(ControlBancoParams):
         default=os.path.join(get_sscc_cta_cte_path(), "cta_cte.xlsx"),
         description="Ruta al archivo Ctas Ctes EXCEL",
     )
+
+
+# -------------------------------------------------
+class ControlBancoReport(BaseModel):
+    ejercicio: int
+    mes: str
+    clase: str
+    cta_cte: str
+    siif_importe: float
+    sscc_importe: float
+    diferencia: float
+
+
+# -------------------------------------------------
+class ControlBancoDocument(ControlBancoReport):
+    id: PydanticObjectId = Field(alias="_id")
 
 
 # -------------------------------------------------

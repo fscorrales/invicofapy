@@ -33,6 +33,15 @@ async def sync_control_banco_from_source(
 
 
 # -------------------------------------------------
+@control_banco_router.post("/compute", response_model=List[RouteReturnSchema])
+async def compute_all(
+    service: ControlBancoServiceDependency,
+    params: Annotated[ControlBancoParams, Depends()],
+):
+    return await service.compute_all(params=params)
+
+
+# -------------------------------------------------
 @control_banco_router.get(
     "/export",
     summary="Descarga todos los reportes como archivo .xlsx y exporta a Google Sheets",

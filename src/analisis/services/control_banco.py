@@ -15,6 +15,7 @@ Google Sheet:
 __all__ = ["ControlBancoService", "ControlBancoServiceDependency"]
 
 from dataclasses import dataclass, field
+from enum import Enum
 from typing import Annotated, List
 
 import numpy as np
@@ -31,26 +32,41 @@ from ...siif.handlers import (
     login,
     logout,
 )
+from ...sscc.repositories import CtasCtesRepository
 from ...sscc.services import BancoINVICOServiceDependency, CtasCtesServiceDependency
 from ...utils import (
     RouteReturnSchema,
     export_multiple_dataframes_to_excel,
+    sync_validated_to_repository,
+    validate_and_extract_data_from_df,
 )
 from ..handlers import (
     get_banco_invico_unified_cta_cte,
+    get_siif_rcg01_uejp,
     get_siif_rcocc31,
     get_siif_rvicon03,
-    get_siif_rcg01_uejp,
 )
+from ..repositories.control_banco import ControlBancoRepositoryDependency
 from ..schemas.control_banco import (
     ControlBancoParams,
+    ControlBancoReport,
     ControlBancoSyncParams,
 )
-from ...sscc.repositories import CtasCtesRepository
+
+
+# -------------------------------------------------
+class Categoria(str, Enum):
+    sin_categoria = "NO Categorizado"
+    fonavi = "Ingreso FO.NA.VI."
+    recuperos = "Cobranza de Cuotas de Viviendas"
+    aporte_empresario = "Ingreso 3% Aporte Empresario"
+    fondos_provinciales = "Ingreso Fondos Provinciales"
+
 
 # --------------------------------------------------
 @dataclass
 class ControlBancoService:
+    control_banco_repo: ControlBancoRepositoryDependency
     siif_rcocc31_handler: Rcocc31 = field(init=False)  # No se pasa como argumento
     siif_rvicon03_handler: Rvicon03 = field(init=False)  # No se pasa como argumento
     sscc_banco_invico_service: BancoINVICOServiceDependency
@@ -140,8 +156,39 @@ class ControlBancoService:
                     logger.warning(f"Logout falló o browser ya cerrado: {e}")
                 return return_schema
 
+    # -------------------------------------------------
+    async def compute_all(self, params: ControlBancoParams) -> List[RouteReturnSchema]:
+        """
+        Compute all controls for the given params.
+        """
+        return_schema = []
+        try:
+            # 🔹 Control banco
+            partial_schema = await self.compute_control_banco(params=params)
+            return_schema.extend(partial_schema)
+
+        except ValidationError as e:
+            logger.error(f"Validation Error: {e}")
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid response format from Control de Banco",
+            )
+        except Exception as e:
+            logger.error(f"Error in compute_all: {e}")
+            raise HTTPException(
+                status_code=500,
+                detail="Error in compute_all",
+            )
+        finally:
+            return return_schema
+
     # --------------------------------------------------
-    async def generate_banco_siif(self, ejercicio: int) -> pd.DataFrame:
+    async def generate_banco_siif(
+        self,
+        ejercicio: int,
+        netear_pa6: bool = True,
+        netear_aporte_empreario: bool = True,
+    ) -> pd.DataFrame:
         df = await get_siif_rcocc31(ejercicio=ejercicio)
 
         if df.empty:
@@ -154,31 +201,38 @@ class ControlBancoService:
             )
         ]
 
+        columns_to_flip_sign = ["debitos", "creditos", "saldo"]
+
         # Neteamos los PA6 pagados y ya regularizados
-        gastos_df = await get_siif_rcg01_uejp(ejercicio=ejercicio)
-        pa6_pagados = gastos_df["nro_fondo"].unique().tolist()
-        pa6_pagados_df = df.loc[(df["tipo_comprobante"] == "PAP") & (df["nro_original"].isin(pa6_pagados))].copy()
-        pa6_pagados_df["tipo_comprobante"] = "FSC"
-        pa6_pagados_df["debitos"] = pa6_pagados_df["debitos"] * (-1)
-        pa6_pagados_df["creditos"] = pa6_pagados_df["creditos"] * (-1)
-        pa6_pagados_df["saldo"] = pa6_pagados_df["saldo"] * (-1)
-        df = pd.concat([df, pa6_pagados_df])
+        if netear_pa6:
+            gastos_df = await get_siif_rcg01_uejp(ejercicio=ejercicio)
+            pa6_pagados = gastos_df["nro_fondo"].unique().tolist()
+            pa6_pagados_df = df.loc[
+                (df["tipo_comprobante"] == "PAP")
+                & (df["nro_original"].isin(pa6_pagados))
+            ].copy()
+            pa6_pagados_df["tipo_comprobante"] = "FSC"
+            pa6_pagados_df[columns_to_flip_sign] = pa6_pagados_df[
+                columns_to_flip_sign
+            ] * (-1)
+            df = pd.concat([df, pa6_pagados_df])
 
         # Neteamos el Aporte Empresario tanto en ingresos como en gastos
-        aporte_empresario_df = df.loc[df["cta_contable"] == "5123-1-1"].copy()
-        aporte_empresario_df["tipo_comprobante"] = "FSC"
-        aporte_empresario_df["debitos"] = aporte_empresario_df["debitos"] * (-1)
-        aporte_empresario_df["creditos"] = aporte_empresario_df["creditos"] * (-1)
-        aporte_empresario_df["saldo"] = aporte_empresario_df["saldo"] * (-1)
-        df = pd.concat([df, aporte_empresario_df])
-        aporte_empresario_df = df.loc[(df["cta_contable"] == "2122-1-2") & (df["auxiliar_1"] == "337")].copy()
-        aporte_empresario_df["tipo_comprobante"] = "FSC"
-        aporte_empresario_df["debitos"] = aporte_empresario_df["debitos"] * (-1)
-        aporte_empresario_df["creditos"] = aporte_empresario_df["creditos"] * (-1)
-        aporte_empresario_df["saldo"] = aporte_empresario_df["saldo"] * (-1)
-        df = pd.concat([df, aporte_empresario_df])
-
-
+        if netear_aporte_empreario:
+            aporte_empresario_df = df.loc[df["cta_contable"] == "5123-1-1"].copy()
+            aporte_empresario_df["tipo_comprobante"] = "FSC"
+            aporte_empresario_df[columns_to_flip_sign] = aporte_empresario_df[
+                columns_to_flip_sign
+            ] * (-1)
+            df = pd.concat([df, aporte_empresario_df])
+            aporte_empresario_df = df.loc[
+                (df["cta_contable"] == "2122-1-2") & (df["auxiliar_1"] == "337")
+            ].copy()
+            aporte_empresario_df["tipo_comprobante"] = "FSC"
+            aporte_empresario_df[columns_to_flip_sign] = aporte_empresario_df[
+                columns_to_flip_sign
+            ] * (-1)
+            df = pd.concat([df, aporte_empresario_df])
 
         # Agregamos la columna cta_cte desde auxiliar_1 de la cuenta 1112-2-6
         ctas_ctes_df = df.loc[
@@ -204,9 +258,21 @@ class ControlBancoService:
 
         # Agregamos descripción a las cuentas contables
         ctas_contables_df = await get_siif_rvicon03(ejercicio=ejercicio)
-        ctas_contables_df = ctas_contables_df.loc[:, ["cta_contable", "desc_cta_contable"]]
+        ctas_contables_df = ctas_contables_df.loc[
+            :, ["cta_contable", "desc_cta_contable"]
+        ]
         df = pd.merge(df, ctas_contables_df, how="left", on="cta_contable")
 
+        # Agregamos columna para clasificar registros
+        df["clase"] = Categoria.sin_categoria.value
+        conditions = {
+            "5172-4-4": Categoria.fonavi.value,
+            "5172-2-1": Categoria.fondos_provinciales.value,
+            "1122-1-1": Categoria.recuperos.value,
+        }
+        df["clase"] = df["cta_contable"].map(conditions).fillna(df["clase"])
+
+        # Ordenamos y seleccionamos columnas finales
         df["nro_entrada"] = pd.to_numeric(df["nro_entrada"], errors="coerce")
         df = df.sort_values(
             ["nro_entrada", "debitos", "creditos", "cta_contable"],
@@ -242,6 +308,7 @@ class ControlBancoService:
         ejercicio: int = None,
     ) -> pd.DataFrame:
         df = await get_banco_invico_unified_cta_cte(ejercicio=ejercicio)
+
         # Neteamos las transferencias internas
         df["cod_imputacion"] = np.where(
             df["cod_imputacion"].isin(["004", "034"]),
@@ -254,11 +321,73 @@ class ControlBancoService:
             df["imputacion"],
         )
 
+        # Agregamos columna para clasificar registros
+        df["clase"] = Categoria.sin_categoria.value
+        conditions = {
+            "001": Categoria.fonavi.value,
+            "012": Categoria.fondos_provinciales.value,
+            "002": Categoria.recuperos.value,
+        }
+        df["clase"] = df["cod_imputacion"].map(conditions).fillna(df["clase"])
+
+        # Ordenamos y seleccionamos columnas finales
         df = df.sort_values(
             ["fecha", "movimiento"],
             ascending=[True, True],
         )
         return df
+
+    # --------------------------------------------------
+    async def compute_control_banco(
+        self,
+        params: ControlBancoParams,
+    ) -> List[RouteReturnSchema]:
+        return_schema = []
+        groupby_cols = ["ejercicio", "mes", "clase", "cta_cte"]
+        try:
+            ejercicio = params.ejercicio
+            siif = await self.generate_banco_siif(ejercicio=ejercicio)
+            siif = siif.groupby(groupby_cols)["saldo"].sum().reset_index()
+            siif = siif.rename(columns={"saldo": "siif_importe"})
+            sscc = await self.generate_banco_sscc(ejercicio=ejercicio)
+            sscc = sscc.rename(columns={"importe": "sscc_importe"})
+            df = pd.merge(siif, sscc, how="outer", on=groupby_cols, copy=False)
+            df[["siif_importe", "sscc_importe"]] = df[
+                ["siif_importe", "sscc_importe"]
+            ].fillna(0)
+            df["diferencia"] = df.siif_importe - df.sscc_importe
+
+            # 🔹 Validar datos usando Pydantic
+            validate_and_errors = validate_and_extract_data_from_df(
+                dataframe=df,
+                model=ControlBancoReport,
+                field_id="mes",
+            )
+
+            partial_schema = await sync_validated_to_repository(
+                repository=self.control_banco_repo,
+                validation=validate_and_errors,
+                delete_filter={"ejercicio": ejercicio},
+                title=f"Control Banco del ejercicio {ejercicio}",
+                logger=logger,
+                label=f"Control Banco del ejercicio {ejercicio}",
+            )
+            return_schema.append(partial_schema)
+
+        except ValidationError as e:
+            logger.error(f"Validation Error: {e}")
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid response format from Control Banco",
+            )
+        except Exception as e:
+            logger.error(f"Error in Control Banco: {e}")
+            raise HTTPException(
+                status_code=500,
+                detail="Error in Control Banco",
+            )
+        finally:
+            return return_schema
 
     # -------------------------------------------------
     async def export_all_from_db(
@@ -266,8 +395,16 @@ class ControlBancoService:
         upload_to_google_sheets: bool = True,
         params: ControlBancoParams = None,
     ) -> StreamingResponse:
+        control_banco_docs = await self.control_banco_repo.find_by_filter(
+            ejercicio=params.ejercicio
+        )
+
+        if not control_banco_docs:
+            raise HTTPException(status_code=404, detail="No se encontraron registros")
+
         return export_multiple_dataframes_to_excel(
             df_sheet_pairs=[
+                (pd.DataFrame(control_banco_docs), "siif_vs_sscc_db"),
                 (
                     await self.generate_banco_sscc(ejercicio=params.ejercicio),
                     "sscc_db",
