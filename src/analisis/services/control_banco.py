@@ -42,6 +42,7 @@ from ...utils import (
 )
 from ..handlers import (
     get_banco_invico_unified_cta_cte,
+    get_siif_comprobantes_honorarios,
     get_siif_rcg01_uejp,
     get_siif_rcocc31,
     get_siif_rvicon03,
@@ -280,11 +281,28 @@ class ControlBancoService:
             "1122-1-1": Categoria.recuperos.value,
         }
         df["clase"] = df["cta_contable"].map(conditions).fillna(df["clase"])
+
+        ## Para clasificar los factureros
+        siif_factureros = await get_siif_comprobantes_honorarios(ejercicio=ejercicio)
+        siif_factureros["nro_comprobante"] = (
+            df["nro_comprobante"].str.lstrip("0").str[:-3]
+        )
+        siif_factureros_func_nro = (
+            siif_factureros.loc[
+                siif_factureros["cta_cte"] == "130832-05", "nro_comprobante"
+            ]
+            .unique()
+            .tolist()
+        )
         df["clase"] = np.where(
-            (df["cta_contable"] == "2111-1-3") & (df["cta_cte"] == "130832-05"),
+            (df["cta_contable"].isin(["2111-1-3", "2111-1-1"]))
+            & (df["cta_cte"] == "130832-05")
+            & (df["nro_original"].isin(siif_factureros_func_nro)),
             Categoria.factureros_funcionamiento.value,
             df["clase"],
         )
+
+        ## Para clasificar los pagos de Mutual de factureros funcionamiento
         df["clase"] = np.where(
             (df["cta_contable"] == "2122-1-2")
             & (df["auxiliar_1"] == "341")
