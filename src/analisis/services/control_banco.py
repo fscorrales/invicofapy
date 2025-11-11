@@ -351,6 +351,7 @@ class ControlBancoService:
             siif = siif.groupby(groupby_cols)["saldo"].sum().reset_index()
             siif = siif.rename(columns={"saldo": "siif_importe"})
             sscc = await self.generate_banco_sscc(ejercicio=ejercicio)
+            sscc = sscc.groupby(groupby_cols)["importe"].sum().reset_index()
             sscc = sscc.rename(columns={"importe": "sscc_importe"})
             df = pd.merge(siif, sscc, how="outer", on=groupby_cols, copy=False)
             df[["siif_importe", "sscc_importe"]] = df[
