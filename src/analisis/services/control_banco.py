@@ -161,8 +161,24 @@ class ControlBancoService:
         pa6_pagados_df["tipo_comprobante"] = "FSC"
         pa6_pagados_df["debitos"] = pa6_pagados_df["debitos"] * (-1)
         pa6_pagados_df["creditos"] = pa6_pagados_df["creditos"] * (-1)
-        pa6_pagados_df["saldo"] = pa6_pagados_df["creditos"] * (-1)
+        pa6_pagados_df["saldo"] = pa6_pagados_df["saldo"] * (-1)
         df = pd.concat([df, pa6_pagados_df])
+
+        # Neteamos el Aporte Empresario tanto en ingresos como en gastos
+        aporte_empresario_df = df.loc[df["cta_contable"] == "5123-1-1"].copy()
+        aporte_empresario_df["tipo_comprobante"] = "FSC"
+        aporte_empresario_df["debitos"] = aporte_empresario_df["debitos"] * (-1)
+        aporte_empresario_df["creditos"] = aporte_empresario_df["creditos"] * (-1)
+        aporte_empresario_df["saldo"] = aporte_empresario_df["saldo"] * (-1)
+        df = pd.concat([df, aporte_empresario_df])
+        aporte_empresario_df = df.loc[(df["cta_contable"] == "2122-1-2") & (df["auxiliar_1"] == "337")].copy()
+        aporte_empresario_df["tipo_comprobante"] = "FSC"
+        aporte_empresario_df["debitos"] = aporte_empresario_df["debitos"] * (-1)
+        aporte_empresario_df["creditos"] = aporte_empresario_df["creditos"] * (-1)
+        aporte_empresario_df["saldo"] = aporte_empresario_df["saldo"] * (-1)
+        df = pd.concat([df, aporte_empresario_df])
+
+
 
         # Agregamos la columna cta_cte desde auxiliar_1 de la cuenta 1112-2-6
         ctas_ctes_df = df.loc[
