@@ -397,7 +397,7 @@ class ControlBancoService:
         params: ControlBancoParams = None,
     ) -> StreamingResponse:
         control_banco_docs = await self.control_banco_repo.find_by_filter(
-            ejercicio=params.ejercicio
+            filters={"ejercicio": params.ejercicio},
         )
 
         if not control_banco_docs:
