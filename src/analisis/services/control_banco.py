@@ -285,7 +285,7 @@ class ControlBancoService:
         ## Para clasificar los factureros
         siif_factureros = await get_siif_comprobantes_honorarios(ejercicio=ejercicio)
         siif_factureros["nro_comprobante"] = (
-            df["nro_comprobante"].str.lstrip("0").str[:-3]
+            siif_factureros["nro_comprobante"].str.lstrip("0").str[:-3]
         )
         siif_factureros_func_nro = (
             siif_factureros.loc[
