@@ -297,6 +297,7 @@ class ControlBancoService:
                 "auxiliar_2",
                 "cta_cte",
                 "desc_cta_contable",
+                "clase",
             ],
         ]
 
