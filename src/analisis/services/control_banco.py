@@ -61,6 +61,10 @@ class Categoria(str, Enum):
     recuperos = "Cobranza de Cuotas de Viviendas"
     aporte_empresario = "Ingreso 3% Aporte Empresario"
     fondos_provinciales = "Ingreso Fondos Provinciales"
+    factureros_funcionamiento = "Pago Honorarios y Comisiones (Funcionamiento)"
+    factureros_mutual_funcionamiento = (
+        "Pago Mutual de Honorarios y Comisiones (Funcionamiento)"
+    )
 
 
 # --------------------------------------------------
@@ -271,6 +275,18 @@ class ControlBancoService:
             "1122-1-1": Categoria.recuperos.value,
         }
         df["clase"] = df["cta_contable"].map(conditions).fillna(df["clase"])
+        df["clase"] = np.where(
+            (df["cta_contable"] == "2111-1-3") & (df["cta_cte"] == "130832-05"),
+            Categoria.factureros_funcionamiento.value,
+            df["clase"],
+        )
+        df["clase"] = np.where(
+            (df["cta_contable"] == "2122-1-2")
+            & (df["auxiliar_1"] == "341")
+            & (df["cta_cte"] == "130832-05"),
+            Categoria.factureros_mutual_funcionamiento.value,
+            df["clase"],
+        )
 
         # Ordenamos y seleccionamos columnas finales
         df["nro_entrada"] = pd.to_numeric(df["nro_entrada"], errors="coerce")
@@ -328,8 +344,15 @@ class ControlBancoService:
             "001": Categoria.fonavi.value,
             "012": Categoria.fondos_provinciales.value,
             "002": Categoria.recuperos.value,
+            "043": Categoria.factureros_funcionamiento.value,
         }
         df["clase"] = df["cod_imputacion"].map(conditions).fillna(df["clase"])
+        df["clase"] = np.where(
+            (df["clase"] == Categoria.factureros_funcionamiento.value)
+            & (df["concepto"].str.startswith("MUTUAL")),
+            Categoria.factureros_mutual_funcionamiento.value,
+            df["clase"],
+        )
 
         # Ordenamos y seleccionamos columnas finales
         df = df.sort_values(
