@@ -348,6 +348,7 @@ class ControlBancoService:
         try:
             ejercicio = params.ejercicio
             siif = await self.generate_banco_siif(ejercicio=ejercicio)
+            siif["saldo"] = siif["saldo"] * (-1)
             siif = siif.groupby(groupby_cols)["saldo"].sum().reset_index()
             siif = siif.rename(columns={"saldo": "siif_importe"})
             sscc = await self.generate_banco_sscc(ejercicio=ejercicio)
