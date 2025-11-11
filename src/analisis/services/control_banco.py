@@ -104,13 +104,17 @@ class ControlBancoService:
                 headless=False,
             )
             try:
+                ejercicios = list(
+                    range(params.ejercicio_desde, params.ejercicio_hasta + 1)
+                )
                 # 🔹Rvicon03
                 self.siif_rvicon03_handler = Rvicon03(siif=connect_siif)
                 await self.siif_rvicon03_handler.go_to_reports()
-                partial_schema = await self.siif_rvicon03_handler.download_and_sync_validated_to_repository(
-                    ejercicio=params.ejercicio,
-                )
-                return_schema.append(partial_schema)
+                for ejercicio in ejercicios:
+                    partial_schema = await self.siif_rvicon03_handler.download_and_sync_validated_to_repository(
+                        ejercicio=ejercicio,
+                    )
+                    return_schema.append(partial_schema)
 
                 # 🔹 Rcocc31
                 self.siif_rcocc31_handler = Rcocc31(siif=connect_siif)
@@ -119,12 +123,13 @@ class ControlBancoService:
                 logger.info(
                     f"Se Bajaran las siguientes cuentas contables: {cuentas_contables}"
                 )
-                for cta_contable in cuentas_contables:
-                    partial_schema = await self.siif_rcocc31_handler.download_and_sync_validated_to_repository(
-                        ejercicio=params.ejercicio,
-                        cta_contable=cta_contable,
-                    )
-                    return_schema.append(partial_schema)
+                for ejercicio in ejercicios:
+                    for cta_contable in cuentas_contables:
+                        partial_schema = await self.siif_rcocc31_handler.download_and_sync_validated_to_repository(
+                            ejercicio=ejercicio,
+                            cta_contable=cta_contable,
+                        )
+                        return_schema.append(partial_schema)
 
                 # 🔹Banco INVICO
                 partial_schema = (
