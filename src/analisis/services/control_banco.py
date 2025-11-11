@@ -392,36 +392,37 @@ class ControlBancoService:
         return_schema = []
         groupby_cols = ["ejercicio", "mes", "clase", "cta_cte"]
         try:
-            ejercicio = params.ejercicio
-            siif = await self.generate_banco_siif(ejercicio=ejercicio)
-            siif["saldo"] = siif["saldo"] * (-1)
-            siif = siif.groupby(groupby_cols)["saldo"].sum().reset_index()
-            siif = siif.rename(columns={"saldo": "siif_importe"})
-            sscc = await self.generate_banco_sscc(ejercicio=ejercicio)
-            sscc = sscc.groupby(groupby_cols)["importe"].sum().reset_index()
-            sscc = sscc.rename(columns={"importe": "sscc_importe"})
-            df = pd.merge(siif, sscc, how="outer", on=groupby_cols, copy=False)
-            df[["siif_importe", "sscc_importe"]] = df[
-                ["siif_importe", "sscc_importe"]
-            ].fillna(0)
-            df["diferencia"] = df.siif_importe - df.sscc_importe
+            ejercicios = list(range(params.ejercicio_desde, params.ejercicio_hasta + 1))
+            for ejercicio in ejercicios:
+                siif = await self.generate_banco_siif(ejercicio=ejercicio)
+                siif["saldo"] = siif["saldo"] * (-1)
+                siif = siif.groupby(groupby_cols)["saldo"].sum().reset_index()
+                siif = siif.rename(columns={"saldo": "siif_importe"})
+                sscc = await self.generate_banco_sscc(ejercicio=ejercicio)
+                sscc = sscc.groupby(groupby_cols)["importe"].sum().reset_index()
+                sscc = sscc.rename(columns={"importe": "sscc_importe"})
+                df = pd.merge(siif, sscc, how="outer", on=groupby_cols, copy=False)
+                df[["siif_importe", "sscc_importe"]] = df[
+                    ["siif_importe", "sscc_importe"]
+                ].fillna(0)
+                df["diferencia"] = df.siif_importe - df.sscc_importe
 
-            # 🔹 Validar datos usando Pydantic
-            validate_and_errors = validate_and_extract_data_from_df(
-                dataframe=df,
-                model=ControlBancoReport,
-                field_id="mes",
-            )
+                # 🔹 Validar datos usando Pydantic
+                validate_and_errors = validate_and_extract_data_from_df(
+                    dataframe=df,
+                    model=ControlBancoReport,
+                    field_id="mes",
+                )
 
-            partial_schema = await sync_validated_to_repository(
-                repository=self.control_banco_repo,
-                validation=validate_and_errors,
-                delete_filter={"ejercicio": ejercicio},
-                title=f"Control Banco del ejercicio {ejercicio}",
-                logger=logger,
-                label=f"Control Banco del ejercicio {ejercicio}",
-            )
-            return_schema.append(partial_schema)
+                partial_schema = await sync_validated_to_repository(
+                    repository=self.control_banco_repo,
+                    validation=validate_and_errors,
+                    delete_filter={"ejercicio": ejercicio},
+                    title=f"Control Banco del ejercicio {ejercicio}",
+                    logger=logger,
+                    label=f"Control Banco del ejercicio {ejercicio}",
+                )
+                return_schema.append(partial_schema)
 
         except ValidationError as e:
             logger.error(f"Validation Error: {e}")
@@ -444,24 +445,27 @@ class ControlBancoService:
         upload_to_google_sheets: bool = True,
         params: ControlBancoParams = None,
     ) -> StreamingResponse:
+        ejercicios = list(range(params.ejercicio_desde, params.ejercicio_hasta + 1))
         control_banco_docs = await self.control_banco_repo.find_by_filter(
-            filters={"ejercicio": params.ejercicio},
+            filters={"ejercicio": {"$in": ejercicios}},
         )
 
         if not control_banco_docs:
             raise HTTPException(status_code=404, detail="No se encontraron registros")
 
+        siif = pd.DataFrame()
+        sscc = pd.DataFrame()
+        for ejercicio in ejercicios:
+            df = await self.generate_banco_siif(ejercicio=ejercicio)
+            siif = pd.concat([siif, df], ignore_index=True)
+            df = await self.generate_banco_sscc(ejercicio=ejercicio)
+            sscc = pd.concat([sscc, df], ignore_index=True)
+
         return export_multiple_dataframes_to_excel(
             df_sheet_pairs=[
                 (pd.DataFrame(control_banco_docs), "siif_vs_sscc_db"),
-                (
-                    await self.generate_banco_sscc(ejercicio=params.ejercicio),
-                    "sscc_db",
-                ),
-                (
-                    await self.generate_banco_siif(ejercicio=params.ejercicio),
-                    "siif_db",
-                ),
+                (sscc, "sscc_db"),
+                (siif, "siif_db"),
             ],
             filename="control_banco.xlsx",
             spreadsheet_key="1CRQjzIVzHKqsZE8_E1t8aRQDfWfZALhbe64WcxHiSM4",
