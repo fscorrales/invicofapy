@@ -66,6 +66,8 @@ class Categoria(str, Enum):
     factureros_mutual_funcionamiento = (
         "Pago Mutual de Honorarios y Comisiones (Funcionamiento)"
     )
+    contratistas = "Pago a Contratistas"
+    proveedores = "Pago a Proveedores"
 
 
 # --------------------------------------------------
@@ -279,6 +281,8 @@ class ControlBancoService:
             "5172-4-4": Categoria.fonavi.value,
             "5172-2-1": Categoria.fondos_provinciales.value,
             "1122-1-1": Categoria.recuperos.value,
+            "2111-1-1": Categoria.proveedores.value,
+            "2111-1-2": Categoria.contratistas.value,
         }
         df["clase"] = df["cta_contable"].map(conditions).fillna(df["clase"])
 
