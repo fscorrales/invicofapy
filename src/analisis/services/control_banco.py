@@ -374,6 +374,34 @@ class ControlBancoService:
             "043": Categoria.factureros_funcionamiento.value,
         }
         df["clase"] = df["cod_imputacion"].map(conditions).fillna(df["clase"])
+
+        ## Pago contratistas
+        df["clase"] = np.where(
+            (
+                df["cod_imputacion"].isin(
+                    ["065", "020", "041", "053", "217", "019", "066", "027", "162"]
+                )
+            )
+            | (
+                (df["cod_imputacion"] == "021")  # Pago Serv. y Mat. EPAM
+                & (~df["concepto"].str.startswith("0175"))
+            ),
+            Categoria.contratistas.value,
+            df["clase"],
+        )
+
+        ## Pago a Proveedores
+        df["clase"] = np.where(
+            (df["cod_imputacion"].isin(["023", "052", "031", "033", "037"]))
+            | (
+                (df["cod_imputacion"] == "032")  # Pago Renovación de Seguro
+                & (~df["concepto"].str.startswith("SEGURO"))
+            ),
+            Categoria.proveedores.value,
+            df["clase"],
+        )
+
+        ## Pago Mutual Factureros (Funcionamiento)
         df["clase"] = np.where(
             (df["clase"] == Categoria.factureros_funcionamiento.value)
             & (df["concepto"].str.startswith("MUTUAL")),
