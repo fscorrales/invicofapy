@@ -76,6 +76,9 @@ class Categoria(str, Enum):
     retenciones = "Pago de Retenciones Contratistas y Proveedores"
     haberes = "Pago al Personal"
     escribanos = "Pagos Escribanos (FEI / PFE)"
+    viaticos = "Pago Anticipo de Viáticos (PA3 / PAV)"
+    viaticos_reversion = "Reversion de Viático (Rev)"
+    viaticos_reembolso = "Reembolso de Viático en exceso (373)"
 
 
 # --------------------------------------------------
@@ -293,6 +296,9 @@ class ControlBancoService:
             "2111-1-2": Categoria.contratistas.value,
             "2113-2-9": Categoria.escribanos.value,
             "2122-1-2": Categoria.retenciones.value,
+            "2113-1-13": Categoria.viaticos.value,
+            "4112-1-3": Categoria.viaticos_reembolso.value,
+            "1141-1-4": Categoria.viaticos_reversion.value,
         }
         df["clase"] = df["cta_contable"].map(conditions).fillna(df["clase"])
 
@@ -435,6 +441,9 @@ class ControlBancoService:
             "049": Categoria.factureros_embargo_funcionamiento.value,
             "036": Categoria.escribanos.value,
             "035": Categoria.retenciones.value,
+            "029": Categoria.viaticos.value,
+            "040": Categoria.viaticos_reembolso.value,
+            "005": Categoria.viaticos_reversion.value,
         }
         df["clase"] = df["cod_imputacion"].map(conditions).fillna(df["clase"])
 
