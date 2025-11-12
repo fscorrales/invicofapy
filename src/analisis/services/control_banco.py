@@ -331,7 +331,7 @@ class ControlBancoService:
         df["clase"] = np.where(
             (df["cta_contable"] == "2122-1-2")
             & (df["auxiliar_1"] == "413")
-            & (~df["cta_cte"] == "130832-04"),
+            & (df["cta_cte"] != "130832-04"),
             Categoria.factureros_seguro_funcionamiento.value,
             df["clase"],
         )
