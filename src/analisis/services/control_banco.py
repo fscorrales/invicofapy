@@ -63,11 +63,18 @@ class Categoria(str, Enum):
     aporte_empresario = "Ingreso 3% Aporte Empresario"
     fondos_provinciales = "Ingreso Fondos Provinciales"
     factureros_funcionamiento = "Pago Honorarios y Comisiones (Funcionamiento)"
+    factureros_epam = "Pago Honorarios y Comisiones (EPAM)"
     factureros_mutual_funcionamiento = (
         "Pago Mutual de Honorarios y Comisiones (Funcionamiento)"
     )
+    factureros_embargo_funcionamiento = "Pago Embargo sobre Honorarios (Funcionamiento)"
+    factureros_seguro_funcionamiento = (
+        "Pago Seguro de Honorarios (Funcionamiento y EPAM)"
+    )
     contratistas = "Pago a Contratistas"
     proveedores = "Pago a Proveedores"
+    haberes = "Pago al Personal"
+    escribanos = "Pagos Escribanos (FEI / PFE)"
 
 
 # --------------------------------------------------
@@ -283,26 +290,31 @@ class ControlBancoService:
             "1122-1-1": Categoria.recuperos.value,
             "2111-1-1": Categoria.proveedores.value,
             "2111-1-2": Categoria.contratistas.value,
+            "2113-2-9": Categoria.escribanos.value,
         }
         df["clase"] = df["cta_contable"].map(conditions).fillna(df["clase"])
 
-        ## Para clasificar los factureros
-        siif_factureros = await get_siif_comprobantes_honorarios(ejercicio=ejercicio)
-        siif_factureros["nro_comprobante"] = (
-            siif_factureros["nro_comprobante"].str.lstrip("0").str[:-3]
-        )
-        siif_factureros_func_nro = (
-            siif_factureros.loc[
-                siif_factureros["cta_cte"] == "130832-05", "nro_comprobante"
-            ]
-            .unique()
-            .tolist()
-        )
+        ## Pago al personal (Haberes)
         df["clase"] = np.where(
-            (df["cta_contable"].isin(["2111-1-3", "2111-1-1"]))
-            & (df["cta_cte"] == "130832-05")
-            & (df["nro_original"].isin(siif_factureros_func_nro)),
-            Categoria.factureros_funcionamiento.value,
+            (df["cta_contable"] == "2121-1-1")  # Pago personal haberes
+            | (
+                (df["cta_contable"] == "2122-1-2")  # Pago retenciones haberes
+                & (~df["auxiliar_1"].str.startswith("1"))
+            )
+            | (
+                (df["cta_contable"] == "2111-1-3")  # Pago Movilidad y Comisión FONAVI
+                & (df["cta_cte"] == "130832-04")
+            ),
+            Categoria.haberes.value,
+            df["clase"],
+        )
+
+        ## Pago Embargos sobre Honorarios Funcionamiento
+        df["clase"] = np.where(
+            (df["cta_contable"] == "2122-1-2")
+            & (df["auxiliar_1"] == "255")
+            & (df["cta_cte"] == "130832-05"),
+            Categoria.factureros_embargo_funcionamiento.value,
             df["clase"],
         )
 
@@ -312,6 +324,49 @@ class ControlBancoService:
             & (df["auxiliar_1"] == "341")
             & (df["cta_cte"] == "130832-05"),
             Categoria.factureros_mutual_funcionamiento.value,
+            df["clase"],
+        )
+
+        ## Para clasificar los pagos de Seguro de factureros funcionamiento y EPAM
+        df["clase"] = np.where(
+            (df["cta_contable"] == "2122-1-2")
+            & (df["auxiliar_1"] == "413")
+            & (~df["cta_cte"] == "130832-04"),
+            Categoria.factureros_seguro_funcionamiento.value,
+            df["clase"],
+        )
+
+        ## Para clasificar los factureros
+        siif_factureros = await get_siif_comprobantes_honorarios(ejercicio=ejercicio)
+        siif_factureros["nro_comprobante"] = (
+            siif_factureros["nro_comprobante"].str.lstrip("0").str[:-3]
+        )
+        siif_factureros_nro = (
+            siif_factureros.loc[
+                siif_factureros["cta_cte"] == "130832-05", "nro_comprobante"
+            ]
+            .unique()
+            .tolist()
+        )
+        df["clase"] = np.where(
+            (df["cta_contable"].isin(["2111-1-3", "2111-1-1"]))
+            & (df["cta_cte"] == "130832-05")
+            & (df["nro_original"].isin(siif_factureros_nro)),
+            Categoria.factureros_funcionamiento.value,
+            df["clase"],
+        )
+        siif_factureros_nro = (
+            siif_factureros.loc[
+                siif_factureros["cta_cte"] == "130832-07", "nro_comprobante"
+            ]
+            .unique()
+            .tolist()
+        )
+        df["clase"] = np.where(
+            (df["cta_contable"].isin(["2111-1-3", "2111-1-1"]))
+            & (df["cta_cte"] == "130832-07")
+            & (df["nro_original"].isin(siif_factureros_nro)),
+            Categoria.factureros_epam.value,
             df["clase"],
         )
 
@@ -372,6 +427,11 @@ class ControlBancoService:
             "012": Categoria.fondos_provinciales.value,
             "002": Categoria.recuperos.value,
             "043": Categoria.factureros_funcionamiento.value,
+            "021": Categoria.factureros_epam.value,
+            "024": Categoria.haberes.value,
+            "059": Categoria.haberes.value,  # Pago Mutual de la Movilidad
+            "049": Categoria.factureros_embargo_funcionamiento.value,
+            "036": Categoria.escribanos.value,
         }
         df["clase"] = df["cod_imputacion"].map(conditions).fillna(df["clase"])
 
@@ -406,6 +466,13 @@ class ControlBancoService:
             (df["clase"] == Categoria.factureros_funcionamiento.value)
             & (df["concepto"].str.startswith("MUTUAL")),
             Categoria.factureros_mutual_funcionamiento.value,
+            df["clase"],
+        )
+
+        ## Pago Seguro Factureros (Funcionamiento y EPAM)
+        df["clase"] = np.where(
+            (df["cod_imputacion"] == "032") & (df["concepto"].str.startswith("SEGURO")),
+            Categoria.factureros_seguro_funcionamiento.value,
             df["clase"],
         )
 
