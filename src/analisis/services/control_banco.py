@@ -73,6 +73,7 @@ class Categoria(str, Enum):
     )
     contratistas = "Pago a Contratistas"
     proveedores = "Pago a Proveedores"
+    retenciones = "Pago de Retenciones Contratistas y Proveedores"
     haberes = "Pago al Personal"
     escribanos = "Pagos Escribanos (FEI / PFE)"
 
@@ -291,6 +292,7 @@ class ControlBancoService:
             "2111-1-1": Categoria.proveedores.value,
             "2111-1-2": Categoria.contratistas.value,
             "2113-2-9": Categoria.escribanos.value,
+            "2122-1-2": Categoria.retenciones.value,
         }
         df["clase"] = df["cta_contable"].map(conditions).fillna(df["clase"])
 
@@ -432,6 +434,7 @@ class ControlBancoService:
             "059": Categoria.haberes.value,  # Pago Mutual de la Movilidad
             "049": Categoria.factureros_embargo_funcionamiento.value,
             "036": Categoria.escribanos.value,
+            "035": Categoria.retenciones.value,
         }
         df["clase"] = df["cod_imputacion"].map(conditions).fillna(df["clase"])
 
