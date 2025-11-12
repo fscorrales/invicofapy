@@ -293,6 +293,7 @@ class ControlBancoService:
             "5172-2-1": Categoria.fondos_provinciales.value,
             "1122-1-1": Categoria.recuperos.value,
             "2111-1-1": Categoria.proveedores.value,
+            "2111-1-3": Categoria.proveedores.value,
             "2111-1-2": Categoria.contratistas.value,
             "2113-2-9": Categoria.escribanos.value,
             "2122-1-2": Categoria.retenciones.value,
