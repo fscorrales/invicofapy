@@ -58,27 +58,27 @@ from ..schemas.control_banco import (
 # -------------------------------------------------
 class Categoria(str, Enum):
     sin_categoria = "NO Categorizado"
-    fonavi = "Ingreso FO.NA.VI."
-    recuperos = "Cobranza de Cuotas de Viviendas"
-    aporte_empresario = "Ingreso 3% Aporte Empresario"
-    fondos_provinciales = "Ingreso Fondos Provinciales"
-    factureros_funcionamiento = "Pago Honorarios y Comisiones (Funcionamiento)"
-    factureros_epam = "Pago Honorarios y Comisiones (EPAM)"
+    fonavi = "1.1 Ingreso FO.NA.VI."
+    recuperos = "1.2 Cobranza de Cuotas de Viviendas"
+    fondos_provinciales = "1.3 Ingreso Fondos Provinciales"
+    aporte_empresario = "1.4 Ingreso 3% Aporte Empresario"
+    haberes = "2.1 Pago al Personal"
+    contratistas = "2.2.1 Pago a Contratistas"
+    proveedores = "2.2.2 Pago a Proveedores"
+    retenciones = "2.2.3 Pago de Retenciones Contratistas y Proveedores"
+    factureros_funcionamiento = "2.3.1 Pago Honorarios y Comisiones (Funcionamiento)"
     factureros_mutual_funcionamiento = (
-        "Pago Mutual de Honorarios y Comisiones (Funcionamiento)"
+        "2.3.2 Pago Mutual de Honorarios y Comisiones (Funcionamiento)"
     )
-    factureros_embargo_funcionamiento = "Pago Embargo sobre Honorarios (Funcionamiento)"
+    factureros_embargo_funcionamiento = "2.3.3 Pago Embargo sobre Honorarios (Funcionamiento)"
+    factureros_epam = "2.4.1 Pago Honorarios y Comisiones (EPAM)"
     factureros_seguro_funcionamiento = (
-        "Pago Seguro de Honorarios (Funcionamiento y EPAM)"
+        "2.4.2 Pago Seguro de Honorarios (Funcionamiento y EPAM)"
     )
-    contratistas = "Pago a Contratistas"
-    proveedores = "Pago a Proveedores"
-    retenciones = "Pago de Retenciones Contratistas y Proveedores"
-    haberes = "Pago al Personal"
-    escribanos = "Pagos Escribanos (FEI / PFE)"
-    viaticos = "Pago Anticipo de Viáticos (PA3 / PAV)"
-    viaticos_reversion = "Reversion de Viático (Rev)"
-    viaticos_reembolso = "Reembolso de Viático en exceso (373)"
+    escribanos = "2.5 Pagos Escribanos (FEI / PFE)"
+    viaticos = "2.6.1 Pago Anticipo de Viáticos (PA3 / PAV)"
+    viaticos_reembolso = "2.6.2 Reembolso de Viático en exceso (373)"
+    viaticos_reversion = "2.6.3 Reversion de Viático (Rev)"
 
 
 # --------------------------------------------------
@@ -211,6 +211,7 @@ class ControlBancoService:
         ejercicio: int,
         netear_pa6: bool = True,
         netear_aporte_empreario: bool = True,
+        netear_dev_haberes_erroneos: bool = True,
     ) -> pd.DataFrame:
         df = await get_siif_rcocc31(ejercicio=ejercicio)
 
@@ -256,6 +257,21 @@ class ControlBancoService:
                 columns_to_flip_sign
             ] * (-1)
             df = pd.concat([df, aporte_empresario_df])
+
+        # Neteamos el código 310 de devolución de haberes erroneos tanto en ingresos como en gastos
+        if netear_dev_haberes_erroneos:
+            hab_erroneos_df = df.loc[
+                (df["cta_contable"] == "2122-1-2") & (df["auxiliar_1"] == "310")
+            ].copy()
+            if not hab_erroneos_df.empty:
+                hab_erroneos_df["tipo_comprobante"] = "FSC"
+                hab_erroneos_df["cta_contable"] = "6121-1-1"
+                df = pd.concat([df, hab_erroneos_df])
+                hab_erroneos_df["cta_contable"] = "2122-1-2"
+                hab_erroneos_df[columns_to_flip_sign] = hab_erroneos_df[
+                    columns_to_flip_sign
+                ] * (-1)
+                df = pd.concat([df, hab_erroneos_df])
 
         # Agregamos la columna cta_cte desde auxiliar_1 de la cuenta 1112-2-6
         ctas_ctes_df = df.loc[
@@ -311,7 +327,8 @@ class ControlBancoService:
             (df["cta_contable"] == "2121-1-1")  # Pago personal haberes
             | (
                 (df["cta_contable"] == "2122-1-2")  # Pago retenciones haberes
-                & (~df["auxiliar_1"].str.startswith("1"))
+                & (~df["auxiliar_1"].str.startswith("1")
+                & (df["auxiliar_1"] != "337")) # 3% INVICO
             )
             | (
                 (df["cta_contable"] == "2111-1-3")  # Pago Movilidad y Comisión FONAVI
@@ -417,20 +434,43 @@ class ControlBancoService:
     async def generate_banco_sscc(
         self,
         ejercicio: int = None,
+        netear_transf_internas: bool = True,
+        netear_reingresos: bool = True,
     ) -> pd.DataFrame:
         df = await get_banco_invico_unified_cta_cte(ejercicio=ejercicio)
 
         # Neteamos las transferencias internas
-        df["cod_imputacion"] = np.where(
-            df["cod_imputacion"].isin(["004", "034"]),
-            "000",
-            df["cod_imputacion"],
-        )
-        df["imputacion"] = np.where(
-            df["cod_imputacion"] == "000",
-            "TRANSFERENCIAS INTERNAS (NETAS)",
-            df["imputacion"],
-        )
+        if netear_transf_internas:
+            df["cod_imputacion"] = np.where(
+                df["cod_imputacion"].isin(["004", "034"]),
+                "000",
+                df["cod_imputacion"],
+            )
+            df["imputacion"] = np.where(
+                df["cod_imputacion"] == "000",
+                "TRANSFERENCIAS INTERNAS (NETAS)",
+                df["imputacion"],
+            )
+
+        # Neteamos los reingresos de cheques
+        if netear_reingresos:
+            cheques_df = df.loc[df["cod_imputacion"] == "003", :].copy()
+            imputacion_003 = cheques_df["imputacion"].iloc[0]
+            # cheques_df["movimiento"] = cheques_df["concepto"].str.split('\s').str[-1]
+            cheques_df["movimiento"] = cheques_df["concepto"].str.extract(r'(\d+)$')[0]
+            cheques_df = cheques_df.drop(
+                ["cod_imputacion", "imputacion"], axis=1
+            )
+            cheques_df = cheques_df.merge(
+                df.loc[:, ["movimiento","cod_imputacion", "imputacion"]], 
+                how="left", on="movimiento"
+            )
+            cheques_df = cheques_df.dropna(subset=["cod_imputacion", "imputacion"])
+            df = pd.concat([df, cheques_df])
+            cheques_df["importe"] = cheques_df["importe"] * (-1)
+            cheques_df["cod_imputacion"] = "003"
+            cheques_df["imputacion"] = imputacion_003
+            df = pd.concat([df, cheques_df])
 
         # Agregamos columna para clasificar registros
         df["clase"] = Categoria.sin_categoria.value
@@ -492,6 +532,18 @@ class ControlBancoService:
             df["clase"],
         )
 
+        ## Reintegro comisiones imputado como reintegro viaticos
+        df["clase"] = np.where(
+            (df["cod_imputacion"] == "005") & (df["cta_cte"] == "130832-05"),
+            Categoria.factureros_funcionamiento.value,
+            df["clase"],
+        )
+        df["clase"] = np.where(
+            (df["cod_imputacion"] == "005") & (df["cta_cte"] == "130832-07"),
+            Categoria.factureros_epam.value,
+            df["clase"],
+        )          
+
         # Ordenamos y seleccionamos columnas finales
         df = df.sort_values(
             ["fecha", "movimiento"],
@@ -521,6 +573,7 @@ class ControlBancoService:
                     ["siif_importe", "sscc_importe"]
                 ].fillna(0)
                 df["diferencia"] = df.siif_importe - df.sscc_importe
+                df = df.sort_values(by=["ejercicio", "mes", "clase", "cta_cte"])
 
                 # 🔹 Validar datos usando Pydantic
                 validate_and_errors = validate_and_extract_data_from_df(
