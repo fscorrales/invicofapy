@@ -368,11 +368,11 @@ class ControlViaticosService:
 
             if x is None or x == "":
                 return None
-                
+
             match = re.search(r"(\d{3})\s*(\d+)\s*(\d{2,4})", x)
             if match:
-                id_institucion = match.group(1)
-                nro_expediente = match.group(2).zfill(7)
+                id_institucion = "900"
+                nro_expediente = match.group(2).zfill(5)
                 año = match.group(3).zfill(4)
                 # Construir el nuevo formato
                 new_format = f"{id_institucion} {nro_expediente} {año}"
