@@ -353,6 +353,7 @@ class ControlViaticosService:
         df = await get_banco_invico_unified_cta_cte(
             ejercicio=ejercicio, filters=filters
         )
+        df["nro_expte"] = df["concepto"].str.extract(r"(EXP\s*(\d+\s*\d*)\s*)")
         return df
 
     # --------------------------------------------------
