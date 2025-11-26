@@ -11,6 +11,7 @@ from .control_honorarios import control_honorarios_router
 from .control_icaro_vs_siif import control_icaro_vs_siif_router
 from .control_obras import control_obras_router
 from .control_recursos import control_recursos_router
+from .control_viaticos import control_viaticos_router
 from .reporte_formulacion_presupuesto import reporte_formulacion_presupuesto_router
 from .reporte_libro_diario import reporte_libro_diario_router
 from .reporte_modulos_basicos import reporte_modulos_basicos_router
@@ -23,6 +24,7 @@ control_router.include_router(control_obras_router)
 control_router.include_router(control_haberes_router)
 control_router.include_router(control_honorarios_router)
 control_router.include_router(control_escribanos_router)
+control_router.include_router(control_viaticos_router)
 control_router.include_router(control_debitos_bancarios_router)
 control_router.include_router(control_banco_router)
 
