@@ -190,15 +190,16 @@ class ControlViaticosService:
 
     # -------------------------------------------------
     async def export_all_from_db(
-        self, upload_to_google_sheets: bool = True
+        self,
+        upload_to_google_sheets: bool = True,
+        params: ControlViaticosParams = None,
     ) -> StreamingResponse:
-        ejercicio_actual = datetime.now().year
-        ultimos_ejercicios = list(range(ejercicio_actual - 2, ejercicio_actual + 1))
+        ejercicios = list(range(params.ejercicio_desde, params.ejercicio_hasta + 1))
         # control_sgf_vs_sscc_docs = await self.control_pa3_repo.find_by_filter(
-        #     {"ejercicio": {"$in": ultimos_ejercicios}}
+        #     {"ejercicio": {"$in": ejercicios}}
         # )
         # control_siif_vs_sgf_docs = await self.control_siif_vs_sgf_repo.find_by_filter(
-        #     {"ejercicio": {"$in": ultimos_ejercicios}}
+        #     {"ejercicio": {"$in": ejercicios}}
         # )
 
         # if not control_siif_vs_sgf_docs and not control_sgf_vs_sscc_docs:
@@ -206,7 +207,7 @@ class ControlViaticosService:
 
         # siif = pd.DataFrame()
         sscc = pd.DataFrame()
-        for ejercicio in ultimos_ejercicios:
+        for ejercicio in ejercicios:
             # df = await self.generate_siif_escribanos(ejercicio=ejercicio)
             # siif = pd.concat([siif, df], ignore_index=True)
             df = await self.generate_banco_viaticos(ejercicio=ejercicio)
