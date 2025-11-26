@@ -20,13 +20,13 @@ Google Sheet:
 
 __all__ = ["ControlViaticosService", "ControlViaticosServiceDependency"]
 
+import re
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Annotated, List
 
 import numpy as np
 import pandas as pd
-import re
 from fastapi import Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from playwright.async_api import async_playwright
@@ -355,10 +355,28 @@ class ControlViaticosService:
             ejercicio=ejercicio, filters=filters
         )
         df["new_concepto"] = df["concepto"].str.replace(".", "")
-        df["nro_expte"] = df["new_concepto"].str.extract(r'EXP\s*(\d+\s*\d+\s*\d+)\s*')[0]
+        df["nro_expte"] = df["new_concepto"].str.extract(r"EXP\s*(\d+\s*\d+\s*\d+)\s*")[
+            0
+        ]
         df = df.drop(["new_concepto"], axis=1)
-        # df['nro_expte'] = df['concepto'].apply(lambda x: re.search(r'(?<=EXP\s*)\d+\s*\d+(\s*\d+)?', x).group() if re.search(r'(?<=EXP\s*)\d+\s*\d+(\s*\d+)?', x) else None)
-        # df['nro_expte'] = df['concepto'].apply(lambda x: re.search(r'EXP\s*(\d+\s*\d+(\s*\d+)?)', x).group() if re.search(r'EXP\s*(\d+\s*\d+(\s*\d+)?)', x) else None)
+
+        # Función para transformar el campo "nro_expte"
+        def transform_nro_expte(x):
+            # Extraer el número de identificación, el número de expediente y el año
+            match = re.search(r"(\d{3})\s*(\d+)\s*(\d{2,4})", x)
+            if match:
+                id_institucion = match.group(1)
+                nro_expediente = match.group(2).zfill(7)
+                año = match.group(3).zfill(4)
+                # Construir el nuevo formato
+                new_format = f"{id_institucion} {nro_expediente} {año}"
+                return new_format
+            else:
+                return None
+
+        # Aplicar la función a la columna "nro_expte"
+        df["new_nro_expte"] = df["nro_expte"].apply(transform_nro_expte)
+
         return df
 
     # --------------------------------------------------
