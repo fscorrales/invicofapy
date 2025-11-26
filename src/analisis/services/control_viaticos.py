@@ -26,6 +26,7 @@ from typing import Annotated, List
 
 import numpy as np
 import pandas as pd
+import re
 from fastapi import Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from playwright.async_api import async_playwright
@@ -353,7 +354,11 @@ class ControlViaticosService:
         df = await get_banco_invico_unified_cta_cte(
             ejercicio=ejercicio, filters=filters
         )
-        df["nro_expte"] = df["concepto"].str.extract(r"(EXP\s*(\d+\s*\d*)\s*)")
+        df["new_concepto"] = df["concepto"].str.replace(".", "")
+        df["nro_expte"] = df["new_concepto"].str.extract(r'EXP\s*(\d+\s*\d+\s*\d+)\s*')[0]
+        df = df.drop(["new_concepto"], axis=1)
+        # df['nro_expte'] = df['concepto'].apply(lambda x: re.search(r'(?<=EXP\s*)\d+\s*\d+(\s*\d+)?', x).group() if re.search(r'(?<=EXP\s*)\d+\s*\d+(\s*\d+)?', x) else None)
+        # df['nro_expte'] = df['concepto'].apply(lambda x: re.search(r'EXP\s*(\d+\s*\d+(\s*\d+)?)', x).group() if re.search(r'EXP\s*(\d+\s*\d+(\s*\d+)?)', x) else None)
         return df
 
     # --------------------------------------------------
