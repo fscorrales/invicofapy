@@ -363,6 +363,12 @@ class ControlViaticosService:
         # Función para transformar el campo "nro_expte"
         def transform_nro_expte(x):
             # Extraer el número de identificación, el número de expediente y el año
+            if not isinstance(x, (str, bytes)):
+                return None
+
+            if x is None or x == "":
+                return None
+                
             match = re.search(r"(\d{3})\s*(\d+)\s*(\d{2,4})", x)
             if match:
                 id_institucion = match.group(1)
