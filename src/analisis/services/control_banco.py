@@ -557,7 +557,7 @@ class ControlBancoService:
         params: ControlBancoParams,
     ) -> List[RouteReturnSchema]:
         return_schema = []
-        groupby_cols = ["ejercicio", "mes", "clase", "cta_cte"]
+        groupby_cols = ["ejercicio", "mes", "fecha", "clase", "cta_cte"]
         try:
             ejercicios = list(range(params.ejercicio_desde, params.ejercicio_hasta + 1))
             for ejercicio in ejercicios:

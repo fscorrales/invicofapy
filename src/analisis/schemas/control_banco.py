@@ -7,7 +7,7 @@ __all__ = [
 ]
 
 import os
-from datetime import date
+from datetime import date, datetime
 from typing import Optional
 
 from pydantic import BaseModel, Field, field_validator, model_validator
@@ -52,6 +52,7 @@ class ControlBancoSyncParams(ControlBancoParams):
 class ControlBancoReport(BaseModel):
     ejercicio: int
     mes: str
+    fecha: datetime
     clase: str
     cta_cte: str
     siif_importe: float
