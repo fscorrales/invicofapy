@@ -369,16 +369,18 @@ class ControlViaticosService:
             if x is None or x == "":
                 return None
 
-            match = re.search(r"(\d{3})\s*(\d+)\s*(\d{2,4})", x)
-            if match:
-                id_institucion = "900"
-                nro_expediente = match.group(2).zfill(5)
-                año = match.group(3).zfill(4)
-                # Construir el nuevo formato
-                new_format = f"{id_institucion} {nro_expediente} {año}"
-                return new_format
-            else:
-                return None
+            expediente = x.split(" ")
+            id_institucion = "900"
+            nro_expediente = "00000"
+            año = "0000"
+            if len(expediente) >= 2:
+                año = expediente[-1] 
+                año = año if len(año) == 4 else "20" + año
+                nro_expediente =  expediente[-2].zfill(5)
+            # Construir el nuevo formato
+            new_format = f"{id_institucion}{nro_expediente}{año}"
+            return new_format
+
 
         # Aplicar la función a la columna "nro_expte"
         df["new_nro_expte"] = df["nro_expte"].apply(transform_nro_expte)
