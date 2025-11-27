@@ -132,7 +132,7 @@ class Rfondo07tp(SIIFReportManager):
             if self.download is None:
                 raise ValueError("No se pudo descargar el reporte rfondo07tp.")
             await self.read_xls_file()
-            return await self.process_dataframe()
+            return await self.process_dataframe(tipo_comprobante=tipo_comprobante)
         except Exception as e:
             print(f"Error al descargar y procesar el reporte: {e}")
 
@@ -175,7 +175,7 @@ class Rfondo07tp(SIIFReportManager):
             df.drop(columns=["id"], inplace=True)
             df["ejercicio"] = pd.to_numeric(df["ejercicio"], errors="coerce")
             df = df.loc[df["ejercicio"] < 2024]
-            df["tipo_comprobante"] = "PA6" #Asumo que todo son PA6
+            df["tipo_comprobante"] = "PA6"  # Asumo que todo son PA6
 
             validate_and_errors = validate_and_extract_data_from_df(
                 dataframe=df,
@@ -305,7 +305,9 @@ class Rfondo07tp(SIIFReportManager):
 
         # 👇 conversión explícita a datetime.datetime de Python
         # df["fecha"] = df["fecha"].dt.to_pydatetime()
-        df["fecha"] = df["fecha"].apply(lambda x: x.to_pydatetime() if pd.notnull(x) else None)
+        df["fecha"] = df["fecha"].apply(
+            lambda x: x.to_pydatetime() if pd.notnull(x) else None
+        )
 
         df = df.loc[
             :,
