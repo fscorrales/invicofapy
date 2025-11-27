@@ -27,11 +27,14 @@ from pydantic import ValidationError
 
 from ...config import logger
 from ...siif.handlers import (
+    Rcg01Uejp,
     Rcocc31,
+    Rpa03g,
     Rvicon03,
     login,
     logout,
 )
+from ...siif.schemas import GrupoPartidaSIIF
 from ...sscc.repositories import CtasCtesRepository
 from ...sscc.services import BancoINVICOServiceDependency, CtasCtesServiceDependency
 from ...utils import (
@@ -70,7 +73,9 @@ class Categoria(str, Enum):
     factureros_mutual_funcionamiento = (
         "2.3.2 Pago Mutual de Honorarios y Comisiones (Funcionamiento)"
     )
-    factureros_embargo_funcionamiento = "2.3.3 Pago Embargo sobre Honorarios (Funcionamiento)"
+    factureros_embargo_funcionamiento = (
+        "2.3.3 Pago Embargo sobre Honorarios (Funcionamiento)"
+    )
     factureros_epam = "2.4.1 Pago Honorarios y Comisiones (EPAM)"
     factureros_seguro_funcionamiento = (
         "2.4.2 Pago Seguro de Honorarios (Funcionamiento y EPAM)"
@@ -87,6 +92,8 @@ class ControlBancoService:
     control_banco_repo: ControlBancoRepositoryDependency
     siif_rcocc31_handler: Rcocc31 = field(init=False)  # No se pasa como argumento
     siif_rvicon03_handler: Rvicon03 = field(init=False)  # No se pasa como argumento
+    siif_rcg01_uejp_handler: Rcg01Uejp = field(init=False)  # No se pasa como argumento
+    siif_rpa03g_handler: Rpa03g = field(init=False)  # No se pasa como argumento
     sscc_banco_invico_service: BancoINVICOServiceDependency
     sscc_ctas_ctes_service: CtasCtesServiceDependency
 
@@ -142,6 +149,23 @@ class ControlBancoService:
                         partial_schema = await self.siif_rcocc31_handler.download_and_sync_validated_to_repository(
                             ejercicio=ejercicio,
                             cta_contable=cta_contable,
+                        )
+                        return_schema.append(partial_schema)
+
+                # 🔹 Rcg01Uejp
+                self.siif_rcg01_uejp_handler = Rcg01Uejp(siif=connect_siif)
+                for ejercicio in ejercicios:
+                    partial_schema = await self.siif_rcg01_uejp_handler.download_and_sync_validated_to_repository(
+                        ejercicio=int(ejercicio)
+                    )
+                    return_schema.append(partial_schema)
+
+                # 🔹 Rpa03g
+                self.siif_rpa03g_handler = Rpa03g(siif=connect_siif)
+                for ejercicio in ejercicios:
+                    for grupo in [g.value for g in GrupoPartidaSIIF]:
+                        partial_schema = await self.siif_rpa03g_handler.download_and_sync_validated_to_repository(
+                            ejercicio=int(ejercicio), grupo_partida=grupo
                         )
                         return_schema.append(partial_schema)
 
@@ -327,8 +351,9 @@ class ControlBancoService:
             (df["cta_contable"] == "2121-1-1")  # Pago personal haberes
             | (
                 (df["cta_contable"] == "2122-1-2")  # Pago retenciones haberes
-                & (~df["auxiliar_1"].str.startswith("1")
-                & (df["auxiliar_1"] != "337")) # 3% INVICO
+                & (
+                    ~df["auxiliar_1"].str.startswith("1") & (df["auxiliar_1"] != "337")
+                )  # 3% INVICO
             )
             | (
                 (df["cta_contable"] == "2111-1-3")  # Pago Movilidad y Comisión FONAVI
@@ -457,13 +482,12 @@ class ControlBancoService:
             cheques_df = df.loc[df["cod_imputacion"] == "003", :].copy()
             imputacion_003 = cheques_df["imputacion"].iloc[0]
             # cheques_df["movimiento"] = cheques_df["concepto"].str.split('\s').str[-1]
-            cheques_df["movimiento"] = cheques_df["concepto"].str.extract(r'(\d+)$')[0]
-            cheques_df = cheques_df.drop(
-                ["cod_imputacion", "imputacion"], axis=1
-            )
+            cheques_df["movimiento"] = cheques_df["concepto"].str.extract(r"(\d+)$")[0]
+            cheques_df = cheques_df.drop(["cod_imputacion", "imputacion"], axis=1)
             cheques_df = cheques_df.merge(
-                df.loc[:, ["movimiento","cod_imputacion", "imputacion"]], 
-                how="left", on="movimiento"
+                df.loc[:, ["movimiento", "cod_imputacion", "imputacion"]],
+                how="left",
+                on="movimiento",
             )
             cheques_df = cheques_df.dropna(subset=["cod_imputacion", "imputacion"])
             df = pd.concat([df, cheques_df])
@@ -542,7 +566,7 @@ class ControlBancoService:
             (df["cod_imputacion"] == "005") & (df["cta_cte"] == "130832-07"),
             Categoria.factureros_epam.value,
             df["clase"],
-        )          
+        )
 
         # Ordenamos y seleccionamos columnas finales
         df = df.sort_values(
