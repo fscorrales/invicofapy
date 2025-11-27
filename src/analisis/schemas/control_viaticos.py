@@ -15,7 +15,6 @@ from typing import Optional
 from pydantic import BaseModel, Field, field_validator, model_validator
 from pydantic_mongo import PydanticObjectId
 
-from ...sgf.schemas.common import Origen
 from ...utils import BaseFilterParams, CamelModel, get_sscc_cta_cte_path
 
 
@@ -41,7 +40,6 @@ class ControlViaticosParams(CamelModel):
 
 # --------------------------------------------------
 class ControlViaticosSyncParams(ControlViaticosParams):
-    origen: Optional[Origen] = None
     siif_username: Optional[str] = None
     siif_password: Optional[str] = None
     sscc_username: Optional[str] = None
