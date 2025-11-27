@@ -20,9 +20,8 @@ Google Sheet:
 
 __all__ = ["ControlViaticosService", "ControlViaticosServiceDependency"]
 
-import re
+
 from dataclasses import dataclass, field
-from datetime import datetime
 from typing import Annotated, List
 
 import numpy as np
@@ -34,13 +33,16 @@ from pydantic import ValidationError
 
 from ...config import logger
 from ...siif.handlers import (
+    Rcg01Uejp,
     Rcocc31,
+    Rpa03g,
     login,
     logout,
 )
 from ...siif.repositories import (
     Rcocc31RepositoryDependency,
 )
+from ...siif.schemas import GrupoPartidaSIIF
 from ...sscc.services import BancoINVICOServiceDependency, CtasCtesServiceDependency
 from ...utils import (
     RouteReturnSchema,
@@ -70,8 +72,9 @@ class ControlViaticosService:
     # control_siif_vs_sgf_repo: ControlEscribanosSIIFvsSGFRepositoryDependency
     sscc_banco_invico_service: BancoINVICOServiceDependency
     sscc_ctas_ctes_service: CtasCtesServiceDependency
-    siif_rcocc31_repo: Rcocc31RepositoryDependency
     siif_rcocc31_handler: Rcocc31 = field(init=False)  # No se pasa como argumento
+    siif_rcg01_uejp_handler: Rcg01Uejp = field(init=False)  # No se pasa como argumento
+    siif_rpa03g_handler: Rpa03g = field(init=False)  # No se pasa como argumento
 
     # -------------------------------------------------
     async def sync_control_viaticos_from_source(
@@ -109,9 +112,27 @@ class ControlViaticosService:
                 ejercicios = list(
                     range(params.ejercicio_desde, params.ejercicio_hasta + 1)
                 )
+
+                # 🔹 Rcg01Uejp
+                self.siif_rcg01_uejp_handler = Rcg01Uejp(siif=connect_siif)
+                await self.siif_rcg01_uejp_handler.go_to_reports()
+                for ejercicio in ejercicios:
+                    partial_schema = await self.siif_rcg01_uejp_handler.download_and_sync_validated_to_repository(
+                        ejercicio=int(ejercicio)
+                    )
+                    return_schema.append(partial_schema)
+
+                # 🔹 Rpa03g
+                self.siif_rpa03g_handler = Rpa03g(siif=connect_siif)
+                for ejercicio in ejercicios:
+                    for grupo in [g.value for g in GrupoPartidaSIIF]:
+                        partial_schema = await self.siif_rpa03g_handler.download_and_sync_validated_to_repository(
+                            ejercicio=int(ejercicio), grupo_partida=grupo
+                        )
+                        return_schema.append(partial_schema)
+
                 # 🔹 Rcocc31
                 self.siif_rcocc31_handler = Rcocc31(siif=connect_siif)
-                await self.siif_rcocc31_handler.go_to_reports()
                 cuentas_contables = ["1112-2-6", "2113-1-13", "4112-1-3", "1141-1-4"]
                 for ejercicio in ejercicios:
                     for cta_contable in cuentas_contables:
@@ -374,13 +395,12 @@ class ControlViaticosService:
             nro_expediente = "00000"
             año = "0000"
             if len(expediente) >= 2:
-                año = expediente[-1] 
+                año = expediente[-1]
                 año = año if len(año) == 4 else "20" + año
-                nro_expediente =  expediente[-2].zfill(5)
+                nro_expediente = expediente[-2].zfill(5)
             # Construir el nuevo formato
             new_format = f"{id_institucion}{nro_expediente}{año}"
             return new_format
-
 
         # Aplicar la función a la columna "nro_expte"
         df["new_nro_expte"] = df["nro_expte"].apply(transform_nro_expte)
