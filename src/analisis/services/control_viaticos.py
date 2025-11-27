@@ -35,6 +35,7 @@ from ...config import logger
 from ...siif.handlers import (
     Rcg01Uejp,
     Rcocc31,
+    Rfondo07tp,
     Rpa03g,
     login,
     logout,
@@ -52,8 +53,9 @@ from ...utils import (
 )
 from ..handlers import (
     get_banco_invico_unified_cta_cte,
-    get_resumen_rend_prov_with_desc,
+    get_siif_comprobantes_gtos_unified_cta_cte,
     get_siif_rcocc31,
+    get_siif_rfondo07tp,
 )
 from ..repositories.control_viaticos import (
     ControlViaticosPA3RepositoryDependency,
@@ -75,6 +77,7 @@ class ControlViaticosService:
     siif_rcocc31_handler: Rcocc31 = field(init=False)  # No se pasa como argumento
     siif_rcg01_uejp_handler: Rcg01Uejp = field(init=False)  # No se pasa como argumento
     siif_rpa03g_handler: Rpa03g = field(init=False)  # No se pasa como argumento
+    siif_rfondo07tp_handler: Rfondo07tp = field(init=False)  # No se pasa como argumento
 
     # -------------------------------------------------
     async def sync_control_viaticos_from_source(
@@ -130,6 +133,14 @@ class ControlViaticosService:
                             ejercicio=int(ejercicio), grupo_partida=grupo
                         )
                         return_schema.append(partial_schema)
+
+                # 🔹 Rfondo07tp
+                self.siif_rfondo07tp_handler = Rfondo07tp(siif=connect_siif)
+                for ejercicio in ejercicios:
+                    partial_schema = await self.siif_rfondo07tp_handler.download_and_sync_validated_to_repository(
+                        ejercicio=int(ejercicio), tipo_comprobante="PA3"
+                    )
+                    return_schema.append(partial_schema)
 
                 # 🔹 Rcocc31
                 self.siif_rcocc31_handler = Rcocc31(siif=connect_siif)
@@ -227,11 +238,14 @@ class ControlViaticosService:
         # if not control_siif_vs_sgf_docs and not control_sgf_vs_sscc_docs:
         #     raise HTTPException(status_code=404, detail="No se encontraron registros")
 
-        # siif = pd.DataFrame()
+        siif_fondos = pd.DataFrame()
+        siif_gastos = pd.DataFrame()
         sscc = pd.DataFrame()
         for ejercicio in ejercicios:
-            # df = await self.generate_siif_escribanos(ejercicio=ejercicio)
-            # siif = pd.concat([siif, df], ignore_index=True)
+            df = await self.generate_siif_anticipo_viaticos(ejercicio=ejercicio)
+            siif_fondos = pd.concat([siif_fondos, df], ignore_index=True)
+            df = await self.generate_siif_rendicion_viaticos(ejercicio=ejercicio)
+            siif_gastos = pd.concat([siif_gastos, df], ignore_index=True)
             df = await self.generate_banco_viaticos(ejercicio=ejercicio)
             sscc = pd.concat([sscc, df], ignore_index=True)
 
@@ -239,7 +253,8 @@ class ControlViaticosService:
             df_sheet_pairs=[
                 # (pd.DataFrame(control_siif_vs_sgf_docs), "siif_vs_sgf_db"),
                 # (pd.DataFrame(control_sgf_vs_sscc_docs), "sgf_vs_sscc_db"),
-                # (siif, "siif_db"),
+                (siif_fondos, "siif_fondos_db"),
+                (siif_gastos, "siif_gastos_db"),
                 (sscc, "sscc_db"),
             ],
             filename="control_viaticos.xlsx",
@@ -248,118 +263,22 @@ class ControlViaticosService:
         )
 
     # --------------------------------------------------
-    async def generate_siif_escribanos(
+    async def generate_siif_rendicion_viaticos(
         self,
         ejercicio: int = None,
     ) -> pd.DataFrame:
-        filters = {
-            "tipo_comprobante": {"$ne": "APE"},
-            "cta_contable": "2113-2-9",
-        }
-        df = await get_siif_rcocc31(ejercicio=ejercicio, filters=filters)
-        df = df.rename(
-            columns={
-                "auxiliar_1": "cuit",
-                "creditos": "carga_fei",
-                "debitos": "pagos_fei",
-            }
+        df = await get_siif_comprobantes_gtos_unified_cta_cte(
+            ejercicio=ejercicio, partidas=["372", "373"]
         )
-        df["fei_impagos"] = df["carga_fei"] - df["pagos_fei"]
-        df["cuit"] = np.where(df["cuit"].str.len() == 11, df["cuit"], "00000000000")
         return df
 
     # --------------------------------------------------
-    async def siif_summarize(
-        self,
-        ejercicio: int = None,
-        groupby_cols: List[str] = ["ejercicio", "mes", "cuit"],
-    ) -> pd.DataFrame:
-        """
-        Summarize SIIF data for the specified groupby columns.
-
-        Args:
-            groupby_cols (List[str], optional): A list of columns to group the data by.
-                Defaults to ['ejercicio', 'mes', 'cuit'].
-
-        Returns:
-            pd.DataFrame: A DataFrame summarizing the SIIF data based on the specified groupby columns.
-
-        This method imports and processes SIIF data related to the 'Escribanos' category. It then groups
-        the data by the specified columns, calculates the sum of numeric values, and returns the resulting
-        DataFrame. Any missing values are filled with zeros.
-        """
-        df = await self.generate_siif_escribanos(ejercicio=ejercicio)
-        df = df.drop(
-            [
-                "tipo_comprobante",
-                "fecha",
-                "fecha_aprobado",
-                "cta_contable",
-                "auxiliar_2",
-                "saldo",
-                "nro_entrada",
-            ],
-            axis=1,
-        )
-        df = df.groupby(groupby_cols).sum(numeric_only=True)
-        df = df.reset_index()
-        df = df.fillna(0)
-        return df
-
-    # --------------------------------------------------
-    async def generate_sgf_escribanos(
+    async def generate_siif_anticipo_viaticos(
         self,
         ejercicio: int = None,
     ) -> pd.DataFrame:
-        filters = {"cta_cte": "130832-08"}
-        df = await get_resumen_rend_prov_with_desc(ejercicio=ejercicio, filters=filters)
-        return df
-
-    # --------------------------------------------------
-    async def sgf_summarize(
-        self,
-        ejercicio: int = None,
-        groupby_cols: List[str] = ["ejercicio", "mes", "cuit", "beneficiario"],
-    ) -> pd.DataFrame:
-        """
-        Summarize renditions data related to the SGF
-
-        Args:
-            groupby_cols (list, optional): A list of columns to group by in the summary. Defaults to
-            ['ejercicio', 'mes', 'cuit', 'beneficiario'].
-
-        Returns:
-            pd.DataFrame: Pandas DataFrame containing the cross-controlled data.
-
-        This method imports renditions data, removes irrelevant columns, and then summarizes the
-        data based on the specified grouping columns. The resulting DataFrame contains the summary
-        of renditions data related to the SGF for further analysis.
-        """
-        df = await self.generate_sgf_escribanos(ejercicio=ejercicio)
-        df = df.drop(
-            [
-                "origen",
-                "fecha",
-                "destino",
-                "libramiento_sgf",
-                "seguro",
-                "salud",
-                "mutual",
-                "otras",
-                "importe_bruto",
-                "gcias",
-                "iibb",
-                "sellos",
-                "suss",
-                "invico",
-                "retenciones",
-            ],
-            axis=1,
-        )
-        # Rellena los valores nulos solo en la columna específica
-        df["cuit"] = df["cuit"].fillna("0")
-        df = df.groupby(groupby_cols).sum(numeric_only=True)
-        df = df.reset_index()
+        filters = {"tipo_comprobante": "PA3"}
+        df = await get_siif_rfondo07tp(ejercicio=ejercicio, filters=filters)
         return df
 
     # --------------------------------------------------
@@ -403,37 +322,8 @@ class ControlViaticosService:
             return new_format
 
         # Aplicar la función a la columna "nro_expte"
-        df["new_nro_expte"] = df["nro_expte"].apply(transform_nro_expte)
+        df["nro_expte"] = df["nro_expte"].apply(transform_nro_expte)
 
-        return df
-
-    # --------------------------------------------------
-    async def sscc_summarize(
-        self,
-        ejercicio: int = None,
-        groupby_cols: List[str] = ["ejercicio", "mes", "cod_imputacion", "imputacion"],
-    ) -> pd.DataFrame:
-        """
-        Summarize and filter bank data related to INVICO (Instituto de Vivienda de Corrientes).
-
-        Args:
-            groupby_cols (List[str], optional): A list of columns to group the data by for
-                summarization. Defaults to ['ejercicio', 'mes', 'cod_imputacion', 'imputacion'].
-
-        Returns:
-            pd.DataFrame: A DataFrame containing summarized and filtered bank data related to INVICO.
-
-        This method imports bank data related to INVICO for the specified exercise (year),
-        filters out specific 'cod_imputacion' values, and summarizes the data based on the
-        provided groupby columns. The resulting DataFrame contains the summarized and
-        filtered bank data for further analysis.
-        """
-        df = await self.generate_banco_viaticos(ejercicio=ejercicio)
-        df = df.drop(["es_cheque"], axis=1)
-        df = df.groupby(groupby_cols).sum(numeric_only=True)
-        df = df.reset_index()
-        df["importe"] = df["importe"] * -1
-        df = df.rename(columns={"importe": "importe_neto"})
         return df
 
     # --------------------------------------------------
