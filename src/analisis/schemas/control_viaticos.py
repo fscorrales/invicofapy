@@ -1,8 +1,8 @@
 __all__ = [
     "ControlViaticosParams",
     "ControlViaticosSyncParams",
-    "ControlViaticosPA3Report",
-    "ControlViaticosPA3Document",
+    "ControlViaticosRendicionReport",
+    "ControlViaticosRendicionDocument",
     # "ControlEscribanosSIIFvsSGFReport",
     # "ControlEscribanosSIIFvsSGFDocument",
     "ControlViaticosFilter",
@@ -51,14 +51,16 @@ class ControlViaticosSyncParams(ControlViaticosParams):
 
 
 # -------------------------------------------------
-class ControlViaticosPA3Report(BaseModel):
+class ControlViaticosRendicionReport(BaseModel):
     ejercicio: int
     mes: str
-    importe_neto: float
+    nro_expte: str
+    siif_rendido: float
+    siif_rembolso: float
 
 
 # -------------------------------------------------
-class ControlViaticosPA3Document(ControlViaticosPA3Report):
+class ControlViaticosRendicionDocument(ControlViaticosRendicionReport):
     id: PydanticObjectId = Field(alias="_id")
 
 

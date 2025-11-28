@@ -58,11 +58,11 @@ from ..handlers import (
     get_siif_rfondo07tp,
 )
 from ..repositories.control_viaticos import (
-    ControlViaticosPA3RepositoryDependency,
+    ControlViaticosRendicionRepositoryDependency,
 )
 from ..schemas.control_viaticos import (
-    ControlViaticosPA3Report,
     ControlViaticosParams,
+    ControlViaticosRendicionReport,
     ControlViaticosSyncParams,
 )
 
@@ -70,7 +70,7 @@ from ..schemas.control_viaticos import (
 # --------------------------------------------------
 @dataclass
 class ControlViaticosService:
-    control_pa3_repo: ControlViaticosPA3RepositoryDependency
+    control_rendicion_repo: ControlViaticosRendicionRepositoryDependency
     # control_siif_vs_sgf_repo: ControlEscribanosSIIFvsSGFRepositoryDependency
     sscc_banco_invico_service: BancoINVICOServiceDependency
     sscc_ctas_ctes_service: CtasCtesServiceDependency
@@ -196,11 +196,8 @@ class ControlViaticosService:
         return_schema = []
         try:
             # 🔹 Control Viaticos
-            pass
-            # partial_schema = await self.compute_control_sgf_vs_sscc(
-            #     params=params, only_diff=True
-            # )
-            # return_schema.extend(partial_schema)
+            partial_schema = await self.compute_control_rendicion(params=params)
+            return_schema.extend(partial_schema)
             # partial_schema = await self.compute_control_siif_vs_sgf(
             #     params=params, only_diff=False
             # )
@@ -210,7 +207,7 @@ class ControlViaticosService:
             logger.error(f"Validation Error: {e}")
             raise HTTPException(
                 status_code=400,
-                detail="Invalid response format from Control de Escribanos",
+                detail="Invalid response format from Control de Viaticos",
             )
         except Exception as e:
             logger.error(f"Error in compute_all: {e}")
@@ -228,15 +225,15 @@ class ControlViaticosService:
         params: ControlViaticosParams = None,
     ) -> StreamingResponse:
         ejercicios = list(range(params.ejercicio_desde, params.ejercicio_hasta + 1))
-        # control_sgf_vs_sscc_docs = await self.control_pa3_repo.find_by_filter(
-        #     {"ejercicio": {"$in": ejercicios}}
-        # )
+        control_rendicion_docs = await self.control_rendicion_repo.find_by_filter(
+            {"ejercicio": {"$in": ejercicios}}
+        )
         # control_siif_vs_sgf_docs = await self.control_siif_vs_sgf_repo.find_by_filter(
         #     {"ejercicio": {"$in": ejercicios}}
         # )
 
-        # if not control_siif_vs_sgf_docs and not control_sgf_vs_sscc_docs:
-        #     raise HTTPException(status_code=404, detail="No se encontraron registros")
+        if not control_rendicion_docs:
+            raise HTTPException(status_code=404, detail="No se encontraron registros")
 
         siif_fondos = pd.DataFrame()
         siif_gastos = pd.DataFrame()
@@ -251,7 +248,7 @@ class ControlViaticosService:
 
         return export_multiple_dataframes_to_excel(
             df_sheet_pairs=[
-                # (pd.DataFrame(control_siif_vs_sgf_docs), "siif_vs_sgf_db"),
+                (pd.DataFrame(control_rendicion_docs), "control_rendicion_db"),
                 # (pd.DataFrame(control_sgf_vs_sscc_docs), "sgf_vs_sscc_db"),
                 (siif_fondos, "siif_fondos_db"),
                 (siif_gastos, "siif_gastos_db"),
@@ -327,59 +324,61 @@ class ControlViaticosService:
         return df
 
     # --------------------------------------------------
-    async def compute_control_pa3(
-        self, params: ControlViaticosParams, only_diff=False
+    async def compute_control_rendicion(
+        self, params: ControlViaticosParams
     ) -> List[RouteReturnSchema]:
         return_schema = []
-        groupby_cols = ["ejercicio", "mes"]
+        groupby_cols = ["ejercicio", "mes", "nro_expte"]
         try:
             ejercicios = list(range(params.ejercicio_desde, params.ejercicio_hasta + 1))
             for ejercicio in ejercicios:
-                sgf = await self.sgf_summarize(
-                    groupby_cols=groupby_cols, ejercicio=ejercicio
+                siif_rendicion = await self.generate_siif_rendicion_viaticos(
+                    ejercicio=ejercicio
                 )
-                sgf = sgf.set_index(groupby_cols)
-                sscc = await self.sscc_summarize(
-                    groupby_cols=groupby_cols, ejercicio=ejercicio
+                siif_rendicion["siif_rendido"] = np.where(
+                    siif_rendicion["partida"] == "372",
+                    siif_rendicion["importe"],
+                    0,
                 )
-                sscc = sscc.set_index(groupby_cols)
-                # Obtener los índices faltantes en sgf
-                missing_indices = sscc.index.difference(sgf.index)
-                # Reindexar el DataFrame sgf con los índices faltantes
-                sgf = sgf.reindex(sgf.index.union(missing_indices))
-                sscc = sscc.reindex(sgf.index)
-                sgf = sgf.fillna(0)
-                sscc = sscc.fillna(0)
-                df = sgf.subtract(sscc)
-                df = df.reset_index()
-                df = df.fillna(0)
-                # Reindexamos el DataFrame
-                sgf = sgf.reset_index()
-                df = df.reindex(columns=sgf.columns)
-                if only_diff:
-                    # Seleccionar solo las columnas numéricas
-                    numeric_cols = df.select_dtypes(include=np.number).columns.drop(
-                        "ejercicio"
-                    )
-                    # Filtrar el DataFrame utilizando las columnas numéricas válidas
-                    # df = df[df[numeric_cols].sum(axis=1) != 0]
-                    df = df[np.abs(df[numeric_cols].sum(axis=1)) > 0.01]
-                    df = df.reset_index(drop=True)
+                siif_rendicion["siif_reembolso"] = np.where(
+                    siif_rendicion["partida"] == "373", siif_rendicion["importe"], 0
+                )
+                siif_rendicion = siif_rendicion.groupby(groupby_cols)[
+                    "siif_rendido", "siif_rembolso"
+                ].sum()
+                df = siif_rendicion.reset_index()
+                # sscc = await self.sscc_summarize(
+                #     groupby_cols=groupby_cols, ejercicio=ejercicio
+                # )
+                # sscc = sscc.set_index(groupby_cols)
+                # # Obtener los índices faltantes en sgf
+                # missing_indices = sscc.index.difference(sgf.index)
+                # # Reindexar el DataFrame sgf con los índices faltantes
+                # sgf = sgf.reindex(sgf.index.union(missing_indices))
+                # sscc = sscc.reindex(sgf.index)
+                # sgf = sgf.fillna(0)
+                # sscc = sscc.fillna(0)
+                # df = sgf.subtract(sscc)
+                # df = df.reset_index()
+                # df = df.fillna(0)
+                # # Reindexamos el DataFrame
+                # sgf = sgf.reset_index()
+                # df = df.reindex(columns=sgf.columns)
 
                 # 🔹 Validar datos usando Pydantic
                 validate_and_errors = validate_and_extract_data_from_df(
                     dataframe=df,
-                    model=ControlViaticosPA3Report,
-                    field_id="mes",
+                    model=ControlViaticosRendicionReport,
+                    field_id="nro_expte",
                 )
 
                 partial_schema = await sync_validated_to_repository(
-                    repository=self.control_pa3_repo,
+                    repository=self.control_rendicion_repo,
                     validation=validate_and_errors,
                     delete_filter={"ejercicio": ejercicio},
-                    title=f"Control Anticipo Viaticos (PA3) del ejercicio {ejercicio}",
+                    title=f"Control Rendicion Viaticos del ejercicio {ejercicio}",
                     logger=logger,
-                    label=f"Control Anticipo Viaticos (PA3) del ejercicio {ejercicio}",
+                    label=f"Control Rendicion Viaticos del ejercicio {ejercicio}",
                 )
                 return_schema.append(partial_schema)
 
@@ -387,110 +386,16 @@ class ControlViaticosService:
             logger.error(f"Validation Error: {e}")
             raise HTTPException(
                 status_code=400,
-                detail="Invalid response format from Control Anticipo Viaticos (PA3)",
+                detail="Invalid response format from Control Rendicion Viaticos",
             )
         except Exception as e:
-            logger.error(f"Error in Anticipo Viaticos (PA3) Control Viaticos: {e}")
+            logger.error(f"Error in Control Rendicion Viaticos: {e}")
             raise HTTPException(
                 status_code=500,
-                detail="Error in Anticipo Viaticos (PA3) Control Viaticos",
+                detail="Error in Control Rendicion Viaticos",
             )
         finally:
             return return_schema
-
-    # # --------------------------------------------------
-    # async def compute_control_siif_vs_sgf(
-    #     self, params: ControlEscribanosParams, only_diff=False
-    # ) -> List[RouteReturnSchema]:
-    #     return_schema = []
-    #     groupby_cols = ["ejercicio", "mes", "cuit"]
-    #     try:
-    #         ejercicios = list(range(params.ejercicio_desde, params.ejercicio_hasta + 1))
-    #         for ejercicio in ejercicios:
-    #             siif = await self.siif_summarize(
-    #                 groupby_cols=groupby_cols, ejercicio=ejercicio
-    #             )
-    #             # siif = siif.set_index(groupby_cols)
-    #             sgf = await self.sgf_summarize(
-    #                 groupby_cols=groupby_cols, ejercicio=ejercicio
-    #             )
-    #             sgf = sgf.rename(columns={"importe_neto": "pagos_sgf"})
-    #             # sgf = sgf.set_index(groupby_cols)
-    #             # print("Tipos siif:\n", siif[groupby_cols].dtypes)
-    #             # print("Tipos sgf:\n", sgf[groupby_cols].dtypes)
-
-    #             # print("Ejemplo siif:\n", siif.head(3))
-    #             # print("Ejemplo sgf:\n", sgf.head(3))
-    #             # print(f"sgf.shape: {sgf.shape} - sgf.head: {sgf.head()}")
-    #             # # Obtener los índices faltantes en siif
-    #             # missing_indices = sgf.index.difference(siif.index)
-    #             # # Reindexar el DataFrame siif con los índices faltantes
-    #             # siif = siif.reindex(siif.index.union(missing_indices))
-    #             # sgf = sgf.reindex(siif.index)
-    #             # siif = siif.fillna(0)
-    #             # sgf = sgf.fillna(0)
-    #             # 🔹 Convertir a índices
-    #             siif = siif.set_index(groupby_cols)
-    #             sgf = sgf.set_index(groupby_cols)
-
-    #             # 🔹 Merge completo (outer join)
-    #             # print("🟢 siif index:", len(siif))
-    #             # print("🔵 sgf index:", len(sgf))
-    #             # print("🟠 Intersección:", len(siif.index.intersection(sgf.index)))
-    #             # print("🔴 sgf no en siif:", len(sgf.index.difference(siif.index)))
-    #             # print("🔴 siif no en sgf:", len(siif.index.difference(sgf.index)))
-    #             df = siif.merge(sgf, how="outer", left_index=True, right_index=True)
-    #             df = df.reset_index()
-    #             df = df.fillna(0)
-
-    #             # sgf_no_en_siif = df[df['_merge'] == 'right_only']
-    #             # print(f"🔴 SGF no en SIIF: {len(sgf_no_en_siif)} registros")
-    #             # print(sgf_no_en_siif)
-
-    #             # df = pd.merge(siif, sgf, how="outer", on=groupby_cols)
-    #             if only_diff:
-    #                 # Seleccionar solo las columnas numéricas
-    #                 numeric_cols = df.select_dtypes(include=np.number).columns.drop(
-    #                     "ejercicio"
-    #                 )
-    #                 print(f"numeric_cols: {numeric_cols}")
-    #                 # Filtrar el DataFrame utilizando las columnas numéricas válidas
-    #                 # df = df[df[numeric_cols].sum(axis=1) != 0]
-    #                 df = df[np.abs(df[numeric_cols].sum(axis=1)) > 0.01]
-    #                 df = df.reset_index(drop=True)
-    #             df["dif_pagos"] = df["pagos_fei"] - df["pagos_sgf"]
-
-    #             # 🔹 Validar datos usando Pydantic
-    #             validate_and_errors = validate_and_extract_data_from_df(
-    #                 dataframe=df,
-    #                 model=ControlEscribanosSIIFvsSGFReport,
-    #                 field_id="cuit",
-    #             )
-
-    #             partial_schema = await sync_validated_to_repository(
-    #                 repository=self.control_siif_vs_sgf_repo,
-    #                 validation=validate_and_errors,
-    #                 delete_filter={"ejercicio": ejercicio},
-    #                 title=f"Control Escribanos SIIF vs SGF del ejercicio {ejercicio}",
-    #                 logger=logger,
-    #                 label=f"Control Escribanos SIIF vs SGF del ejercicio {ejercicio}",
-    #             )
-    #             return_schema.append(partial_schema)
-
-    #     except ValidationError as e:
-    #         logger.error(f"Validation Error: {e}")
-    #         raise HTTPException(
-    #             status_code=400,
-    #             detail="Invalid response format from SIIF vs SGF Control Escribanos",
-    #         )
-    #     except Exception as e:
-    #         logger.error(f"Error in SIIF vs SGF Control Escribanos: {e}")
-    #         raise HTTPException(
-    #             status_code=500,
-    #             detail="Error in SIIF vs SGF Control Escribanos",
-    #         )
-    #     finally:
-    #         return return_schema
 
 
 ControlViaticosServiceDependency = Annotated[ControlViaticosService, Depends()]

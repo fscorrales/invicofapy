@@ -1,5 +1,5 @@
 __all__ = [
-    "ControlViaticosPA3RepositoryDependency",
+    "ControlViaticosRendicionRepositoryDependency",
     # "ControlEscribanosSGFvsSSCCRepositoryDependency",
 ]
 
@@ -9,18 +9,20 @@ from fastapi import Depends
 
 from ...config import BaseRepository
 from ..schemas.control_viaticos import (
-    ControlViaticosPA3Report,
+    ControlViaticosRendicionReport,
 )
 
 
 # -------------------------------------------------
-class ControlViaticosPA3Repository(BaseRepository[ControlViaticosPA3Report]):
-    collection_name = "control_viaticos_pa3"
-    model = ControlViaticosPA3Report
+class ControlViaticosRendicionRepository(
+    BaseRepository[ControlViaticosRendicionReport]
+):
+    collection_name = "control_viaticos_rendicion"
+    model = ControlViaticosRendicionReport
 
 
-ControlViaticosPA3RepositoryDependency = Annotated[
-    ControlViaticosPA3Repository, Depends()
+ControlViaticosRendicionRepositoryDependency = Annotated[
+    ControlViaticosRendicionRepository, Depends()
 ]
 
 
