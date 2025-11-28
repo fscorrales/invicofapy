@@ -55,8 +55,9 @@ class ControlViaticosRendicionReport(BaseModel):
     ejercicio: int
     mes: str
     nro_expte: str
+    siif_anticipo: float
     siif_rendido: float
-    siif_rembolso: float
+    siif_reembolso: float
 
 
 # -------------------------------------------------

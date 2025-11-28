@@ -332,8 +332,18 @@ class ControlViaticosService:
         try:
             ejercicios = list(range(params.ejercicio_desde, params.ejercicio_hasta + 1))
             for ejercicio in ejercicios:
+                siif_anticipo = await self.generate_siif_anticipo_viaticos(
+                    ejercicio=ejercicio
+                )
+                siif_anticipo = siif_anticipo.loc[:, ["nro_fondo", "ingresos"]]
+                siif_anticipo = siif_anticipo.rename(
+                    columns={"ingresos": "siif_anticipo"}
+                )
                 siif_rendicion = await self.generate_siif_rendicion_viaticos(
                     ejercicio=ejercicio
+                )
+                siif_rendicion = siif_rendicion.merge(
+                    siif_anticipo, how="left", left_on="nro_fondo", right_on="nro_fondo"
                 )
                 siif_rendicion["siif_rendido"] = np.where(
                     siif_rendicion["partida"] == "372",
@@ -344,7 +354,7 @@ class ControlViaticosService:
                     siif_rendicion["partida"] == "373", siif_rendicion["importe"], 0
                 )
                 siif_rendicion = siif_rendicion.groupby(groupby_cols)[
-                    "siif_rendido", "siif_rembolso"
+                    ["siif_anticipo", "siif_rendido", "siif_reembolso"]
                 ].sum()
                 df = siif_rendicion.reset_index()
                 # sscc = await self.sscc_summarize(
