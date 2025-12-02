@@ -57,6 +57,8 @@ class ControlViaticosRendicionReport(BaseModel):
     nro_expte: str
     siif_anticipo: float
     siif_rendido: float
+    siif_reversion: float
+    siif_saldo: float
     siif_reembolso: float
 
 

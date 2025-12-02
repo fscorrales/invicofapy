@@ -375,12 +375,18 @@ class ControlViaticosService:
                 siif_rendicion["siif_reembolso"] = np.where(
                     siif_rendicion["partida"] == "373", siif_rendicion["importe"], 0
                 )
+                siif_rendicion["saldo"] = (
+                    siif_rendicion.siif_anticipo
+                    - siif_rendicion.siif_reversion
+                    - siif_rendicion.siif_rendidoo
+                )
                 siif_rendicion = siif_rendicion.groupby(groupby_cols)[
                     [
                         "siif_anticipo",
                         "siif_rendido",
-                        "siif_reembolso",
                         "siif_reversion",
+                        "siif_saldo",
+                        "siif_reembolso",
                     ]
                 ].sum()
                 df = siif_rendicion.reset_index()
