@@ -375,7 +375,7 @@ class ControlViaticosService:
                 siif_rendicion["siif_reembolso"] = np.where(
                     siif_rendicion["partida"] == "373", siif_rendicion["importe"], 0
                 )
-                siif_rendicion["saldo"] = (
+                siif_rendicion["siif_saldo"] = (
                     siif_rendicion.siif_anticipo
                     - siif_rendicion.siif_reversion
                     - siif_rendicion.siif_rendidoo
