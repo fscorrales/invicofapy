@@ -4,6 +4,7 @@
 Author: Fernando Corrales <fscpython@gmail.com>
 Purpose: Control Anticipo de Viaticos (PA3)
 Data required:
+    - SIIF rfondos04 (PA3 y REV)
     - SIIF rcocc31
         + 1112-2-6 Banco SIIF
         + 2113-1-13 Anticipo de Viaticos Pagados (PAV de PA3)
@@ -36,6 +37,7 @@ from ...siif.handlers import (
     Rcg01Uejp,
     Rcocc31,
     Rfondo07tp,
+    Rfondos04,
     Rpa03g,
     login,
     logout,
@@ -56,6 +58,7 @@ from ..handlers import (
     get_siif_comprobantes_gtos_unified_cta_cte,
     get_siif_rcocc31,
     get_siif_rfondo07tp,
+    get_siif_rfondos04,
 )
 from ..repositories.control_viaticos import (
     ControlViaticosRendicionRepositoryDependency,
@@ -78,6 +81,7 @@ class ControlViaticosService:
     siif_rcg01_uejp_handler: Rcg01Uejp = field(init=False)  # No se pasa como argumento
     siif_rpa03g_handler: Rpa03g = field(init=False)  # No se pasa como argumento
     siif_rfondo07tp_handler: Rfondo07tp = field(init=False)  # No se pasa como argumento
+    siif_rfondos04_handler: Rfondos04 = field(init=False)  # No se pasa como argumento
 
     # -------------------------------------------------
     async def sync_control_viaticos_from_source(
@@ -134,13 +138,22 @@ class ControlViaticosService:
                         )
                         return_schema.append(partial_schema)
 
-                # 🔹 Rfondo07tp
-                self.siif_rfondo07tp_handler = Rfondo07tp(siif=connect_siif)
+                # # 🔹 Rfondo07tp
+                # self.siif_rfondo07tp_handler = Rfondo07tp(siif=connect_siif)
+                # for ejercicio in ejercicios:
+                #     partial_schema = await self.siif_rfondo07tp_handler.download_and_sync_validated_to_repository(
+                #         ejercicio=int(ejercicio), tipo_comprobante="PA3"
+                #     )
+                #     return_schema.append(partial_schema)
+
+                # 🔹 Rfondos04
+                self.siif_rfondos04_handler = Rfondos04(siif=connect_siif)
                 for ejercicio in ejercicios:
-                    partial_schema = await self.siif_rfondo07tp_handler.download_and_sync_validated_to_repository(
-                        ejercicio=int(ejercicio), tipo_comprobante="PA3"
-                    )
-                    return_schema.append(partial_schema)
+                    for tipo_comprobante in ["PA3", "REV"]:
+                        partial_schema = await self.siif_rfondos04_handler.download_and_sync_validated_to_repository(
+                            ejercicio=int(ejercicio), tipo_comprobante=tipo_comprobante
+                        )
+                        return_schema.append(partial_schema)
 
                 # 🔹 Rcocc31
                 self.siif_rcocc31_handler = Rcocc31(siif=connect_siif)
@@ -239,7 +252,7 @@ class ControlViaticosService:
         siif_gastos = pd.DataFrame()
         sscc = pd.DataFrame()
         for ejercicio in ejercicios:
-            df = await self.generate_siif_anticipo_viaticos(ejercicio=ejercicio)
+            df = await self.generate_siif_fondo_viaticos(ejercicio=ejercicio)
             siif_fondos = pd.concat([siif_fondos, df], ignore_index=True)
             df = await self.generate_siif_rendicion_viaticos(ejercicio=ejercicio)
             siif_gastos = pd.concat([siif_gastos, df], ignore_index=True)
@@ -270,12 +283,12 @@ class ControlViaticosService:
         return df
 
     # --------------------------------------------------
-    async def generate_siif_anticipo_viaticos(
+    async def generate_siif_fondo_viaticos(
         self,
         ejercicio: int = None,
     ) -> pd.DataFrame:
-        filters = {"tipo_comprobante": "PA3"}
-        df = await get_siif_rfondo07tp(ejercicio=ejercicio, filters=filters)
+        filters = {"tipo_comprobante": {"$in": ["PA3", "REV"]}}
+        df = await get_siif_rfondos04(ejercicio=ejercicio, filters=filters)
         return df
 
     # --------------------------------------------------
@@ -332,18 +345,27 @@ class ControlViaticosService:
         try:
             ejercicios = list(range(params.ejercicio_desde, params.ejercicio_hasta + 1))
             for ejercicio in ejercicios:
-                siif_anticipo = await self.generate_siif_anticipo_viaticos(
+                siif_fondos = await self.generate_siif_fondo_viaticos(
                     ejercicio=ejercicio
                 )
-                siif_anticipo = siif_anticipo.loc[:, ["nro_fondo", "ingresos"]]
-                siif_anticipo = siif_anticipo.rename(
-                    columns={"ingresos": "siif_anticipo"}
+                siif_fondos["siif_anticipo"] = np.where(
+                    siif_fondos["tipo_comprobante"] == "PA3",
+                    siif_fondos["importe"],
+                    0,
                 )
+                siif_fondos["siif_reversion"] = np.where(
+                    siif_fondos["tipo_comprobante"] == "REV",
+                    siif_fondos["importe"],
+                    0,
+                )
+                siif_fondos = siif_fondos.loc[
+                    :, ["nro_fondo", "siif_anticipo", "siif_reversion"]
+                ]
                 siif_rendicion = await self.generate_siif_rendicion_viaticos(
                     ejercicio=ejercicio
                 )
                 siif_rendicion = siif_rendicion.merge(
-                    siif_anticipo, how="left", left_on="nro_fondo", right_on="nro_fondo"
+                    siif_fondos, how="left", left_on="nro_fondo", right_on="nro_fondo"
                 )
                 siif_rendicion["siif_rendido"] = np.where(
                     siif_rendicion["partida"] == "372",
@@ -354,7 +376,12 @@ class ControlViaticosService:
                     siif_rendicion["partida"] == "373", siif_rendicion["importe"], 0
                 )
                 siif_rendicion = siif_rendicion.groupby(groupby_cols)[
-                    ["siif_anticipo", "siif_rendido", "siif_reembolso"]
+                    [
+                        "siif_anticipo",
+                        "siif_rendido",
+                        "siif_reembolso",
+                        "siif_reversion",
+                    ]
                 ].sum()
                 df = siif_rendicion.reset_index()
                 # sscc = await self.sscc_summarize(

@@ -1,4 +1,5 @@
 __all__ = [
+    "get_siif_rfondos04",
     "get_siif_rfondo07tp",
     "get_siif_rf602",
     "get_siif_desc_pres",
@@ -33,12 +34,32 @@ from ...siif.repositories import (
     Rf602Repository,
     Rf610Repository,
     Rfondo07tpRepository,
+    Rfondos04Repository,
     RfpP605bRepository,
     Ri102Repository,
     Rpa03gRepository,
     Rvicon03Repository,
 )
 from ...sscc.repositories import CtasCtesRepository
+
+
+# --------------------------------------------------
+async def get_siif_rfondos04(ejercicio: int = None, filters: dict = {}) -> pd.DataFrame:
+    """
+    Get the rfondos04 (PA3, REV) data from the repository.
+    """
+    try:
+        if ejercicio is not None:
+            filters["ejercicio"] = ejercicio
+        docs = await Rfondos04Repository().find_by_filter(filters=filters)
+        df = pd.DataFrame(docs)
+        return df
+    except Exception as e:
+        logger.error(f"Error retrieving SIIF's rfondos04 from database: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="Error retrieving SIIF's rfondos04 from the database",
+        )
 
 
 # --------------------------------------------------
@@ -151,8 +172,11 @@ async def get_siif_desc_pres(
     )
     return df
 
+
 # --------------------------------------------------
-async def get_siif_rcg01_uejp(ejercicio: int = None, filters: dict = {}) -> pd.DataFrame:
+async def get_siif_rcg01_uejp(
+    ejercicio: int = None, filters: dict = {}
+) -> pd.DataFrame:
     """
     Get the rcg01_uejp data from the repository.
     """
@@ -161,6 +185,7 @@ async def get_siif_rcg01_uejp(ejercicio: int = None, filters: dict = {}) -> pd.D
     docs = await Rcg01UejpRepository().safe_find_by_filter(filters=filters)
     df = pd.DataFrame(docs)
     return df
+
 
 # --------------------------------------------------
 async def get_siif_comprobantes_gtos_joined(
