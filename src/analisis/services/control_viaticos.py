@@ -358,9 +358,13 @@ class ControlViaticosService:
                     siif_fondos["importe"],
                     0,
                 )
-                siif_fondos = siif_fondos.loc[
-                    :, ["nro_fondo", "siif_anticipo", "siif_reversion"]
-                ]
+                siif_fondos = siif_fondos.groupby(["nro_fondo"])[
+                    [
+                        "siif_anticipo",
+                        "siif_reversion",
+                    ]
+                ].sum()
+                siif_fondos = siif_fondos.reset_index()
                 siif_rendicion = await self.generate_siif_rendicion_viaticos(
                     ejercicio=ejercicio
                 )
@@ -378,7 +382,7 @@ class ControlViaticosService:
                 siif_rendicion["siif_saldo"] = (
                     siif_rendicion.siif_anticipo
                     - siif_rendicion.siif_reversion
-                    - siif_rendicion.siif_rendidoo
+                    - siif_rendicion.siif_rendido
                 )
                 siif_rendicion = siif_rendicion.groupby(groupby_cols)[
                     [
