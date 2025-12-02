@@ -19,6 +19,7 @@ COLLECTIONS = [
     "siif_rf610",
     "siif_rcg01_uejp",
     "siif_rpa03g",
+    "siif_rfondos04",
     "siif_rfondo07tp",
     "siif_ri102",
     "siif_rci02",

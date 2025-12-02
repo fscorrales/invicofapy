@@ -10,6 +10,7 @@ from .rdeu012 import rdeu012_router
 from .rf602 import rf602_router
 from .rf610 import rf610_router
 from .rfondo07tp import rfondo07tp_router
+from .rfondos04 import rfondos04_router
 from .rfp_p605b import rfp_p605b_router
 from .ri102 import ri102_router
 from .rpa03g import rpa03g_router
@@ -25,6 +26,7 @@ siif_router.include_router(rcg01_uejp_router)
 siif_router.include_router(rpa03g_router)
 siif_router.include_router(rdeu012_router)
 siif_router.include_router(rfondo07tp_router)
+siif_router.include_router(rfondos04_router)
 siif_router.include_router(rfp_p605b_router)
 siif_router.include_router(rvicon03_router)
 siif_router.include_router(rcocc31_router)

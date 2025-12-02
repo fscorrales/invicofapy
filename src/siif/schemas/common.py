@@ -65,6 +65,7 @@ class GrupoPartidaSIIF(int, Enum):
 class TipoComprobanteSIIF(str, Enum):
     adelanto_contratista = "PA6"
     anticipo_viatico = "PA3"
+    reversion_viatico = "REV"
 
 
 # -------------------------------------------------
