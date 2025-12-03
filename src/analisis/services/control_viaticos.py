@@ -365,13 +365,39 @@ class ControlViaticosService:
                     ]
                 ].sum()
                 siif_fondos = siif_fondos.reset_index()
+
+                sscc = await self.generate_banco_invico(ejercicio=ejercicio)
+                sscc["sscc_anticipo"] = np.where(
+                    sscc["cod_imputacion"] == "029",
+                    sscc["importe"],
+                    0,
+                )
+                sscc["sscc_reversion"] = np.where(
+                    sscc["cod_imputacion"] == "005",
+                    sscc["importe"],
+                    0,
+                )
+                sscc["sscc_reembolso"] = np.where(
+                    sscc["cod_imputacion"] == "040",
+                    sscc["importe"],
+                    0,
+                )
+                sscc = sscc.groupby(["nro_expte"])[
+                    [
+                        "sscc_anticipo",
+                        "sscc_reversion",
+                        "sscc_reembolso",
+                    ]
+                ].sum()
+                sscc = sscc.reset_index()
+                sscc["sscc_gasto_total"] = (
+                    sscc.sscc_anticipo - sscc.sscc_reversion + sscc.sscc_reembolso
+                )
+
                 siif_rendicion = await self.generate_siif_rendicion_viaticos(
                     ejercicio=ejercicio
                 )
-                siif_rendicion = siif_rendicion.merge(
-                    siif_fondos, how="left", left_on="nro_fondo", right_on="nro_fondo"
-                )
-                siif_rendicion["siif_rendido"] = np.where(
+                siif_rendicion["siif_rendicion"] = np.where(
                     siif_rendicion["partida"] == "372",
                     siif_rendicion["importe"],
                     0,
@@ -379,38 +405,33 @@ class ControlViaticosService:
                 siif_rendicion["siif_reembolso"] = np.where(
                     siif_rendicion["partida"] == "373", siif_rendicion["importe"], 0
                 )
-                siif_rendicion["siif_saldo"] = (
-                    siif_rendicion.siif_anticipo
-                    - siif_rendicion.siif_reversion
-                    - siif_rendicion.siif_rendido
+                df = siif_rendicion.merge(
+                    siif_fondos, how="left", left_on="nro_fondo", right_on="nro_fondo"
                 )
-                siif_rendicion = siif_rendicion.groupby(groupby_cols)[
+                df = df.merge(sscc, how="left", on="nro_expte")
+
+                df["siif_saldo_anticipo"] = (
+                    df.siif_anticipo - df.siif_reversion - df.siif_rendicion
+                )
+                df["siif_gasto_total"] = (
+                    df.siif_rendicion + df.siif_reembolso - df.siif_reversion
+                )
+                df = siif_rendicion.groupby(groupby_cols)[
                     [
                         "siif_anticipo",
-                        "siif_rendido",
+                        "siif_rendicion",
                         "siif_reversion",
-                        "siif_saldo",
+                        "siif_saldo_anticipo",
                         "siif_reembolso",
+                        "siif_gasto_total",
+                        "sscc_anticipo",
+                        "sscc_reversion",
+                        "sscc_reembolso",
+                        "sscc_gasto_total",
                     ]
                 ].sum()
-                df = siif_rendicion.reset_index()
-                # sscc = await self.sscc_summarize(
-                #     groupby_cols=groupby_cols, ejercicio=ejercicio
-                # )
-                # sscc = sscc.set_index(groupby_cols)
-                # # Obtener los índices faltantes en sgf
-                # missing_indices = sscc.index.difference(sgf.index)
-                # # Reindexar el DataFrame sgf con los índices faltantes
-                # sgf = sgf.reindex(sgf.index.union(missing_indices))
-                # sscc = sscc.reindex(sgf.index)
-                # sgf = sgf.fillna(0)
-                # sscc = sscc.fillna(0)
-                # df = sgf.subtract(sscc)
-                # df = df.reset_index()
-                # df = df.fillna(0)
-                # # Reindexamos el DataFrame
-                # sgf = sgf.reset_index()
-                # df = df.reindex(columns=sgf.columns)
+                df = df.reset_index()
+                df["dif_gasto_total"] = df["siif_gasto_total"] - df["sscc_gasto_total"]
 
                 # 🔹 Validar datos usando Pydantic
                 validate_and_errors = validate_and_extract_data_from_df(
