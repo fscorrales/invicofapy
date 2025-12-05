@@ -304,6 +304,7 @@ class ControlViaticosService:
         df = await get_banco_invico_unified_cta_cte(
             ejercicio=ejercicio, filters=filters
         )
+        df["importe"] = df["importe"] * (-1)
         df["new_concepto"] = df["concepto"].str.replace(".", "")
         df["nro_expte"] = df["new_concepto"].str.extract(r"EXP\s*(\d+\s*\d+\s*\d+)\s*")[
             0
@@ -366,7 +367,7 @@ class ControlViaticosService:
                 ].sum()
                 siif_fondos = siif_fondos.reset_index()
 
-                sscc = await self.generate_banco_invico(ejercicio=ejercicio)
+                sscc = await self.generate_banco_viaticos(ejercicio=ejercicio)
                 sscc["sscc_anticipo"] = np.where(
                     sscc["cod_imputacion"] == "029",
                     sscc["importe"],
@@ -391,7 +392,7 @@ class ControlViaticosService:
                 ].sum()
                 sscc = sscc.reset_index()
                 sscc["sscc_gasto_total"] = (
-                    sscc.sscc_anticipo - sscc.sscc_reversion + sscc.sscc_reembolso
+                    sscc.sscc_anticipo + sscc.sscc_reversion + sscc.sscc_reembolso
                 )
 
                 siif_rendicion = await self.generate_siif_rendicion_viaticos(
@@ -408,22 +409,15 @@ class ControlViaticosService:
                 df = siif_rendicion.merge(
                     siif_fondos, how="left", left_on="nro_fondo", right_on="nro_fondo"
                 )
+
                 df = df.merge(sscc, how="left", on="nro_expte")
 
-                df["siif_saldo_anticipo"] = (
-                    df.siif_anticipo - df.siif_reversion - df.siif_rendicion
-                )
-                df["siif_gasto_total"] = (
-                    df.siif_rendicion + df.siif_reembolso - df.siif_reversion
-                )
-                df = siif_rendicion.groupby(groupby_cols)[
+                df = df.groupby(groupby_cols)[
                     [
                         "siif_anticipo",
                         "siif_rendicion",
                         "siif_reversion",
-                        "siif_saldo_anticipo",
                         "siif_reembolso",
-                        "siif_gasto_total",
                         "sscc_anticipo",
                         "sscc_reversion",
                         "sscc_reembolso",
@@ -431,6 +425,12 @@ class ControlViaticosService:
                     ]
                 ].sum()
                 df = df.reset_index()
+                df["siif_saldo_anticipo"] = (
+                    df.siif_anticipo - df.siif_reversion - df.siif_rendicion
+                )
+                df["siif_gasto_total"] = (
+                    df.siif_rendicion + df.siif_reembolso
+                )
                 df["dif_gasto_total"] = df["siif_gasto_total"] - df["sscc_gasto_total"]
 
                 # 🔹 Validar datos usando Pydantic
