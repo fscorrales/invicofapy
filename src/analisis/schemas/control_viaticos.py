@@ -53,7 +53,7 @@ class ControlViaticosSyncParams(ControlViaticosParams):
 # -------------------------------------------------
 class ControlViaticosRendicionReport(BaseModel):
     ejercicio: int
-    mes: str
+    # mes: str
     nro_expte: str
     siif_anticipo: float
     siif_rendicion: float

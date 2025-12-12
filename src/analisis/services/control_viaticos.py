@@ -5,11 +5,8 @@ Author: Fernando Corrales <fscpython@gmail.com>
 Purpose: Control Anticipo de Viaticos (PA3)
 Data required:
     - SIIF rfondos04 (PA3 y REV)
-    - SIIF rcocc31
-        + 1112-2-6 Banco SIIF
-        + 2113-1-13 Anticipo de Viaticos Pagados (PAV de PA3)
-        + 4112-1-3 Reembolso por Gastos Mayores (Partida 373)
-        + 1141-1-4 Devolución de Fondos no Utilizados (REV)
+    - SIIF rpa03g
+    - SIIF rcg01_uejp
     - SSCC Resumen General de Movimientos
         + 029 Anticipo de Viaticos Pagados (PAV de PA3)
         + 040 Reembolso por Gastos Mayores (Partida 373)
@@ -35,16 +32,16 @@ from pydantic import ValidationError
 from ...config import logger
 from ...siif.handlers import (
     Rcg01Uejp,
-    Rcocc31,
+    # Rcocc31,
     Rfondo07tp,
     Rfondos04,
     Rpa03g,
     login,
     logout,
 )
-from ...siif.repositories import (
-    Rcocc31RepositoryDependency,
-)
+# from ...siif.repositories import (
+#     Rcocc31RepositoryDependency,
+# )
 from ...siif.schemas import GrupoPartidaSIIF
 from ...sscc.services import BancoINVICOServiceDependency, CtasCtesServiceDependency
 from ...utils import (
@@ -56,7 +53,7 @@ from ...utils import (
 from ..handlers import (
     get_banco_invico_unified_cta_cte,
     get_siif_comprobantes_gtos_unified_cta_cte,
-    get_siif_rcocc31,
+    # get_siif_rcocc31,
     get_siif_rfondo07tp,
     get_siif_rfondos04,
 )
@@ -77,7 +74,7 @@ class ControlViaticosService:
     # control_siif_vs_sgf_repo: ControlEscribanosSIIFvsSGFRepositoryDependency
     sscc_banco_invico_service: BancoINVICOServiceDependency
     sscc_ctas_ctes_service: CtasCtesServiceDependency
-    siif_rcocc31_handler: Rcocc31 = field(init=False)  # No se pasa como argumento
+    # siif_rcocc31_handler: Rcocc31 = field(init=False)  # No se pasa como argumento
     siif_rcg01_uejp_handler: Rcg01Uejp = field(init=False)  # No se pasa como argumento
     siif_rpa03g_handler: Rpa03g = field(init=False)  # No se pasa como argumento
     siif_rfondo07tp_handler: Rfondo07tp = field(init=False)  # No se pasa como argumento
@@ -155,15 +152,15 @@ class ControlViaticosService:
                         )
                         return_schema.append(partial_schema)
 
-                # 🔹 Rcocc31
-                self.siif_rcocc31_handler = Rcocc31(siif=connect_siif)
-                cuentas_contables = ["1112-2-6", "2113-1-13", "4112-1-3", "1141-1-4"]
-                for ejercicio in ejercicios:
-                    for cta_contable in cuentas_contables:
-                        partial_schema = await self.siif_rcocc31_handler.download_and_sync_validated_to_repository(
-                            ejercicio=int(ejercicio), cta_contable=cta_contable
-                        )
-                        return_schema.append(partial_schema)
+                # # 🔹 Rcocc31
+                # self.siif_rcocc31_handler = Rcocc31(siif=connect_siif)
+                # cuentas_contables = ["1112-2-6", "2113-1-13", "4112-1-3", "1141-1-4"]
+                # for ejercicio in ejercicios:
+                #     for cta_contable in cuentas_contables:
+                #         partial_schema = await self.siif_rcocc31_handler.download_and_sync_validated_to_repository(
+                #             ejercicio=int(ejercicio), cta_contable=cta_contable
+                #         )
+                #         return_schema.append(partial_schema)
 
                 # 🔹Banco INVICO
                 partial_schema = (
@@ -274,11 +271,11 @@ class ControlViaticosService:
 
     # --------------------------------------------------
     async def generate_siif_rendicion_viaticos(
-        self,
+        self, partidas: List[str] = ["372", "373"],
         ejercicio: int = None,
     ) -> pd.DataFrame:
         df = await get_siif_comprobantes_gtos_unified_cta_cte(
-            ejercicio=ejercicio, partidas=["372", "373"]
+            ejercicio=ejercicio, partidas=partidas
         )
         return df
 
@@ -342,7 +339,7 @@ class ControlViaticosService:
         self, params: ControlViaticosParams
     ) -> List[RouteReturnSchema]:
         return_schema = []
-        groupby_cols = ["ejercicio", "mes", "nro_expte"]
+        groupby_cols = ["ejercicio", "nro_expte"]
         try:
             ejercicios = list(range(params.ejercicio_desde, params.ejercicio_hasta + 1))
             for ejercicio in ejercicios:
@@ -395,20 +392,50 @@ class ControlViaticosService:
                     sscc.sscc_anticipo + sscc.sscc_reversion + sscc.sscc_reembolso
                 )
 
-                siif_rendicion = await self.generate_siif_rendicion_viaticos(
+                siif = await self.generate_siif_rendicion_viaticos(
                     ejercicio=ejercicio
                 )
-                siif_rendicion["siif_rendicion"] = np.where(
-                    siif_rendicion["partida"] == "372",
-                    siif_rendicion["importe"],
-                    0,
-                )
-                siif_rendicion["siif_reembolso"] = np.where(
-                    siif_rendicion["partida"] == "373", siif_rendicion["importe"], 0
-                )
+                siif_rendicion = siif.loc[siif["partida"] == "372"]
+                siif_rendicion = siif_rendicion.rename(columns={"importe": "siif_rendicion"})
+                siif_rendicion = siif_rendicion.groupby(groupby_cols + ["nro_fondo"])[
+                    ["siif_rendicion"]
+                ].sum()
+                siif_rendicion = siif_rendicion.reset_index()
+
                 df = siif_rendicion.merge(
                     siif_fondos, how="left", left_on="nro_fondo", right_on="nro_fondo"
                 )
+                df = df.groupby(groupby_cols)[
+                    [
+                        "siif_rendicion",
+                        "siif_anticipo",
+                        "siif_reversion",
+                    ]
+                ].sum()
+                df = df.reset_index()
+
+                siif_reembolso = siif.loc[siif["partida"] == "373"]
+                siif_reembolso = siif_reembolso.rename(
+                    columns={"importe": "siif_reembolso"}
+                )
+                siif_reembolso = siif_reembolso.groupby(["nro_expte"])[
+                    ["siif_reembolso"]
+                ].sum()
+                siif_reembolso = siif_reembolso.reset_index()
+                df = df.merge(
+                    siif_reembolso, how="left", on="nro_expte"
+                )
+
+                # siif_rendicion["siif_rendicion"] = np.where(
+                #     siif_rendicion["partida"] == "372",
+                #     siif_rendicion["importe"],
+                #     0,
+                # )
+                # siif_rendicion["siif_reembolso"] = np.where(
+                #     siif_rendicion["partida"] == "373", siif_rendicion["importe"], 0
+                # )
+                # siif_rendicion["nro_fondo"] = siif_rendicion["nro_fondo"].fillna("0")
+
 
                 df = df.merge(sscc, how="left", on="nro_expte")
 
