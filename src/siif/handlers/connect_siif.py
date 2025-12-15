@@ -286,6 +286,7 @@ class SIIFReportManager(ABC):
             input_filter = self.siif.reports_page.locator(
                 "input[id='_afrFilterpt1_afr_pc1_afr_tableReportes_afr_c1::content']"
             )
+            await input_filter.clear()
             await input_filter.fill(report_id)
             await input_filter.press("Enter")
             btn_siguiente = self.siif.reports_page.locator(
