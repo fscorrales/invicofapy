@@ -139,12 +139,12 @@ class ControlBancoService:
 
                 # 🔹 Rcocc31
                 self.siif_rcocc31_handler = Rcocc31(siif=connect_siif)
-                cuentas_contables = await get_siif_rvicon03(ejercicio=params.ejercicio)
-                cuentas_contables = cuentas_contables["cta_contable"].unique()
-                logger.info(
-                    f"Se Bajaran las siguientes cuentas contables: {cuentas_contables}"
-                )
                 for ejercicio in ejercicios:
+                    cuentas_contables = await get_siif_rvicon03(ejercicio=ejercicio)
+                    cuentas_contables = cuentas_contables["cta_contable"].unique()
+                    logger.info(
+                        f"Se Bajaran las siguientes cuentas contables: {cuentas_contables}"
+                    )
                     for cta_contable in cuentas_contables:
                         partial_schema = await self.siif_rcocc31_handler.download_and_sync_validated_to_repository(
                             ejercicio=ejercicio,
