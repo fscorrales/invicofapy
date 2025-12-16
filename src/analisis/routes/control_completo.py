@@ -30,8 +30,10 @@ async def sync_control_completo_from_source(
         params.siif_password = settings.SIIF_PASSWORD
         params.sscc_username = settings.SSCC_USERNAME
         params.sscc_password = settings.SSCC_PASSWORD
+        params.sgf_username = settings.SGF_USERNAME
+        params.sgf_password = settings.SGF_PASSWORD
 
-    return await service.sync_control_banco_from_source(params=params)
+    return await service.sync_control_completo_from_source(params=params)
 
 
 # -------------------------------------------------
