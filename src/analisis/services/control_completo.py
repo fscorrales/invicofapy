@@ -121,110 +121,110 @@ class ControlCompletoService:
                 ejercicios = list(
                     range(params.ejercicio_desde, params.ejercicio_hasta + 1)
                 )
-                # # 🔹Rci02
-                # self.siif_rci02_handler = Rci02(siif=connect_siif)
-                # await self.siif_rci02_handler.go_to_reports()
-                # for ejercicio in ejercicios:
-                #     partial_schema = await self.siif_rci02_handler.download_and_sync_validated_to_repository(
-                #         ejercicio=int(ejercicio),
-                #     )
-                #     return_schema.append(partial_schema)
+                # 🔹Rci02
+                self.siif_rci02_handler = Rci02(siif=connect_siif)
+                await self.siif_rci02_handler.go_to_reports()
+                for ejercicio in ejercicios:
+                    partial_schema = await self.siif_rci02_handler.download_and_sync_validated_to_repository(
+                        ejercicio=int(ejercicio),
+                    )
+                    return_schema.append(partial_schema)
 
-                # # 🔹 RF602
-                # self.siif_rf602_handler = Rf602(siif=connect_siif)
-                # for ejercicio in ejercicios:
-                #     partial_schema = await self.siif_rf602_handler.download_and_sync_validated_to_repository(
-                #         ejercicio=int(ejercicio)
-                #     )
-                #     return_schema.append(partial_schema)
+                # 🔹 RF602
+                self.siif_rf602_handler = Rf602(siif=connect_siif)
+                for ejercicio in ejercicios:
+                    partial_schema = await self.siif_rf602_handler.download_and_sync_validated_to_repository(
+                        ejercicio=int(ejercicio)
+                    )
+                    return_schema.append(partial_schema)
 
-                # # 🔹 RF610
-                # self.siif_rf610_handler = Rf610(siif=connect_siif)
-                # for ejercicio in ejercicios:
-                #     partial_schema = await self.siif_rf610_handler.download_and_sync_validated_to_repository(
-                #         ejercicio=int(ejercicio)
-                #     )
-                #     return_schema.append(partial_schema)
+                # 🔹 RF610
+                self.siif_rf610_handler = Rf610(siif=connect_siif)
+                for ejercicio in ejercicios:
+                    partial_schema = await self.siif_rf610_handler.download_and_sync_validated_to_repository(
+                        ejercicio=int(ejercicio)
+                    )
+                    return_schema.append(partial_schema)
 
-                # # 🔹 Rcg01Uejp
-                # self.siif_rcg01_uejp_handler = Rcg01Uejp(siif=connect_siif)
-                # for ejercicio in ejercicios:
-                #     partial_schema = await self.siif_rcg01_uejp_handler.download_and_sync_validated_to_repository(
-                #         ejercicio=int(ejercicio)
-                #     )
-                #     return_schema.append(partial_schema)
+                # 🔹 Rcg01Uejp
+                self.siif_rcg01_uejp_handler = Rcg01Uejp(siif=connect_siif)
+                for ejercicio in ejercicios:
+                    partial_schema = await self.siif_rcg01_uejp_handler.download_and_sync_validated_to_repository(
+                        ejercicio=int(ejercicio)
+                    )
+                    return_schema.append(partial_schema)
 
-                # # 🔹 Rpa03g
-                # self.siif_rpa03g_handler = Rpa03g(siif=connect_siif)
-                # for ejercicio in ejercicios:
-                #     for grupo in [g.value for g in GrupoPartidaSIIF]:
-                #         partial_schema = await self.siif_rpa03g_handler.download_and_sync_validated_to_repository(
-                #             ejercicio=int(ejercicio), grupo_partida=grupo
-                #         )
-                #         return_schema.append(partial_schema)
+                # 🔹 Rpa03g
+                self.siif_rpa03g_handler = Rpa03g(siif=connect_siif)
+                for ejercicio in ejercicios:
+                    for grupo in [g.value for g in GrupoPartidaSIIF]:
+                        partial_schema = await self.siif_rpa03g_handler.download_and_sync_validated_to_repository(
+                            ejercicio=int(ejercicio), grupo_partida=grupo
+                        )
+                        return_schema.append(partial_schema)
 
-                # # 🔹 Rfondos04
-                # self.siif_rfondos04_handler = Rfondos04(siif=connect_siif)
-                # for ejercicio in ejercicios:
-                #     for tipo_comprobante in ["PA3", "REV"]:
-                #         partial_schema = await self.siif_rfondos04_handler.download_and_sync_validated_to_repository(
-                #             ejercicio=int(ejercicio), tipo_comprobante=tipo_comprobante
-                #         )
-                #         return_schema.append(partial_schema)
+                # 🔹 Rfondos04
+                self.siif_rfondos04_handler = Rfondos04(siif=connect_siif)
+                for ejercicio in ejercicios:
+                    for tipo_comprobante in ["PA3", "REV"]:
+                        partial_schema = await self.siif_rfondos04_handler.download_and_sync_validated_to_repository(
+                            ejercicio=int(ejercicio), tipo_comprobante=tipo_comprobante
+                        )
+                        return_schema.append(partial_schema)
 
-                # # 🔹 Rfondo07tp
-                # self.siif_rfondo07tp_handler = Rfondo07tp(siif=connect_siif)
-                # for ejercicio in ejercicios:
-                #     partial_schema = await self.siif_rfondo07tp_handler.download_and_sync_validated_to_repository(
-                #         ejercicio=int(ejercicio)
-                #     )
-                #     return_schema.append(partial_schema)
+                # 🔹 Rfondo07tp
+                self.siif_rfondo07tp_handler = Rfondo07tp(siif=connect_siif)
+                for ejercicio in ejercicios:
+                    partial_schema = await self.siif_rfondo07tp_handler.download_and_sync_validated_to_repository(
+                        ejercicio=int(ejercicio)
+                    )
+                    return_schema.append(partial_schema)
 
-                # # 🔹Rdeu012
-                # # Obtenemos los meses a descargar
-                # start = datetime.strptime(str(params.ejercicio_desde), "%Y")
-                # end = (
-                #     datetime.strptime("12/" + str(params.ejercicio_hasta), "%m/%Y")
-                #     if params.ejercicio_hasta < datetime.now().year
-                #     else datetime.now().replace(day=1)
-                # )
+                # 🔹Rdeu012
+                # Obtenemos los meses a descargar
+                start = datetime.strptime(str(params.ejercicio_desde), "%Y")
+                end = (
+                    datetime.strptime("12/" + str(params.ejercicio_hasta), "%m/%Y")
+                    if params.ejercicio_hasta < datetime.now().year
+                    else datetime.now().replace(day=1)
+                )
 
-                # meses = []
-                # current = start
-                # while current <= end:
-                #     meses.append(current.strftime("%m/%Y"))
-                #     current += relativedelta(months=1)
+                meses = []
+                current = start
+                while current <= end:
+                    meses.append(current.strftime("%m/%Y"))
+                    current += relativedelta(months=1)
 
-                # self.siif_rdeu012_handler = Rdeu012(siif=connect_siif)
-                # for mes in meses:
-                #     partial_schema = await self.siif_rdeu012_handler.download_and_sync_validated_to_repository(
-                #         mes=str(mes)
-                #     )
-                #     return_schema.append(partial_schema)
+                self.siif_rdeu012_handler = Rdeu012(siif=connect_siif)
+                for mes in meses:
+                    partial_schema = await self.siif_rdeu012_handler.download_and_sync_validated_to_repository(
+                        mes=str(mes)
+                    )
+                    return_schema.append(partial_schema)
 
-                # # 🔹Rvicon03
-                # self.siif_rvicon03_handler = Rvicon03(siif=connect_siif)
-                # # await self.siif_rvicon03_handler.go_to_reports()
-                # for ejercicio in ejercicios:
-                #     partial_schema = await self.siif_rvicon03_handler.download_and_sync_validated_to_repository(
-                #         ejercicio=ejercicio,
-                #     )
-                #     return_schema.append(partial_schema)
+                # 🔹Rvicon03
+                self.siif_rvicon03_handler = Rvicon03(siif=connect_siif)
+                # await self.siif_rvicon03_handler.go_to_reports()
+                for ejercicio in ejercicios:
+                    partial_schema = await self.siif_rvicon03_handler.download_and_sync_validated_to_repository(
+                        ejercicio=ejercicio,
+                    )
+                    return_schema.append(partial_schema)
 
-                # # 🔹 Rcocc31
-                # self.siif_rcocc31_handler = Rcocc31(siif=connect_siif)
-                # for ejercicio in ejercicios:
-                #     cuentas_contables = await get_siif_rvicon03(ejercicio=ejercicio)
-                #     cuentas_contables = cuentas_contables["cta_contable"].unique()
-                #     logger.info(
-                #         f"Se Bajaran las siguientes cuentas contables: {cuentas_contables}"
-                #     )
-                #     for cta_contable in cuentas_contables:
-                #         partial_schema = await self.siif_rcocc31_handler.download_and_sync_validated_to_repository(
-                #             ejercicio=ejercicio,
-                #             cta_contable=cta_contable,
-                #         )
-                #         return_schema.append(partial_schema)
+                # 🔹 Rcocc31
+                self.siif_rcocc31_handler = Rcocc31(siif=connect_siif)
+                for ejercicio in ejercicios:
+                    cuentas_contables = await get_siif_rvicon03(ejercicio=ejercicio)
+                    cuentas_contables = cuentas_contables["cta_contable"].unique()
+                    logger.info(
+                        f"Se Bajaran las siguientes cuentas contables: {cuentas_contables}"
+                    )
+                    for cta_contable in cuentas_contables:
+                        partial_schema = await self.siif_rcocc31_handler.download_and_sync_validated_to_repository(
+                            ejercicio=ejercicio,
+                            cta_contable=cta_contable,
+                        )
+                        return_schema.append(partial_schema)
 
                 # 🔹Resumen Rendicion Proveedores
                 partial_schema = await self.sgf_resumend_rend_prov_service.sync_resumen_rend_prov_from_sgf(
