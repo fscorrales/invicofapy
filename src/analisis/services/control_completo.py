@@ -70,6 +70,9 @@ from ..schemas.control_completo import (
     ControlCompletoReport,
     ControlCompletoSyncParams,
 )
+from ..services import (
+    ControlBancoServiceDependency,
+)
 
 
 # --------------------------------------------------
@@ -89,6 +92,7 @@ class ControlCompletoService:
     sgf_resumend_rend_prov_service: ResumenRendProvServiceDependency
     sscc_banco_invico_service: BancoINVICOServiceDependency
     sscc_ctas_ctes_service: CtasCtesServiceDependency
+    control_banco_service: ControlBancoServiceDependency
 
     # -------------------------------------------------
     async def sync_control_completo_from_source(
@@ -290,8 +294,9 @@ class ControlCompletoService:
         return_schema = []
         try:
             # 🔹 Control banco
-            partial_schema = await self.compute_control_banco(params=params)
-            return_schema.extend(partial_schema)
+            # partial_schema = await self.compute_control_banco(params=params)
+            # return_schema.extend(partial_schema)
+            return_schema = await self.control_banco_service.compute_all(params=params)
 
         except ValidationError as e:
             logger.error(f"Validation Error: {e}")
