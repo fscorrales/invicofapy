@@ -24,64 +24,59 @@ Data required:
 
 __all__ = ["ControlCompletoService", "ControlCompletoServiceDependency"]
 
+import os
 from dataclasses import dataclass, field
-from enum import Enum
+from datetime import datetime
 from typing import Annotated, List
 
-import numpy as np
 import pandas as pd
+from dateutil.relativedelta import relativedelta
 from fastapi import Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from playwright.async_api import async_playwright
 from pydantic import ValidationError
 
 from ...config import logger
+from ...icaro.handlers import IcaroMongoMigrator
 from ...sgf.services import ResumenRendProvServiceDependency
 from ...siif.handlers import (
+    Rcg01Uejp,
     Rci02,
+    Rcocc31,
+    Rdeu012,
     Rf602,
     Rf610,
-    Rfondos04,
     Rfondo07tp,
-    Rcg01Uejp,
-    Rcocc31,
+    Rfondos04,
     Rpa03g,
     Rvicon03,
-    Rdeu012,
     login,
     logout,
 )
 from ...siif.schemas import GrupoPartidaSIIF
 from ...slave.handlers import SlaveMongoMigrator
-from ...sscc.repositories import CtasCtesRepository
 from ...sscc.services import BancoINVICOServiceDependency, CtasCtesServiceDependency
 from ...utils import (
     RouteReturnSchema,
     export_multiple_dataframes_to_excel,
-    sync_validated_to_repository,
-    validate_and_extract_data_from_df,
     get_r_icaro_path,
 )
 from ..handlers import (
-    get_banco_invico_unified_cta_cte,
-    get_siif_comprobantes_honorarios,
-    get_siif_rcg01_uejp,
-    get_siif_rcocc31,
     get_siif_rvicon03,
 )
 from ..repositories.control_banco import ControlBancoRepositoryDependency
-from ..schemas.control_banco import (
-    ControlBancoParams,
-    ControlBancoReport,
-    ControlBancoSyncParams,
+from ..schemas.control_completo import (
+    ControlCompletoParams,
+    ControlCompletoReport,
+    ControlCompletoSyncParams,
 )
-from ...icaro.handlers import IcaroMongoMigrator
+
 
 # --------------------------------------------------
 @dataclass
 class ControlCompletoService:
     control_banco_repo: ControlBancoRepositoryDependency
-    siif_rci02_handler: Rci02 = field(init=False) # No se pasa como argumento
+    siif_rci02_handler: Rci02 = field(init=False)  # No se pasa como argumento
     siif_rf602_handler: Rf602 = field(init=False)  # No se pasa como argumento
     siif_rf610_handler: Rf610 = field(init=False)  # No se pasa como argumento
     siif_rcg01_uejp_handler: Rcg01Uejp = field(init=False)  # No se pasa como argumento
@@ -96,9 +91,9 @@ class ControlCompletoService:
     sscc_ctas_ctes_service: CtasCtesServiceDependency
 
     # -------------------------------------------------
-    async def sync_control_banco_from_source(
+    async def sync_control_completo_from_source(
         self,
-        params: ControlBancoSyncParams = None,
+        params: ControlCompletoSyncParams = None,
     ) -> List[RouteReturnSchema]:
         """Downloads a report from all sources, processes it, validates the data,
         and stores it in MongoDB if valid.
@@ -150,7 +145,7 @@ class ControlCompletoService:
                         ejercicio=int(ejercicio)
                     )
                     return_schema.append(partial_schema)
-                    
+
                 # 🔹 Rcg01Uejp
                 self.siif_rcg01_uejp_handler = Rcg01Uejp(siif=connect_siif)
                 for ejercicio in ejercicios:
@@ -286,7 +281,9 @@ class ControlCompletoService:
                 return return_schema
 
     # -------------------------------------------------
-    async def compute_all(self, params: ControlBancoParams) -> List[RouteReturnSchema]:
+    async def compute_all(
+        self, params: ControlCompletoParams
+    ) -> List[RouteReturnSchema]:
         """
         Compute all controls for the given params.
         """
@@ -315,7 +312,7 @@ class ControlCompletoService:
     async def export_all_from_db(
         self,
         upload_to_google_sheets: bool = True,
-        params: ControlBancoParams = None,
+        params: ControlCompletoParams = None,
     ) -> StreamingResponse:
         ejercicios = list(range(params.ejercicio_desde, params.ejercicio_hasta + 1))
         control_banco_docs = await self.control_banco_repo.find_by_filter(

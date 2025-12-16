@@ -5,23 +5,25 @@ from fastapi import APIRouter, Depends, Query
 from ...auth.services import OptionalAuthorizationDependency
 from ...config import settings
 from ...utils import RouteReturnSchema
-from ..schemas.control_banco import (
-    ControlBancoParams,
-    ControlBancoSyncParams,
+from ..schemas.control_completo import (
+    ControlCompletoParams,
+    ControlCompletoSyncParams,
 )
-from ..services.control_banco import (
-    ControlBancoServiceDependency,
+from ..services.control_completo import (
+    ControlCompletoServiceDependency,
 )
 
-control_banco_router = APIRouter(prefix="/banco")
+control_completo_router = APIRouter(prefix="/completo")
 
 
 # -------------------------------------------------
-@control_banco_router.post("/sync_from_source", response_model=List[RouteReturnSchema])
-async def sync_control_banco_from_source(
+@control_completo_router.post(
+    "/sync_from_source", response_model=List[RouteReturnSchema]
+)
+async def sync_control_completo_from_source(
     auth: OptionalAuthorizationDependency,
-    service: ControlBancoServiceDependency,
-    params: Annotated[ControlBancoSyncParams, Depends()],
+    service: ControlCompletoServiceDependency,
+    params: Annotated[ControlCompletoSyncParams, Depends()],
 ):
     if auth.is_admin:
         params.siif_username = settings.SIIF_USERNAME
@@ -33,23 +35,23 @@ async def sync_control_banco_from_source(
 
 
 # -------------------------------------------------
-@control_banco_router.post("/compute", response_model=List[RouteReturnSchema])
+@control_completo_router.post("/compute", response_model=List[RouteReturnSchema])
 async def compute_all(
-    service: ControlBancoServiceDependency,
-    params: Annotated[ControlBancoParams, Depends()],
+    service: ControlCompletoServiceDependency,
+    params: Annotated[ControlCompletoParams, Depends()],
 ):
     return await service.compute_all(params=params)
 
 
 # -------------------------------------------------
-@control_banco_router.get(
+@control_completo_router.get(
     "/export",
     summary="Descarga todos los reportes como archivo .xlsx y exporta a Google Sheets",
     response_description="Archivo Excel con los registros solicitados",
 )
 async def export_all_from_db(
-    service: ControlBancoServiceDependency,
-    params: Annotated[ControlBancoParams, Depends()],
+    service: ControlCompletoServiceDependency,
+    params: Annotated[ControlCompletoParams, Depends()],
     upload_to_google_sheets: bool = Query(True, alias="uploadToGoogleSheets"),
 ):
     return await service.export_all_from_db(

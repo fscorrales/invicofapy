@@ -39,6 +39,7 @@ from ...siif.handlers import (
     login,
     logout,
 )
+
 # from ...siif.repositories import (
 #     Rcocc31RepositoryDependency,
 # )
@@ -54,7 +55,7 @@ from ..handlers import (
     get_banco_invico_unified_cta_cte,
     get_siif_comprobantes_gtos_unified_cta_cte,
     # get_siif_rcocc31,
-    get_siif_rfondo07tp,
+    # get_siif_rfondo07tp,
     get_siif_rfondos04,
 )
 from ..repositories.control_viaticos import (
@@ -271,7 +272,8 @@ class ControlViaticosService:
 
     # --------------------------------------------------
     async def generate_siif_rendicion_viaticos(
-        self, partidas: List[str] = ["372", "373"],
+        self,
+        partidas: List[str] = ["372", "373"],
         ejercicio: int = None,
     ) -> pd.DataFrame:
         df = await get_siif_comprobantes_gtos_unified_cta_cte(
@@ -392,11 +394,11 @@ class ControlViaticosService:
                     sscc.sscc_anticipo + sscc.sscc_reversion + sscc.sscc_reembolso
                 )
 
-                siif = await self.generate_siif_rendicion_viaticos(
-                    ejercicio=ejercicio
-                )
+                siif = await self.generate_siif_rendicion_viaticos(ejercicio=ejercicio)
                 siif_rendicion = siif.loc[siif["partida"] == "372"]
-                siif_rendicion = siif_rendicion.rename(columns={"importe": "siif_rendicion"})
+                siif_rendicion = siif_rendicion.rename(
+                    columns={"importe": "siif_rendicion"}
+                )
                 siif_rendicion = siif_rendicion.groupby(groupby_cols + ["nro_fondo"])[
                     ["siif_rendicion"]
                 ].sum()
@@ -422,9 +424,7 @@ class ControlViaticosService:
                     ["siif_reembolso"]
                 ].sum()
                 siif_reembolso = siif_reembolso.reset_index()
-                df = df.merge(
-                    siif_reembolso, how="left", on="nro_expte"
-                )
+                df = df.merge(siif_reembolso, how="left", on="nro_expte")
 
                 # siif_rendicion["siif_rendicion"] = np.where(
                 #     siif_rendicion["partida"] == "372",
@@ -435,7 +435,6 @@ class ControlViaticosService:
                 #     siif_rendicion["partida"] == "373", siif_rendicion["importe"], 0
                 # )
                 # siif_rendicion["nro_fondo"] = siif_rendicion["nro_fondo"].fillna("0")
-
 
                 df = df.merge(sscc, how="left", on="nro_expte")
 
@@ -455,9 +454,7 @@ class ControlViaticosService:
                 df["siif_saldo_anticipo"] = (
                     df.siif_anticipo - df.siif_reversion - df.siif_rendicion
                 )
-                df["siif_gasto_total"] = (
-                    df.siif_rendicion + df.siif_reembolso
-                )
+                df["siif_gasto_total"] = df.siif_rendicion + df.siif_reembolso
                 df["dif_gasto_total"] = df["siif_gasto_total"] - df["sscc_gasto_total"]
 
                 # 🔹 Validar datos usando Pydantic
