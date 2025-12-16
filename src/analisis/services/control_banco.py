@@ -4,6 +4,8 @@
 Author: Fernando Corrales <fscpython@gmail.com>
 Purpose: Control Banco SIIF vs SSCC (Banco Real)
 Data required:
+    - SIIF rcg01_uejp
+    - SIIF rpa03g
     - SIIF rvicon03
     - SIIF rcocc31
     - SSCC Resumen General de Movimientos
