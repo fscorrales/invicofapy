@@ -1,20 +1,16 @@
 __all__ = [
     "ControlCompletoParams",
     "ControlCompletoSyncParams",
-    "ControlCompletoFilter",
-    "ControlCompletoReport",
-    "ControlCompletoDocument",
 ]
 
 import os
-from datetime import date, datetime
+from datetime import date
 from typing import Optional
 
-from pydantic import BaseModel, Field, field_validator, model_validator
-from pydantic_mongo import PydanticObjectId
+from pydantic import Field, field_validator, model_validator
 
 from ...sgf.schemas.common import Origen
-from ...utils import BaseFilterParams, CamelModel, get_slave_path, get_sscc_cta_cte_path
+from ...utils import CamelModel, get_slave_path, get_sscc_cta_cte_path
 
 
 # --------------------------------------------------
@@ -54,26 +50,3 @@ class ControlCompletoSyncParams(ControlCompletoParams):
         default=os.path.join(get_slave_path(), "Slave.accdb"),
         description="Ruta al archivo Slave.accdb",
     )
-
-
-# -------------------------------------------------
-class ControlCompletoReport(BaseModel):
-    ejercicio: int
-    mes: str
-    fecha: datetime
-    clase: str
-    cta_cte: str
-    siif_importe: float
-    sscc_importe: float
-    diferencia: float
-
-
-# -------------------------------------------------
-class ControlCompletoDocument(ControlCompletoReport):
-    id: PydanticObjectId = Field(alias="_id")
-
-
-# -------------------------------------------------
-class ControlCompletoFilter(BaseFilterParams):
-    ejercicio: Optional[int] = None
-    fuente: Optional[int] = None

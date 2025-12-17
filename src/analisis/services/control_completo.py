@@ -67,11 +67,19 @@ from ..handlers import (
 from ..repositories.control_banco import ControlBancoRepositoryDependency
 from ..schemas.control_completo import (
     ControlCompletoParams,
-    ControlCompletoReport,
     ControlCompletoSyncParams,
 )
 from ..services import (
+    ControlAporteEmpresarioServiceDependency,
     ControlBancoServiceDependency,
+    ControlDebitosBancariosServiceDependency,
+    ControlEscribanosServiceDependency,
+    ControlHaberesServiceDependency,
+    ControlHonorariosServiceDependency,
+    ControlIcaroVsSIIFServiceDependency,
+    ControlObrasServiceDependency,
+    ControlRecursosServiceDependency,
+    ControlViaticosServiceDependency,
 )
 
 
@@ -92,7 +100,16 @@ class ControlCompletoService:
     sgf_resumend_rend_prov_service: ResumenRendProvServiceDependency
     sscc_banco_invico_service: BancoINVICOServiceDependency
     sscc_ctas_ctes_service: CtasCtesServiceDependency
+    control_aporte_empresario_service: ControlAporteEmpresarioServiceDependency
     control_banco_service: ControlBancoServiceDependency
+    control_debitos_bancarios_service: ControlDebitosBancariosServiceDependency
+    control_escribanos_service: ControlEscribanosServiceDependency
+    control_haberes_service: ControlHaberesServiceDependency
+    control_honorarios_service: ControlHonorariosServiceDependency
+    control_icaro_vs_siif_service: ControlIcaroVsSIIFServiceDependency
+    control_obras_service: ControlObrasServiceDependency
+    control_recursos_service: ControlRecursosServiceDependency
+    control_viaticos_service: ControlViaticosServiceDependency
 
     # -------------------------------------------------
     async def sync_control_completo_from_source(
@@ -293,10 +310,14 @@ class ControlCompletoService:
         """
         return_schema = []
         try:
+            # 🔹 Aporte Empresario - 3% INVICO
+            partial_schema = await self.control_aporte_empresario_service.compute_all(
+                params=params
+            )
+            return_schema.extend(partial_schema)
             # 🔹 Control banco
-            # partial_schema = await self.compute_control_banco(params=params)
-            # return_schema.extend(partial_schema)
-            return_schema = await self.control_banco_service.compute_all(params=params)
+            partial_schema = await self.control_banco_service.compute_all(params=params)
+            return_schema.extend(partial_schema)
 
         except ValidationError as e:
             logger.error(f"Validation Error: {e}")
