@@ -342,8 +342,8 @@ class ControlIcaroVsSIIFService:
     # --------------------------------------------------
     async def compute_control_anual(
         self, params: ControlCompletoParams
-    ) -> RouteReturnSchema:
-        return_schema = RouteReturnSchema()
+    ) -> List[RouteReturnSchema]:
+        return_schema = []
         try:
             ejercicios = list(range(params.ejercicio_desde, params.ejercicio_hasta + 1))
             for ejercicio in ejercicios:
@@ -479,7 +479,7 @@ class ControlIcaroVsSIIFService:
     # --------------------------------------------------
     async def compute_control_comprobantes(
         self, params: ControlCompletoParams
-    ) -> RouteReturnSchema:
+    ) -> List[RouteReturnSchema]:
         return_schema = []
         try:
             ejercicios = list(range(params.ejercicio_desde, params.ejercicio_hasta + 1))
@@ -611,7 +611,7 @@ class ControlIcaroVsSIIFService:
     # --------------------------------------------------
     async def compute_control_pa6(
         self, params: ControlCompletoParams
-    ) -> RouteReturnSchema:
+    ) -> List[RouteReturnSchema]:
         return_schema = []
         try:
             ejercicios = list(range(params.ejercicio_desde, params.ejercicio_hasta + 1))
@@ -736,7 +736,9 @@ class ControlIcaroVsSIIFService:
                 )
                 df["siif_importe_pa6"] = df["siif_importe_pa6"].fillna(0)
                 df["icaro_importe_pa6"] = df["icaro_importe_pa6"].fillna(0)
-                df["err_importe_pa6"] = (df.siif_importe_pa6 - df.icaro_importe_pa6).abs()
+                df["err_importe_pa6"] = (
+                    df.siif_importe_pa6 - df.icaro_importe_pa6
+                ).abs()
                 df["err_importe_pa6"] = df["err_importe_pa6"] > 0.1
                 # df['err_importe_pa6'] = ~np.isclose((df.siif_importe_pa6 - df.icaro_importe_pa6), 0)
                 df["err_nro_reg"] = (df.siif_nro_reg != df.icaro_nro_reg) & ~(
@@ -747,7 +749,9 @@ class ControlIcaroVsSIIFService:
                 )
                 df["siif_importe_reg"] = df["siif_importe_reg"].fillna(0)
                 df["icaro_importe_reg"] = df["icaro_importe_reg"].fillna(0)
-                df["err_importe_reg"] = (df.siif_importe_reg - df.icaro_importe_reg).abs()
+                df["err_importe_reg"] = (
+                    df.siif_importe_reg - df.icaro_importe_reg
+                ).abs()
                 df["err_importe_reg"] = df["err_importe_reg"] > 0.1
                 # df['err_importe_reg'] = ~np.isclose((df.siif_importe_reg - df.icaro_importe_reg), 0)
                 df["err_tipo"] = (df.siif_tipo != df.icaro_tipo) & ~(
