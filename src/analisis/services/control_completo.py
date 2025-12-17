@@ -69,18 +69,20 @@ from ..schemas.control_completo import (
     ControlCompletoParams,
     ControlCompletoSyncParams,
 )
-from ..services import (
+from ..services.control_aporte_empresario import (
     ControlAporteEmpresarioServiceDependency,
-    ControlBancoServiceDependency,
-    ControlDebitosBancariosServiceDependency,
-    ControlEscribanosServiceDependency,
-    ControlHaberesServiceDependency,
-    ControlHonorariosServiceDependency,
-    ControlIcaroVsSIIFServiceDependency,
-    ControlObrasServiceDependency,
-    ControlRecursosServiceDependency,
-    ControlViaticosServiceDependency,
 )
+from ..services.control_banco import ControlBancoServiceDependency
+from ..services.control_debitos_bancarios import (
+    ControlDebitosBancariosServiceDependency,
+)
+from ..services.control_escribanos import ControlEscribanosServiceDependency
+from ..services.control_haberes import ControlHaberesServiceDependency
+from ..services.control_honorarios import ControlHonorariosServiceDependency
+from ..services.control_icaro_vs_siif import ControlIcaroVsSIIFServiceDependency
+from ..services.control_obras import ControlObrasServiceDependency
+from ..services.control_recursos import ControlRecursosServiceDependency
+from ..services.control_viaticos import ControlViaticosServiceDependency
 
 
 # --------------------------------------------------
@@ -315,8 +317,15 @@ class ControlCompletoService:
                 params=params
             )
             return_schema.extend(partial_schema)
+
             # 🔹 Control banco
             partial_schema = await self.control_banco_service.compute_all(params=params)
+            return_schema.extend(partial_schema)
+
+            # 🔹 Control Debitos Bancarios
+            partial_schema = await self.control_debitos_bancarios_service.compute_all(
+                params=params
+            )
             return_schema.extend(partial_schema)
 
         except ValidationError as e:
