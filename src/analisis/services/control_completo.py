@@ -325,10 +325,10 @@ class ControlCompletoService:
             return_schema.extend(partial_schema)
 
             # 🔹 Control Icaro vs SIIF
-            # partial_schema = await self.control_icaro_vs_siif_service.compute_all(
-            #     params=params
-            # )
-            # return_schema.extend(partial_schema)
+            partial_schema = await self.control_icaro_vs_siif_service.compute_all(
+                params=params
+            )
+            return_schema.extend(partial_schema)
 
             # 🔹 Control Obras
             partial_schema = await self.control_obras_service.compute_all(params=params)

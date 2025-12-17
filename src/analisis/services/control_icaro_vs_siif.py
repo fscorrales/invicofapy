@@ -196,15 +196,15 @@ class ControlIcaroVsSIIFService:
         try:
             # 🔹 Control Anual
             partial_schema = await self.compute_control_anual(params=params)
-            return_schema.append(partial_schema)
+            return_schema.extend(partial_schema)
 
             # 🔹 Control Comprobantes
             partial_schema = await self.compute_control_comprobantes(params=params)
-            return_schema.append(partial_schema)
+            return_schema.extend(partial_schema)
 
             # 🔹 Control PA6
             partial_schema = await self.compute_control_pa6(params=params)
-            return_schema.append(partial_schema)
+            return_schema.extend(partial_schema)
 
         except ValidationError as e:
             logger.error(f"Validation Error: {e}")
@@ -409,7 +409,7 @@ class ControlIcaroVsSIIFService:
                 detail="Error in compute_control_anual",
             )
         finally:
-            return partial_schema
+            return return_schema
 
     # -------------------------------------------------
     async def get_control_anual_from_db(
@@ -804,7 +804,7 @@ class ControlIcaroVsSIIFService:
                 validate_and_errors = validate_and_extract_data_from_df(
                     dataframe=df, model=ControlPa6Report
                 )
-                return_schema = await sync_validated_to_repository(
+                partial_schema = await sync_validated_to_repository(
                     repository=self.control_pa6_repo,
                     validation=validate_and_errors,
                     delete_filter={"ejercicio": ejercicio},
@@ -812,6 +812,8 @@ class ControlIcaroVsSIIFService:
                     logger=logger,
                     label=f"Control de PA6 ICARO vs SIIF ejercicio {ejercicio}",
                 )
+                return_schema.append(partial_schema)
+
         except ValidationError as e:
             logger.error(f"Validation Error: {e}")
             raise HTTPException(
