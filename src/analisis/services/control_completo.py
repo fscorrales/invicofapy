@@ -312,20 +312,60 @@ class ControlCompletoService:
         """
         return_schema = []
         try:
+            # 🔹 Control Recursos
+            partial_schema = await self.control_recursos_service.compute_all(
+                params=params
+            )
+            return_schema.extend(partial_schema)
+
             # 🔹 Aporte Empresario - 3% INVICO
             partial_schema = await self.control_aporte_empresario_service.compute_all(
                 params=params
             )
             return_schema.extend(partial_schema)
 
-            # 🔹 Control banco
-            partial_schema = await self.control_banco_service.compute_all(params=params)
+            # 🔹 Control Icaro vs SIIF
+            # partial_schema = await self.control_icaro_vs_siif_service.compute_all(
+            #     params=params
+            # )
+            # return_schema.extend(partial_schema)
+
+            # 🔹 Control Obras
+            partial_schema = await self.control_obras_service.compute_all(params=params)
+            return_schema.extend(partial_schema)
+
+            # 🔹 Control Haberes
+            partial_schema = await self.control_haberes_service.compute_all(
+                params=params
+            )
+            return_schema.extend(partial_schema)
+
+            # 🔹 Control Honorarios
+            partial_schema = await self.control_honorarios_service.compute_all(
+                params=params
+            )
             return_schema.extend(partial_schema)
 
             # 🔹 Control Debitos Bancarios
             partial_schema = await self.control_debitos_bancarios_service.compute_all(
                 params=params
             )
+            return_schema.extend(partial_schema)
+
+            # 🔹 Control Escribanos
+            partial_schema = await self.control_escribanos_service.compute_all(
+                params=params
+            )
+            return_schema.extend(partial_schema)
+
+            # 🔹 Control Viaticos
+            partial_schema = await self.control_viaticos_service.compute_all(
+                params=params
+            )
+            return_schema.extend(partial_schema)
+
+            # 🔹 Control Banco
+            partial_schema = await self.control_banco_service.compute_all(params=params)
             return_schema.extend(partial_schema)
 
         except ValidationError as e:
