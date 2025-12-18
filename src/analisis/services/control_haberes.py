@@ -47,10 +47,12 @@ from ...siif.schemas import GrupoPartidaSIIF
 from ...sscc.services import BancoINVICOServiceDependency, CtasCtesServiceDependency
 from ...utils import (
     BaseFilterParams,
+    GoogleExportResponse,
     RouteReturnSchema,
     export_dataframe_as_excel_response,
     export_multiple_dataframes_to_excel,
     sync_validated_to_repository,
+    upload_multiple_dataframes_to_google_sheets,
     validate_and_extract_data_from_df,
 )
 from ..handlers import (
@@ -228,14 +230,14 @@ class ControlHaberesService:
         finally:
             return return_schema
 
-    # -------------------------------------------------
-    async def export_all_from_db(
-        self, upload_to_google_sheets: bool = True
-    ) -> StreamingResponse:
-        ejercicio_actual = datetime.now().year
-        ultimos_ejercicios = list(range(ejercicio_actual - 2, ejercicio_actual + 1))
+    # --------------------------------------------------
+    async def _build_dataframes_to_export(
+        self,
+        params: ControlHaberesParams,
+    ) -> list[tuple[pd.DataFrame, str]]:
+        ejercicios = list(range(params.ejercicio_desde, params.ejercicio_hasta + 1))
         control_haberes_docs = await self.control_haberes_repo.find_by_filter(
-            {"ejercicio": {"$in": ultimos_ejercicios}}
+            {"ejercicio": {"$in": ejercicios}}
         )
 
         if not control_haberes_docs:
@@ -243,7 +245,7 @@ class ControlHaberesService:
 
         comprobantes_haberes = pd.DataFrame()
         banco_invico = pd.DataFrame()
-        for ejercicio in ultimos_ejercicios:
+        for ejercicio in ejercicios:
             df = await self.generate_comprobantes_haberes_neto_rdeu(ejercicio=ejercicio)
             comprobantes_haberes = pd.concat(
                 [comprobantes_haberes, df], ignore_index=True
@@ -251,15 +253,34 @@ class ControlHaberesService:
             df = await self.generate_banco_invico(ejercicio=ejercicio)
             banco_invico = pd.concat([banco_invico, df], ignore_index=True)
 
+        return [
+            (pd.DataFrame(control_haberes_docs), "control_mensual_db"),
+            (comprobantes_haberes, "siif_comprobantes_haberes_db"),
+            (banco_invico, "sscc_haberes_db"),
+        ]
+
+    # -------------------------------------------------
+    async def export_all_from_db(
+        self,
+        upload_to_google_sheets: bool = True,
+        params: ControlHaberesParams = None,
+    ) -> StreamingResponse:
         return export_multiple_dataframes_to_excel(
-            df_sheet_pairs=[
-                (pd.DataFrame(control_haberes_docs), "control_mensual_db"),
-                (comprobantes_haberes, "siif_comprobantes_haberes_db"),
-                (banco_invico, "sscc_haberes_db"),
-            ],
+            df_sheet_pairs=await self._build_dataframes_to_export(params=params),
             filename="control_haberes.xlsx",
             spreadsheet_key="1A9ypUkwm4kfLqUAwr6-55crcFElisOO9fOdI6iflMAc",
             upload_to_google_sheets=upload_to_google_sheets,
+        )
+
+    # -------------------------------------------------
+    async def export_all_from_db_to_google(
+        self,
+        params: ControlHaberesParams = None,
+    ) -> GoogleExportResponse:
+        return upload_multiple_dataframes_to_google_sheets(
+            df_sheet_pairs=await self._build_dataframes_to_export(params),
+            spreadsheet_key="1A9ypUkwm4kfLqUAwr6-55crcFElisOO9fOdI6iflMAc",
+            title="Control Haberes",
         )
 
     # --------------------------------------------------
@@ -305,7 +326,9 @@ class ControlHaberesService:
             rdeu["es_aprobado"] = True
             rdeu["es_pagado"] = True
             rdeu = rdeu.drop(columns=["saldo"])
-            comprobantes_haberes_neto_rdeu = pd.concat([comprobantes_haberes_ejercicio, rdeu])
+            comprobantes_haberes_neto_rdeu = pd.concat(
+                [comprobantes_haberes_ejercicio, rdeu]
+            )
 
             # Ajustamos la Deuda Flotante Pagada
             rdeu = pd.DataFrame(rdeu_docs)
@@ -372,16 +395,14 @@ class ControlHaberesService:
     # --------------------------------------------------
     async def generate_banco_invico(self, ejercicio: int):
         df = await get_banco_invico_unified_cta_cte(ejercicio=ejercicio)
-        df = df.loc[df['movimiento'] != 'DEPOSITO']
-        df = df.loc[df['cta_cte'] == '130832-04']
-        keep = ['GCIAS', 'GANANCIAS']
-        df = df.loc[~df.concepto.str.contains('|'.join(keep))]
-        df['importe'] = df['importe'] * (-1)
-        dep_transf_int = ['034', '004']
-        dep_otros = ['003', '055', '005', '013']
-        df = df.loc[~df['cod_imputacion'].isin(
-            dep_transf_int + dep_otros
-            )]
+        df = df.loc[df["movimiento"] != "DEPOSITO"]
+        df = df.loc[df["cta_cte"] == "130832-04"]
+        keep = ["GCIAS", "GANANCIAS"]
+        df = df.loc[~df.concepto.str.contains("|".join(keep))]
+        df["importe"] = df["importe"] * (-1)
+        dep_transf_int = ["034", "004"]
+        dep_otros = ["003", "055", "005", "013"]
+        df = df.loc[~df["cod_imputacion"].isin(dep_transf_int + dep_otros)]
         df.reset_index(drop=True, inplace=True)
         return df
 
@@ -401,7 +422,7 @@ class ControlHaberesService:
                 siif = siif.reset_index()
                 siif = siif.rename(columns={"importe": "ejecutado_siif"})
                 # print(f"siif.shape: {siif.shape} - siif.head: {siif.head()}")
-                sscc = await self.generate_banco_invico(ejercicio = ejercicio)
+                sscc = await self.generate_banco_invico(ejercicio=ejercicio)
                 sscc = sscc.loc[:, groupby_cols + ["importe"]]
                 sscc = sscc.groupby(groupby_cols)["importe"].sum()
                 sscc = sscc.reset_index()
