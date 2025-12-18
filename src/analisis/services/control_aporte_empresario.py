@@ -14,7 +14,6 @@ Google Sheet:
 __all__ = ["ControlAporteEmpresarioService", "ControlAporteEmpresarioServiceDependency"]
 
 from dataclasses import dataclass, field
-from datetime import datetime
 from typing import Annotated, List
 
 import numpy as np
