@@ -441,10 +441,12 @@ class ControlCompletoService:
             return_schema.append(partial_schema)
 
             # 🔹 Icaro vs SIIF
-            # partial_schema = await self.control_icaro_vs_siif_service.export_all_from_db_to_google(
-            #     params=params
-            # )
-            # return_schema.append(partial_schema)
+            partial_schema = (
+                await self.control_icaro_vs_siif_service.export_all_from_db_to_google(
+                    params=params
+                )
+            )
+            return_schema.append(partial_schema)
 
             # 🔹 Obras
             partial_schema = (

@@ -15,7 +15,6 @@ Data required:
 
 __all__ = ["ControlIcaroVsSIIFService", "ControlIcaroVsSIIFServiceDependency"]
 
-import datetime as dt
 import os
 from dataclasses import dataclass, field
 from io import BytesIO
@@ -49,11 +48,14 @@ from ...siif.handlers import (
 from ...siif.schemas import GrupoPartidaSIIF, TipoComprobanteSIIF
 from ...utils import (
     BaseFilterParams,
+    GoogleExportResponse,
     GoogleSheets,
     RouteReturnSchema,
+    export_multiple_dataframes_to_excel,
     get_r_icaro_path,
     sanitize_dataframe_for_json,
     sync_validated_to_repository,
+    upload_multiple_dataframes_to_google_sheets,
     validate_and_extract_data_from_df,
 )
 from ..handlers import (
@@ -221,111 +223,158 @@ class ControlIcaroVsSIIFService:
         finally:
             return return_schema
 
+    # --------------------------------------------------
+    async def _build_dataframes_to_export(
+        self,
+        params: ControlCompletoParams,
+    ) -> list[tuple[pd.DataFrame, str]]:
+        ejercicios = list(range(params.ejercicio_desde, params.ejercicio_hasta + 1))
+        control_anual_docs = await self.control_anual_repo.find_by_filter(
+            {"ejercicio": {"$in": ejercicios}}
+        )
+        control_comprobantes_docs = await self.control_comprobantes_repo.find_by_filter(
+            {"ejercicio": {"$in": ejercicios}}
+        )
+        control_pa6_repo = await self.control_pa6_repo.find_by_filter(
+            {"ejercicio": {"$in": ejercicios}}
+        )
+
+        if (
+            not control_anual_docs
+            and not control_comprobantes_docs
+            and not control_pa6_repo
+        ):
+            raise HTTPException(status_code=404, detail="No se encontraron registros")
+
+        return [
+            (pd.DataFrame(control_anual_docs), "control_ejecucion_anual"),
+            (pd.DataFrame(control_comprobantes_docs), "control_comprobantes"),
+            (pd.DataFrame(control_pa6_repo), "control_pa6"),
+        ]
+
     # -------------------------------------------------
     async def export_all_from_db(
-        self, upload_to_google_sheets: bool = True
+        self, upload_to_google_sheets: bool = True, params: ControlCompletoParams = None
     ) -> StreamingResponse:
-        try:
-            ejercicio_actual = dt.datetime.now().year
-            ultimos_ejercicios = list(range(ejercicio_actual - 2, ejercicio_actual + 1))
-            # 1️⃣ Obtenemos los documentos
-            control_anual_docs = await self.control_anual_repo.find_by_filter(
-                {"ejercicio": {"$in": ultimos_ejercicios}}
-            )
-            control_comprobantes_docs = (
-                await self.control_comprobantes_repo.find_by_filter(
-                    {"ejercicio": {"$in": ultimos_ejercicios}}
-                )
-            )
-            control_pa6_repo = await self.control_pa6_repo.find_by_filter(
-                {"ejercicio": {"$in": ultimos_ejercicios}}
-            )
+        # try:
+        #     ejercicio_actual = dt.datetime.now().year
+        #     ultimos_ejercicios = list(range(ejercicio_actual - 2, ejercicio_actual + 1))
+        #     # 1️⃣ Obtenemos los documentos
+        #     control_anual_docs = await self.control_anual_repo.find_by_filter(
+        #         {"ejercicio": {"$in": ultimos_ejercicios}}
+        #     )
+        #     control_comprobantes_docs = (
+        #         await self.control_comprobantes_repo.find_by_filter(
+        #             {"ejercicio": {"$in": ultimos_ejercicios}}
+        #         )
+        #     )
+        #     control_pa6_repo = await self.control_pa6_repo.find_by_filter(
+        #         {"ejercicio": {"$in": ultimos_ejercicios}}
+        #     )
 
-            if (
-                not control_anual_docs
-                and not control_comprobantes_docs
-                and not control_pa6_repo
-            ):
-                raise HTTPException(
-                    status_code=404, detail="No se encontraron registros"
-                )
+        #     if (
+        #         not control_anual_docs
+        #         and not control_comprobantes_docs
+        #         and not control_pa6_repo
+        #     ):
+        #         raise HTTPException(
+        #             status_code=404, detail="No se encontraron registros"
+        #         )
 
-            # 2️⃣ Convertimos a DataFrame
-            control_anual_df = (
-                sanitize_dataframe_for_json(pd.DataFrame(control_anual_docs))
-                if control_anual_docs
-                else pd.DataFrame()
-            )
-            control_comprobantes_df = (
-                sanitize_dataframe_for_json(pd.DataFrame(control_comprobantes_docs))
-                if control_comprobantes_docs
-                else pd.DataFrame()
-            )
-            control_pa6_df = (
-                sanitize_dataframe_for_json(pd.DataFrame(control_pa6_repo))
-                if control_pa6_repo
-                else pd.DataFrame()
-            )
+        #     # 2️⃣ Convertimos a DataFrame
+        #     control_anual_df = (
+        #         sanitize_dataframe_for_json(pd.DataFrame(control_anual_docs))
+        #         if control_anual_docs
+        #         else pd.DataFrame()
+        #     )
+        #     control_comprobantes_df = (
+        #         sanitize_dataframe_for_json(pd.DataFrame(control_comprobantes_docs))
+        #         if control_comprobantes_docs
+        #         else pd.DataFrame()
+        #     )
+        #     control_pa6_df = (
+        #         sanitize_dataframe_for_json(pd.DataFrame(control_pa6_repo))
+        #         if control_pa6_repo
+        #         else pd.DataFrame()
+        #     )
 
-            # 3️⃣ Subimos a Google Sheets si se solicita
-            if upload_to_google_sheets:
-                gs_service = GoogleSheets()
-                if not control_anual_df.empty:
-                    control_anual_df.drop(columns=["_id"], inplace=True)
-                gs_service.to_google_sheets(
-                    df=control_anual_df,
-                    spreadsheet_key="1KKeeoop_v_Nf21s7eFp4sS6SmpxRZQ9DPa1A5wVqnZ0",
-                    wks_name="control_ejecucion_anual_db",
-                )
-                if not control_comprobantes_df.empty:
-                    control_comprobantes_df.drop(columns=["_id"], inplace=True)
-                gs_service.to_google_sheets(
-                    df=control_comprobantes_df,
-                    spreadsheet_key="1KKeeoop_v_Nf21s7eFp4sS6SmpxRZQ9DPa1A5wVqnZ0",
-                    wks_name="control_comprobantes_db",
-                )
-                if not control_pa6_df.empty:
-                    control_pa6_df.drop(columns=["_id"], inplace=True)
-                gs_service.to_google_sheets(
-                    df=control_pa6_df,
-                    spreadsheet_key="1KKeeoop_v_Nf21s7eFp4sS6SmpxRZQ9DPa1A5wVqnZ0",
-                    wks_name="control_pa6_db",
-                )
+        #     # 3️⃣ Subimos a Google Sheets si se solicita
+        #     if upload_to_google_sheets:
+        #         gs_service = GoogleSheets()
+        #         if not control_anual_df.empty:
+        #             control_anual_df.drop(columns=["_id"], inplace=True)
+        #         gs_service.to_google_sheets(
+        #             df=control_anual_df,
+        #             spreadsheet_key="1KKeeoop_v_Nf21s7eFp4sS6SmpxRZQ9DPa1A5wVqnZ0",
+        #             wks_name="control_ejecucion_anual_db",
+        #         )
+        #         if not control_comprobantes_df.empty:
+        #             control_comprobantes_df.drop(columns=["_id"], inplace=True)
+        #         gs_service.to_google_sheets(
+        #             df=control_comprobantes_df,
+        #             spreadsheet_key="1KKeeoop_v_Nf21s7eFp4sS6SmpxRZQ9DPa1A5wVqnZ0",
+        #             wks_name="control_comprobantes_db",
+        #         )
+        #         if not control_pa6_df.empty:
+        #             control_pa6_df.drop(columns=["_id"], inplace=True)
+        #         gs_service.to_google_sheets(
+        #             df=control_pa6_df,
+        #             spreadsheet_key="1KKeeoop_v_Nf21s7eFp4sS6SmpxRZQ9DPa1A5wVqnZ0",
+        #             wks_name="control_pa6_db",
+        #         )
 
-            # 4️⃣ Escribimos a un buffer Excel en memoria
-            buffer = BytesIO()
-            with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
-                if not control_anual_df.empty:
-                    control_anual_df.to_excel(
-                        writer, index=False, sheet_name="control_ejecucion_anual"
-                    )
-                if not control_comprobantes_df.empty:
-                    control_comprobantes_df.to_excel(
-                        writer, index=False, sheet_name="control_comprobantes"
-                    )
-                if not control_pa6_df.empty:
-                    control_pa6_df.to_excel(
-                        writer, index=False, sheet_name="control_pa6"
-                    )
+        #     # 4️⃣ Escribimos a un buffer Excel en memoria
+        #     buffer = BytesIO()
+        #     with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
+        #         if not control_anual_df.empty:
+        #             control_anual_df.to_excel(
+        #                 writer, index=False, sheet_name="control_ejecucion_anual"
+        #             )
+        #         if not control_comprobantes_df.empty:
+        #             control_comprobantes_df.to_excel(
+        #                 writer, index=False, sheet_name="control_comprobantes"
+        #             )
+        #         if not control_pa6_df.empty:
+        #             control_pa6_df.to_excel(
+        #                 writer, index=False, sheet_name="control_pa6"
+        #             )
 
-            buffer.seek(0)
+        #     buffer.seek(0)
 
-            # 5️⃣ Devolvemos StreamingResponse
-            file_name = "icaro_vs_siif.xlsx"
-            headers = {"Content-Disposition": f'attachment; filename="{file_name}"'}
-            return StreamingResponse(
-                buffer,
-                media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                headers=headers,
-            )
-        except Exception as e:
-            logger.error(
-                f"Error retrieving Icaro's Control de Ejecución Anual from database: {e}"
-            )
-            raise HTTPException(
-                status_code=500,
-                detail="Error retrieving Icaro's Control de Ejecución Anual from the database",
-            )
+        #     # 5️⃣ Devolvemos StreamingResponse
+        #     file_name = "icaro_vs_siif.xlsx"
+        #     headers = {"Content-Disposition": f'attachment; filename="{file_name}"'}
+        #     return StreamingResponse(
+        #         buffer,
+        #         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        #         headers=headers,
+        #     )
+        # except Exception as e:
+        #     logger.error(
+        #         f"Error retrieving Icaro's Control de Ejecución Anual from database: {e}"
+        #     )
+        #     raise HTTPException(
+        #         status_code=500,
+        #         detail="Error retrieving Icaro's Control de Ejecución Anual from the database",
+        #     )
+
+        return export_multiple_dataframes_to_excel(
+            df_sheet_pairs=await self._build_dataframes_to_export(params=params),
+            filename="icaro_vs_siif.xlsx",
+            spreadsheet_key="1KKeeoop_v_Nf21s7eFp4sS6SmpxRZQ9DPa1A5wVqnZ0",
+            upload_to_google_sheets=upload_to_google_sheets,
+        )
+
+    # -------------------------------------------------
+    async def export_all_from_db_to_google(
+        self,
+        params: ControlCompletoParams = None,
+    ) -> GoogleExportResponse:
+        return upload_multiple_dataframes_to_google_sheets(
+            df_sheet_pairs=await self._build_dataframes_to_export(params),
+            spreadsheet_key="1KKeeoop_v_Nf21s7eFp4sS6SmpxRZQ9DPa1A5wVqnZ0",
+            title="Control Icaro vs SIIF",
+        )
 
     # --------------------------------------------------
     async def get_siif_comprobantes(self, ejercicio: int = None) -> pd.DataFrame:
