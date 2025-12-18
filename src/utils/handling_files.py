@@ -12,6 +12,7 @@ __all__ = [
     "get_df_from_sql_table",
     "export_dataframe_as_excel_response",
     "export_multiple_dataframes_to_excel",
+    "upload_multiple_dataframes_to_google_sheets",
 ]
 
 
@@ -26,7 +27,10 @@ from fastapi.responses import StreamingResponse
 
 from ..config import logger
 from .google_sheets import GoogleSheets
-from .safe_get import sanitize_dataframe_for_json_with_datetime
+from .safe_get import (
+    sanitize_dataframe_for_json,
+    sanitize_dataframe_for_json_with_datetime,
+)
 
 
 # --------------------------------------------------
@@ -208,4 +212,45 @@ def export_multiple_dataframes_to_excel(
         raise HTTPException(
             status_code=500,
             detail="Error al exportar múltiples DataFrames",
+        )
+
+
+# --------------------------------------------------
+def upload_multiple_dataframes_to_google_sheets(
+    df_sheet_pairs: List[Tuple[pd.DataFrame, str]],
+    spreadsheet_key: str,
+) -> None:
+    """
+    Sube múltiples DataFrames a distintas hojas de un Google Sheets.
+
+    Args:
+        df_sheet_pairs: Lista de tuplas (DataFrame, nombre_de_hoja).
+        spreadsheet_key: Clave del Google Sheets destino.
+
+    Raises:
+        HTTPException: Si ocurre un error durante la carga.
+    """
+    try:
+        # 1️⃣ Sanitizar y preparar DataFrames
+        sanitized_pairs = []
+        for df, sheet_name in df_sheet_pairs:
+            if not df.empty:
+                df = sanitize_dataframe_for_json_with_datetime(df)
+                df = df.drop(columns=["_id"], errors="ignore")
+            sanitized_pairs.append((df, sheet_name))
+
+        # 2️⃣ Subir a Google Sheets
+        gs = GoogleSheets()
+        for df, sheet_name in sanitized_pairs:
+            gs.to_google_sheets(
+                df=df,
+                spreadsheet_key=spreadsheet_key,
+                wks_name=sheet_name,
+            )
+
+    except Exception as e:
+        logger.error(f"Error al subir DataFrames a Google Sheets: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="Error al subir DataFrames a Google Sheets",
         )
