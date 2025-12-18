@@ -239,6 +239,7 @@ def upload_multiple_dataframes_to_google_sheets(
     Raises:
         HTTPException: Si ocurre un error durante la carga.
     """
+    schema = GoogleExportResponse()
     try:
         # 1️⃣ Sanitizar y preparar DataFrames
         sanitized_pairs = []
@@ -257,11 +258,11 @@ def upload_multiple_dataframes_to_google_sheets(
                 wks_name=sheet_name,
             )
 
-        return {
-            "status": "success",
-            "sheets_uploaded": [name for _, name in df_sheet_pairs],
-            "rows": {name: len(df) for df, name in df_sheet_pairs},
-        }
+        schema.status = "success"
+        schema.sheets_uploaded = [name for _, name in df_sheet_pairs]
+        schema.rows = {name: len(df) for df, name in df_sheet_pairs}
+
+        return schema
 
     except Exception as e:
         logger.error(f"Error al subir DataFrames a Google Sheets: {e}")
