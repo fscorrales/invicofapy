@@ -219,9 +219,9 @@ def export_multiple_dataframes_to_excel(
 
 # --------------------------------------------------
 class GoogleExportResponse(BaseModel):
-    status: str
-    sheets_uploaded: list[str]
-    rows: dict[str, int]
+    status: str = None
+    sheets_uploaded: list[str] = []
+    rows: dict[str, int] = {}
 
 
 # --------------------------------------------------
