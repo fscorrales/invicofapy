@@ -404,13 +404,13 @@ class ControlCompletoService:
                     params=params
                 )
             )
-            return_schema.extend(partial_schema)
+            return_schema.append(partial_schema)
 
             # 🔹 Aporte Empresario - 3% INVICO
             partial_schema = await self.control_aporte_empresario_service.export_all_from_db_to_google(
                 params=params
             )
-            return_schema.extend(partial_schema)
+            return_schema.append(partial_schema)
 
         except Exception as e:
             logger.error(f"Error in export_all_from_db_to_google: {e}")
