@@ -46,9 +46,11 @@ from ...siif.handlers import (
 from ...siif.schemas import GrupoPartidaSIIF
 from ...sscc.services import BancoINVICOServiceDependency, CtasCtesServiceDependency
 from ...utils import (
+    GoogleExportResponse,
     RouteReturnSchema,
     export_multiple_dataframes_to_excel,
     sync_validated_to_repository,
+    upload_multiple_dataframes_to_google_sheets,
     validate_and_extract_data_from_df,
 )
 from ..handlers import (
@@ -229,16 +231,17 @@ class ControlViaticosService:
         finally:
             return return_schema
 
-    # -------------------------------------------------
-    async def export_all_from_db(
+    # --------------------------------------------------
+    async def _build_dataframes_to_export(
         self,
-        upload_to_google_sheets: bool = True,
-        params: ControlViaticosParams = None,
-    ) -> StreamingResponse:
+        params: ControlViaticosParams,
+    ) -> list[tuple[pd.DataFrame, str]]:
         ejercicios = list(range(params.ejercicio_desde, params.ejercicio_hasta + 1))
+
         control_rendicion_docs = await self.control_rendicion_repo.find_by_filter(
             {"ejercicio": {"$in": ejercicios}}
         )
+
         # control_siif_vs_sgf_docs = await self.control_siif_vs_sgf_repo.find_by_filter(
         #     {"ejercicio": {"$in": ejercicios}}
         # )
@@ -257,17 +260,36 @@ class ControlViaticosService:
             df = await self.generate_banco_viaticos(ejercicio=ejercicio)
             sscc = pd.concat([sscc, df], ignore_index=True)
 
+        return [
+            (pd.DataFrame(control_rendicion_docs), "control_rendicion_db"),
+            # (pd.DataFrame(control_sgf_vs_sscc_docs), "sgf_vs_sscc_db"),
+            (siif_fondos, "siif_fondos_db"),
+            (siif_gastos, "siif_gastos_db"),
+            (sscc, "sscc_db"),
+        ]
+
+    # -------------------------------------------------
+    async def export_all_from_db(
+        self,
+        upload_to_google_sheets: bool = True,
+        params: ControlViaticosParams = None,
+    ) -> StreamingResponse:
         return export_multiple_dataframes_to_excel(
-            df_sheet_pairs=[
-                (pd.DataFrame(control_rendicion_docs), "control_rendicion_db"),
-                # (pd.DataFrame(control_sgf_vs_sscc_docs), "sgf_vs_sscc_db"),
-                (siif_fondos, "siif_fondos_db"),
-                (siif_gastos, "siif_gastos_db"),
-                (sscc, "sscc_db"),
-            ],
+            df_sheet_pairs=await self._build_dataframes_to_export(params=params),
             filename="control_viaticos.xlsx",
             spreadsheet_key="1alo5UBd7YRIBhSXqfo_c5Lz8JBfU3CXrVC0XOmtiH8c",
             upload_to_google_sheets=upload_to_google_sheets,
+        )
+
+    # -------------------------------------------------
+    async def export_all_from_db_to_google(
+        self,
+        params: ControlViaticosParams = None,
+    ) -> GoogleExportResponse:
+        return upload_multiple_dataframes_to_google_sheets(
+            df_sheet_pairs=await self._build_dataframes_to_export(params),
+            spreadsheet_key="1alo5UBd7YRIBhSXqfo_c5Lz8JBfU3CXrVC0XOmtiH8c",
+            title="Control Viáticos",
         )
 
     # --------------------------------------------------
