@@ -636,7 +636,7 @@ class ControlBancoService:
             return return_schema
 
     # --------------------------------------------------
-    async def _build_control_banco_dataframes(
+    async def _build_dataframes_to_export(
         self,
         params: ControlBancoParams,
     ) -> list[tuple[pd.DataFrame, str]]:
@@ -674,7 +674,7 @@ class ControlBancoService:
         upload_to_google_sheets: bool = True,
         params: ControlBancoParams = None,
     ) -> StreamingResponse:
-        df_sheet_pairs = await self._build_control_banco_dataframes(params)
+        df_sheet_pairs = await self._build_dataframes_to_export(params)
 
         return export_multiple_dataframes_to_excel(
             df_sheet_pairs=df_sheet_pairs,
@@ -688,7 +688,7 @@ class ControlBancoService:
         self,
         params: ControlBancoParams = None,
     ) -> GoogleExportResponse:
-        df_sheet_pairs = await self._build_control_banco_dataframes(params)
+        df_sheet_pairs = await self._build_dataframes_to_export(params)
 
         return upload_multiple_dataframes_to_google_sheets(
             df_sheet_pairs=df_sheet_pairs,
