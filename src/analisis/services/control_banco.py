@@ -43,6 +43,7 @@ from ...utils import (
     RouteReturnSchema,
     export_multiple_dataframes_to_excel,
     sync_validated_to_repository,
+    upload_multiple_dataframes_to_google_sheets,
     validate_and_extract_data_from_df,
 )
 from ..handlers import (
@@ -633,13 +634,13 @@ class ControlBancoService:
         finally:
             return return_schema
 
-    # -------------------------------------------------
-    async def export_all_from_db(
+    # --------------------------------------------------
+    async def _build_control_banco_dataframes(
         self,
-        upload_to_google_sheets: bool = True,
-        params: ControlBancoParams = None,
-    ) -> StreamingResponse:
+        params: ControlBancoParams,
+    ) -> list[tuple[pd.DataFrame, str]]:
         ejercicios = list(range(params.ejercicio_desde, params.ejercicio_hasta + 1))
+
         control_banco_docs = await self.control_banco_repo.find_by_filter(
             filters={"ejercicio": {"$in": ejercicios}},
         )
@@ -649,22 +650,55 @@ class ControlBancoService:
 
         siif = pd.DataFrame()
         sscc = pd.DataFrame()
+
         for ejercicio in ejercicios:
-            df = await self.generate_banco_siif(ejercicio=ejercicio)
-            siif = pd.concat([siif, df], ignore_index=True)
-            df = await self.generate_banco_sscc(ejercicio=ejercicio)
-            sscc = pd.concat([sscc, df], ignore_index=True)
+            siif = pd.concat(
+                [siif, await self.generate_banco_siif(ejercicio=ejercicio)],
+                ignore_index=True,
+            )
+            sscc = pd.concat(
+                [sscc, await self.generate_banco_sscc(ejercicio=ejercicio)],
+                ignore_index=True,
+            )
+
+        return [
+            (pd.DataFrame(control_banco_docs), "siif_vs_sscc_db"),
+            (sscc, "sscc_db"),
+            (siif, "siif_db"),
+        ]
+
+    # -------------------------------------------------
+    async def export_all_from_db(
+        self,
+        upload_to_google_sheets: bool = True,
+        params: ControlBancoParams = None,
+    ) -> StreamingResponse:
+        df_sheet_pairs = await self._build_control_banco_dataframes(params)
 
         return export_multiple_dataframes_to_excel(
-            df_sheet_pairs=[
-                (pd.DataFrame(control_banco_docs), "siif_vs_sscc_db"),
-                (sscc, "sscc_db"),
-                (siif, "siif_db"),
-            ],
+            df_sheet_pairs=df_sheet_pairs,
             filename="control_banco.xlsx",
             spreadsheet_key="1CRQjzIVzHKqsZE8_E1t8aRQDfWfZALhbe64WcxHiSM4",
             upload_to_google_sheets=upload_to_google_sheets,
         )
+
+    # -------------------------------------------------
+    async def export_all_from_db_to_google(
+        self,
+        params: ControlBancoParams = None,
+    ) -> dict:
+        df_sheet_pairs = await self._build_control_banco_dataframes(params)
+
+        upload_multiple_dataframes_to_google_sheets(
+            df_sheet_pairs=df_sheet_pairs,
+            spreadsheet_key="1CRQjzIVzHKqsZE8_E1t8aRQDfWfZALhbe64WcxHiSM4",
+        )
+
+        return {
+            "status": "success",
+            "sheets_uploaded": [name for _, name in df_sheet_pairs],
+            "rows": {name: len(df) for df, name in df_sheet_pairs},
+        }
 
 
 ControlBancoServiceDependency = Annotated[ControlBancoService, Depends()]
