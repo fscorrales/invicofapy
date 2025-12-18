@@ -13,6 +13,7 @@ __all__ = [
     "export_dataframe_as_excel_response",
     "export_multiple_dataframes_to_excel",
     "upload_multiple_dataframes_to_google_sheets",
+    "GoogleExportResponse",
 ]
 
 
@@ -24,6 +25,7 @@ from typing import List, Optional, Tuple
 import pandas as pd
 from fastapi import HTTPException
 from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
 
 from ..config import logger
 from .google_sheets import GoogleSheets
@@ -216,10 +218,17 @@ def export_multiple_dataframes_to_excel(
 
 
 # --------------------------------------------------
+class GoogleExportResponse(BaseModel):
+    status: str
+    sheets_uploaded: list[str]
+    rows: dict[str, int]
+
+
+# --------------------------------------------------
 def upload_multiple_dataframes_to_google_sheets(
     df_sheet_pairs: List[Tuple[pd.DataFrame, str]],
     spreadsheet_key: str,
-) -> None:
+) -> GoogleExportResponse:
     """
     Sube múltiples DataFrames a distintas hojas de un Google Sheets.
 
@@ -247,6 +256,12 @@ def upload_multiple_dataframes_to_google_sheets(
                 spreadsheet_key=spreadsheet_key,
                 wks_name=sheet_name,
             )
+
+        return {
+            "status": "success",
+            "sheets_uploaded": [name for _, name in df_sheet_pairs],
+            "rows": {name: len(df) for df, name in df_sheet_pairs},
+        }
 
     except Exception as e:
         logger.error(f"Error al subir DataFrames a Google Sheets: {e}")
