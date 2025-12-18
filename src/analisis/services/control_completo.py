@@ -454,6 +454,14 @@ class ControlCompletoService:
             )
             return_schema.append(partial_schema)
 
+            # 🔹 Recursos
+            partial_schema = (
+                await self.control_recursos_service.export_all_from_db_to_google(
+                    params=params
+                )
+            )
+            return_schema.append(partial_schema)
+
         except Exception as e:
             logger.error(f"Error in export_all_from_db_to_google: {e}")
             raise HTTPException(

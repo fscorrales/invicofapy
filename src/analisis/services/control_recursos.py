@@ -34,10 +34,12 @@ from ...siif.repositories import Rci02RepositoryDependency
 from ...sscc.services import BancoINVICOServiceDependency, CtasCtesServiceDependency
 from ...utils import (
     BaseFilterParams,
+    GoogleExportResponse,
     RouteReturnSchema,
     export_dataframe_as_excel_response,
     export_multiple_dataframes_to_excel,
     sync_validated_to_repository,
+    upload_multiple_dataframes_to_google_sheets,
     validate_and_extract_data_from_df,
 )
 from ..handlers import get_banco_invico_unified_cta_cte, get_siif_rci02_unified_cta_cte
@@ -146,7 +148,9 @@ class ControlRecursosService:
             # 🔹 Control Recursos
             ejercicios = list(range(params.ejercicio_desde, params.ejercicio_hasta + 1))
             for ejercicio in ejercicios:
-                partial_schema = await self.compute_control_recursos(ejercicio=ejercicio)
+                partial_schema = await self.compute_control_recursos(
+                    ejercicio=ejercicio
+                )
                 return_schema.append(partial_schema)
 
         except ValidationError as e:
@@ -164,29 +168,59 @@ class ControlRecursosService:
         finally:
             return return_schema
 
-    # -------------------------------------------------
-    async def export_all_from_db(
-        self, upload_to_google_sheets: bool = True
-    ) -> StreamingResponse:
-        # ejecucion_obras.reporte_planillometro_contabilidad (planillometro_contabilidad)
+    # --------------------------------------------------
+    async def _build_dataframes_to_export(
+        self,
+        params: ControlRecursosParams,
+    ) -> list[tuple[pd.DataFrame, str]]:
+        ejercicios = list(range(params.ejercicio_desde, params.ejercicio_hasta + 1))
 
-        control_recursos_docs = await self.control_recursos_repo.get_all()
+        control_recursos_docs = await self.control_recursos_repo.find_by_filter(
+            {"ejercicio": {"$in": ejercicios}}
+        )
 
         if not control_recursos_docs:
             raise HTTPException(status_code=404, detail="No se encontraron registros")
 
+        siif = pd.DataFrame()
+        sscc = pd.DataFrame()
+        for ejercicio in ejercicios:
+            df = await self.generate_siif_comprobantes_recursos(ejercicio=ejercicio)
+            siif = pd.concat([siif, df], ignore_index=True)
+            df = await self.generate_banco_invico(ejercicio=ejercicio)
+            sscc = pd.concat([sscc, df], ignore_index=True)
+
+        return [
+            (pd.DataFrame(control_recursos_docs), "control_recursos"),
+            (siif, "siif_recursos"),
+            (sscc, "banco_ingresos"),
+        ]
+
+    # -------------------------------------------------
+    async def export_all_from_db(
+        self, upload_to_google_sheets: bool = True, params: ControlRecursosParams = None
+    ) -> StreamingResponse:
+        # control_recursos_docs = await self.control_recursos_repo.get_all()
+
+        # if not control_recursos_docs:
+        #     raise HTTPException(status_code=404, detail="No se encontraron registros")
+
         return export_multiple_dataframes_to_excel(
-            df_sheet_pairs=[
-                (pd.DataFrame(control_recursos_docs), "control_recursos"),
-                (
-                    await self.generate_siif_comprobantes_recursos(),
-                    "siif_recursos",
-                ),
-                (await self.generate_banco_invico(), "banco_ingresos"),
-            ],
+            df_sheet_pairs=await self._build_dataframes_to_export(params=params),
             filename="control_recursos.xlsx",
             spreadsheet_key="1u_I5wN3w_rGX6rWIsItXkmwfIEuSox6ZsmKYbMZ2iUY",
             upload_to_google_sheets=upload_to_google_sheets,
+        )
+
+    # -------------------------------------------------
+    async def export_all_from_db_to_google(
+        self,
+        params: ControlRecursosParams = None,
+    ) -> GoogleExportResponse:
+        return upload_multiple_dataframes_to_google_sheets(
+            df_sheet_pairs=await self._build_dataframes_to_export(params),
+            spreadsheet_key="1u_I5wN3w_rGX6rWIsItXkmwfIEuSox6ZsmKYbMZ2iUY",
+            title="Control Recursos",
         )
 
     # --------------------------------------------------
@@ -251,9 +285,7 @@ class ControlRecursosService:
         return df
 
     # --------------------------------------------------
-    async def compute_control_recursos(
-        self, ejercicio: int
-    ) -> RouteReturnSchema:
+    async def compute_control_recursos(self, ejercicio: int) -> RouteReturnSchema:
         return_schema = RouteReturnSchema()
         try:
             group_by = ["ejercicio", "mes", "cta_cte", "grupo"]

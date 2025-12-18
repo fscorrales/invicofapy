@@ -210,11 +210,11 @@ class ControlDebitosBancariosService:
             df = await self.generate_banco_debitos(ejercicio=ejercicio)
             sscc = pd.concat([sscc, df], ignore_index=True)
 
-            return [
-                (pd.DataFrame(control_debitos_bancarios_docs), "siif_vs_sscc_db"),
-                (siif, "siif_db"),
-                (sscc, "sscc_db"),
-            ]
+        return [
+            (pd.DataFrame(control_debitos_bancarios_docs), "siif_vs_sscc_db"),
+            (siif, "siif_db"),
+            (sscc, "sscc_db"),
+        ]
 
     # -------------------------------------------------
     async def export_all_from_db(

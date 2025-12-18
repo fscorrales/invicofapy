@@ -1,11 +1,10 @@
-import os
 from typing import Annotated, List
 
 from fastapi import APIRouter, Depends, Query
 
 from ...auth.services import OptionalAuthorizationDependency
 from ...config import settings
-from ...utils import RouteReturnSchema, get_sqlite_path
+from ...utils import RouteReturnSchema
 from ..schemas.control_recursos import ControlRecursosParams, ControlRecursosSyncParams
 from ..services import ControlRecursosServiceDependency
 
@@ -47,8 +46,9 @@ async def compute_all(
 )
 async def export_all_from_db(
     service: ControlRecursosServiceDependency,
+    params: Annotated[ControlRecursosParams, Depends()],
     upload_to_google_sheets: bool = Query(True, alias="uploadToGoogleSheets"),
 ):
     return await service.export_all_from_db(
-        upload_to_google_sheets=upload_to_google_sheets
+        upload_to_google_sheets=upload_to_google_sheets, params=params
     )
