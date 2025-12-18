@@ -34,9 +34,11 @@ from ...siif.handlers import (
 from ...sscc.repositories import CtasCtesRepository
 from ...sscc.services import CtasCtesServiceDependency
 from ...utils import (
+    GoogleExportResponse,
     RouteReturnSchema,
     export_multiple_dataframes_to_excel,
     sync_validated_to_repository,
+    upload_multiple_dataframes_to_google_sheets,
     validate_and_extract_data_from_df,
 )
 from ..handlers import (
@@ -165,15 +167,15 @@ class ControlAporteEmpresarioService:
         finally:
             return return_schema
 
-    # -------------------------------------------------
-    async def export_all_from_db(
-        self, upload_to_google_sheets: bool = True
-    ) -> StreamingResponse:
-        ejercicio_actual = datetime.now().year
-        ultimos_ejercicios = list(range(ejercicio_actual - 2, ejercicio_actual + 1))
+    # --------------------------------------------------
+    async def _build_dataframes_to_export(
+        self,
+        params: ControlAporteEmpresarioParams,
+    ) -> list[tuple[pd.DataFrame, str]]:
+        ejercicios = list(range(params.ejercicio_desde, params.ejercicio_hasta + 1))
         control_aporte_empresario_docs = (
             await self.control_aporte_empresario_repo.find_by_filter(
-                {"ejercicio": {"$in": ultimos_ejercicios}}
+                {"ejercicio": {"$in": ejercicios}}
             )
         )
 
@@ -182,14 +184,14 @@ class ControlAporteEmpresarioService:
 
         siif_recurso = pd.DataFrame()
         siif_retencion = pd.DataFrame()
-        for ejercicio in ultimos_ejercicios:
+        for ejercicio in ejercicios:
             df = await self.generate_siif_recursos(ejercicio=ejercicio)
             siif_recurso = pd.concat([siif_recurso, df], ignore_index=True)
             df = await self.generate_siif_retenciones(ejercicio=ejercicio)
             siif_retencion = pd.concat([siif_retencion, df], ignore_index=True)
 
-        return export_multiple_dataframes_to_excel(
-            df_sheet_pairs=[
+        return (
+            [
                 (
                     pd.DataFrame(control_aporte_empresario_docs),
                     "recursos_vs_retenciones_db",
@@ -197,9 +199,29 @@ class ControlAporteEmpresarioService:
                 (siif_recurso, "recursos_db"),
                 (siif_retencion, "retenciones_db"),
             ],
+        )
+
+    # -------------------------------------------------
+    async def export_all_from_db(
+        self,
+        upload_to_google_sheets: bool = True,
+        params: ControlAporteEmpresarioParams = None,
+    ) -> StreamingResponse:
+        return export_multiple_dataframes_to_excel(
+            df_sheet_pairs=await self._build_dataframes_to_export(params),
             filename="control_aporte_empresario.xlsx",
             spreadsheet_key="1bZnvl9YkHC-N1HbIbnFNrqU3Iq03PG81u7fdHe_v_pw",
             upload_to_google_sheets=upload_to_google_sheets,
+        )
+
+    # -------------------------------------------------
+    async def export_all_from_db_to_google(
+        self,
+        params: ControlAporteEmpresarioParams = None,
+    ) -> GoogleExportResponse:
+        return upload_multiple_dataframes_to_google_sheets(
+            df_sheet_pairs=await self._build_dataframes_to_export(params),
+            spreadsheet_key="1bZnvl9YkHC-N1HbIbnFNrqU3Iq03PG81u7fdHe_v_pw",
         )
 
     # --------------------------------------------------
@@ -280,7 +302,9 @@ class ControlAporteEmpresarioService:
             "cta_contable": "1112-2-6",
         }
         siif_banco = await get_siif_rcocc31(ejercicio=ejercicio, filters=filters)
-        siif_banco = siif_banco.loc[:, ["ejercicio", "nro_entrada", "auxiliar_1"],
+        siif_banco = siif_banco.loc[
+            :,
+            ["ejercicio", "nro_entrada", "auxiliar_1"],
         ]
         # print(f"siif_banco.shape: {siif_banco.shape} - siif_banco.head: {siif_banco.head()}")
         siif_banco = siif_banco.rename(columns={"auxiliar_1": "cta_cte"})
@@ -397,7 +421,9 @@ class ControlAporteEmpresarioService:
                 #     f"siif_retenciones.shape: {siif_retenciones.shape} - siif_retenciones.head: {siif_retenciones.head()}"
                 # )
                 siif_retenciones = siif_retenciones.set_index(groupby_cols)
-                df = siif_recursos.merge(siif_retenciones, how="outer", left_index=True, right_index=True)
+                df = siif_recursos.merge(
+                    siif_retenciones, how="outer", left_index=True, right_index=True
+                )
                 df = df.reset_index()
                 df = df.fillna(0)
                 # print(f"df.shape: {df.shape} - df.head: {df.head()}")
