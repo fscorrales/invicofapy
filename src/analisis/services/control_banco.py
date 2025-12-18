@@ -40,6 +40,7 @@ from ...siif.schemas import GrupoPartidaSIIF
 from ...sscc.repositories import CtasCtesRepository
 from ...sscc.services import BancoINVICOServiceDependency, CtasCtesServiceDependency
 from ...utils import (
+    GoogleExportResponse,
     RouteReturnSchema,
     export_multiple_dataframes_to_excel,
     sync_validated_to_repository,
@@ -686,19 +687,13 @@ class ControlBancoService:
     async def export_all_from_db_to_google(
         self,
         params: ControlBancoParams = None,
-    ) -> dict:
+    ) -> GoogleExportResponse:
         df_sheet_pairs = await self._build_control_banco_dataframes(params)
 
-        upload_multiple_dataframes_to_google_sheets(
+        return upload_multiple_dataframes_to_google_sheets(
             df_sheet_pairs=df_sheet_pairs,
             spreadsheet_key="1CRQjzIVzHKqsZE8_E1t8aRQDfWfZALhbe64WcxHiSM4",
         )
-
-        return {
-            "status": "success",
-            "sheets_uploaded": [name for _, name in df_sheet_pairs],
-            "rows": {name: len(df) for df, name in df_sheet_pairs},
-        }
 
 
 ControlBancoServiceDependency = Annotated[ControlBancoService, Depends()]
