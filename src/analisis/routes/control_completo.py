@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, Query
 
 from ...auth.services import OptionalAuthorizationDependency
 from ...config import settings
-from ...utils import RouteReturnSchema
+from ...utils import GoogleExportResponse, RouteReturnSchema
 from ..schemas.control_completo import (
     ControlCompletoParams,
     ControlCompletoSyncParams,
@@ -49,6 +49,7 @@ async def compute_all(
 @control_completo_router.get(
     "/export",
     summary="Exporta todos los controles a Google Sheets",
+    response_model=List[GoogleExportResponse],
 )
 async def export_all_from_db(
     service: ControlCompletoServiceDependency,

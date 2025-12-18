@@ -57,8 +57,8 @@ from ...siif.schemas import GrupoPartidaSIIF
 from ...slave.handlers import SlaveMongoMigrator
 from ...sscc.services import BancoINVICOServiceDependency, CtasCtesServiceDependency
 from ...utils import (
+    GoogleExportResponse,
     RouteReturnSchema,
-    export_multiple_dataframes_to_excel,
     get_r_icaro_path,
 )
 from ..handlers import (
@@ -387,7 +387,7 @@ class ControlCompletoService:
     async def export_all_from_db_to_google(
         self,
         params: ControlCompletoParams = None,
-    ) -> dict:
+    ) -> List[GoogleExportResponse]:
         """Exports all control dataframes to Google Sheets.
 
         Args:
@@ -396,16 +396,30 @@ class ControlCompletoService:
         Returns:
             dict: Summary of the export operation.
         """
+        return_schema = []
         try:
-            return await self.control_banco_service.export_all_from_db_to_google(
+            # 🔹 Control Banco
+            partial_schema = (
+                await self.control_banco_service.export_all_from_db_to_google(
+                    params=params
+                )
+            )
+            return_schema.extend(partial_schema)
+
+            # 🔹 Aporte Empresario - 3% INVICO
+            partial_schema = await self.control_aporte_empresario_service.export_all_from_db_to_google(
                 params=params
             )
+            return_schema.extend(partial_schema)
+
         except Exception as e:
             logger.error(f"Error in export_all_from_db_to_google: {e}")
             raise HTTPException(
                 status_code=500,
                 detail="Error in export_all_from_db_to_google",
             )
+        finally:
+            return return_schema
 
 
 ControlCompletoServiceDependency = Annotated[ControlCompletoService, Depends()]
