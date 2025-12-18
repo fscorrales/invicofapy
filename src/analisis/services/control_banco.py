@@ -693,6 +693,7 @@ class ControlBancoService:
         return upload_multiple_dataframes_to_google_sheets(
             df_sheet_pairs=df_sheet_pairs,
             spreadsheet_key="1CRQjzIVzHKqsZE8_E1t8aRQDfWfZALhbe64WcxHiSM4",
+            title="Control Banco",
         )
 
 
