@@ -223,7 +223,7 @@ class ControlDebitosBancariosService:
         params: ControlDebitosBancariosParams = None,
     ) -> StreamingResponse:
         return export_multiple_dataframes_to_excel(
-            df_sheet_pairs=self._build_dataframes_to_export(params=params),
+            df_sheet_pairs=await self._build_dataframes_to_export(params=params),
             filename="control_debitos_bancarios.xlsx",
             spreadsheet_key="1i9vQ-fw_MkuHRE_YKa_diaVDu5RsiBE1UPTNAsmxLS4",
             upload_to_google_sheets=upload_to_google_sheets,
