@@ -440,6 +440,20 @@ class ControlCompletoService:
             )
             return_schema.append(partial_schema)
 
+            # 🔹 Icaro vs SIIF
+            # partial_schema = await self.control_icaro_vs_siif_service.export_all_from_db_to_google(
+            #     params=params
+            # )
+            # return_schema.append(partial_schema)
+
+            # 🔹 Obras
+            partial_schema = (
+                await self.control_obras_service.export_all_from_db_to_google(
+                    params=params
+                )
+            )
+            return_schema.append(partial_schema)
+
         except Exception as e:
             logger.error(f"Error in export_all_from_db_to_google: {e}")
             raise HTTPException(

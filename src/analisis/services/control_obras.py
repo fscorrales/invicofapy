@@ -42,17 +42,19 @@ from ...siif.repositories import Rdeu012RepositoryDependency
 from ...sscc.services import BancoINVICOServiceDependency, CtasCtesServiceDependency
 from ...utils import (
     BaseFilterParams,
+    GoogleExportResponse,
     RouteReturnSchema,
     export_dataframe_as_excel_response,
     export_multiple_dataframes_to_excel,
     get_r_icaro_path,
     sync_validated_to_repository,
+    upload_multiple_dataframes_to_google_sheets,
     validate_and_extract_data_from_df,
 )
 from ..handlers import (
     get_banco_invico_cert_neg,
-    get_resumen_rend_prov_with_desc,
     get_icaro_carga_unified_cta_cte,
+    get_resumen_rend_prov_with_desc,
     get_siif_rdeu012_unified_cta_cte,
 )
 from ..repositories.control_obras import ControlObrasRepositoryDependency
@@ -209,15 +211,14 @@ class ControlObrasService:
         finally:
             return return_schema
 
-    # -------------------------------------------------
-    async def export_all_from_db(
-        self, upload_to_google_sheets: bool = True
-    ) -> StreamingResponse:
-        
-        ejercicio_actual = datetime.now().year
-        ultimos_ejercicios = list(range(ejercicio_actual-2, ejercicio_actual+1))
+    # --------------------------------------------------
+    async def _build_dataframes_to_export(
+        self,
+        params: ControlObrasParams,
+    ) -> list[tuple[pd.DataFrame, str]]:
+        ejercicios = list(range(params.ejercicio_desde, params.ejercicio_hasta + 1))
         control_obras_docs = await self.control_obras_repo.find_by_filter(
-            {"ejercicio": {"$in": ultimos_ejercicios}}
+            {"ejercicio": {"$in": ejercicios}}
         )
 
         if not control_obras_docs:
@@ -225,21 +226,38 @@ class ControlObrasService:
 
         icaro = pd.DataFrame()
         resumen_rend_cuit = pd.DataFrame()
-        for ejercicio in ultimos_ejercicios:
+        for ejercicio in ejercicios:
             df = await self.generate_icaro_carga_neto_rdeu(ejercicio=ejercicio)
             icaro = pd.concat([icaro, df], ignore_index=True)
             df = await self.generate_resumen_rend_cuit(ejercicio=ejercicio)
             resumen_rend_cuit = pd.concat([resumen_rend_cuit, df], ignore_index=True)
 
+        return [
+            (pd.DataFrame(control_obras_docs), "control_mes_cta_cte_cuit_db"),
+            (icaro, "icaro_carga_neto_rdeu"),
+            (resumen_rend_cuit, "resumen_rend_cuit"),
+        ]
+
+    # -------------------------------------------------
+    async def export_all_from_db(
+        self, upload_to_google_sheets: bool = True, params: ControlObrasParams = None
+    ) -> StreamingResponse:
         return export_multiple_dataframes_to_excel(
-            df_sheet_pairs=[
-                (pd.DataFrame(control_obras_docs), "control_mes_cta_cte_cuit_db"),
-                (icaro, "icaro_carga_neto_rdeu"),
-                (resumen_rend_cuit, "resumen_rend_cuit"),
-            ],
+            df_sheet_pairs=await self._build_dataframes_to_export(params=params),
             filename="control_obras.xlsx",
             spreadsheet_key="16v2ovmQnS1v73-WxTOK6b9Tx9DRugGc70ufpjVi-rPA",
             upload_to_google_sheets=upload_to_google_sheets,
+        )
+
+    # -------------------------------------------------
+    async def export_all_from_db_to_google(
+        self,
+        params: ControlObrasParams = None,
+    ) -> GoogleExportResponse:
+        return upload_multiple_dataframes_to_google_sheets(
+            df_sheet_pairs=await self._build_dataframes_to_export(params),
+            spreadsheet_key="16v2ovmQnS1v73-WxTOK6b9Tx9DRugGc70ufpjVi-rPA",
+            title="Control Obras",
         )
 
     # # --------------------------------------------------
@@ -282,7 +300,7 @@ class ControlObrasService:
         df_epam = df_epam.loc[~df_epam.destino.str.contains("|".join(keep))]
         df = df.loc[df["origen"] != Origen.epam.value]
         df = pd.DataFrame(pd.concat([df, df_epam], ignore_index=True))
-        
+
         return df
 
     # --------------------------------------------------
