@@ -15,7 +15,6 @@ Google Sheet:
 __all__ = ["ControlDebitosBancariosService", "ControlDebitosBancariosServiceDependency"]
 
 from dataclasses import dataclass, field
-from datetime import datetime
 from typing import Annotated, List
 
 import numpy as np
@@ -39,9 +38,11 @@ from ...siif.repositories import (
 from ...siif.schemas import GrupoPartidaSIIF
 from ...sscc.services import BancoINVICOServiceDependency, CtasCtesServiceDependency
 from ...utils import (
+    GoogleExportResponse,
     RouteReturnSchema,
     export_multiple_dataframes_to_excel,
     sync_validated_to_repository,
+    upload_multiple_dataframes_to_google_sheets,
     validate_and_extract_data_from_df,
 )
 from ..handlers import (
@@ -185,15 +186,16 @@ class ControlDebitosBancariosService:
         finally:
             return return_schema
 
-    # -------------------------------------------------
-    async def export_all_from_db(
-        self, upload_to_google_sheets: bool = True
-    ) -> StreamingResponse:
-        ejercicio_actual = datetime.now().year
-        ultimos_ejercicios = list(range(ejercicio_actual - 2, ejercicio_actual + 1))
+    # --------------------------------------------------
+    async def _build_dataframes_to_export(
+        self,
+        params: ControlDebitosBancariosParams,
+    ) -> list[tuple[pd.DataFrame, str]]:
+        ejercicios = list(range(params.ejercicio_desde, params.ejercicio_hasta + 1))
+
         control_debitos_bancarios_docs = (
             await self.control_debitos_bancarios_repo.find_by_filter(
-                {"ejercicio": {"$in": ultimos_ejercicios}}
+                {"ejercicio": {"$in": ejercicios}}
             )
         )
 
@@ -202,21 +204,40 @@ class ControlDebitosBancariosService:
 
         siif = pd.DataFrame()
         sscc = pd.DataFrame()
-        for ejercicio in ultimos_ejercicios:
+        for ejercicio in ejercicios:
             df = await self.generate_siif_debitos_bancarios(ejercicio=ejercicio)
             siif = pd.concat([siif, df], ignore_index=True)
             df = await self.generate_banco_debitos(ejercicio=ejercicio)
             sscc = pd.concat([sscc, df], ignore_index=True)
 
-        return export_multiple_dataframes_to_excel(
-            df_sheet_pairs=[
+            return [
                 (pd.DataFrame(control_debitos_bancarios_docs), "siif_vs_sscc_db"),
                 (siif, "siif_db"),
                 (sscc, "sscc_db"),
-            ],
+            ]
+
+    # -------------------------------------------------
+    async def export_all_from_db(
+        self,
+        upload_to_google_sheets: bool = True,
+        params: ControlDebitosBancariosParams = None,
+    ) -> StreamingResponse:
+        return export_multiple_dataframes_to_excel(
+            df_sheet_pairs=self._build_dataframes_to_export(params=params),
             filename="control_debitos_bancarios.xlsx",
             spreadsheet_key="1i9vQ-fw_MkuHRE_YKa_diaVDu5RsiBE1UPTNAsmxLS4",
             upload_to_google_sheets=upload_to_google_sheets,
+        )
+
+    # -------------------------------------------------
+    async def export_all_from_db_to_google(
+        self,
+        params: ControlDebitosBancariosParams = None,
+    ) -> GoogleExportResponse:
+        return upload_multiple_dataframes_to_google_sheets(
+            df_sheet_pairs=await self._build_dataframes_to_export(params),
+            spreadsheet_key="1i9vQ-fw_MkuHRE_YKa_diaVDu5RsiBE1UPTNAsmxLS4",
+            title="Control Debitos Bancarios",
         )
 
     # --------------------------------------------------

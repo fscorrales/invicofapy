@@ -51,8 +51,9 @@ async def compute_all(
 )
 async def export_all_from_db(
     service: ControlDebitosBancariosServiceDependency,
+    params: Annotated[ControlDebitosBancariosParams, Depends()],
     upload_to_google_sheets: bool = Query(True, alias="uploadToGoogleSheets"),
 ):
     return await service.export_all_from_db(
-        upload_to_google_sheets=upload_to_google_sheets
+        upload_to_google_sheets=upload_to_google_sheets, params=params
     )
