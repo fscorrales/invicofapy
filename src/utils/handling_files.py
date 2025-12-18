@@ -219,7 +219,7 @@ def export_multiple_dataframes_to_excel(
 
 # --------------------------------------------------
 class GoogleExportResponse(BaseModel):
-    status: str = None
+    title: str = None
     sheets_uploaded: list[str] = []
     rows: dict[str, int] = {}
 
@@ -228,6 +228,7 @@ class GoogleExportResponse(BaseModel):
 def upload_multiple_dataframes_to_google_sheets(
     df_sheet_pairs: List[Tuple[pd.DataFrame, str]],
     spreadsheet_key: str,
+    title: str = "success",
 ) -> GoogleExportResponse:
     """
     Sube múltiples DataFrames a distintas hojas de un Google Sheets.
@@ -258,7 +259,7 @@ def upload_multiple_dataframes_to_google_sheets(
                 wks_name=sheet_name,
             )
 
-        schema.status = "success"
+        schema.title = title
         schema.sheets_uploaded = [name for _, name in df_sheet_pairs]
         schema.rows = {name: len(df) for df, name in df_sheet_pairs}
 
