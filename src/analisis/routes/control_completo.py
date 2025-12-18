@@ -48,14 +48,10 @@ async def compute_all(
 # -------------------------------------------------
 @control_completo_router.get(
     "/export",
-    summary="Descarga todos los reportes como archivo .xlsx y exporta a Google Sheets",
-    response_description="Archivo Excel con los registros solicitados",
+    summary="Exporta todos los controles a Google Sheets",
 )
 async def export_all_from_db(
     service: ControlCompletoServiceDependency,
     params: Annotated[ControlCompletoParams, Depends()],
-    upload_to_google_sheets: bool = Query(True, alias="uploadToGoogleSheets"),
 ):
-    return await service.export_all_from_db(
-        upload_to_google_sheets=upload_to_google_sheets, params=params
-    )
+    return await service.export_all_from_db_to_google(params=params)

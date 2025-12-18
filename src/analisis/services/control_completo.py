@@ -384,37 +384,28 @@ class ControlCompletoService:
             return return_schema
 
     # -------------------------------------------------
-    async def export_all_from_db(
+    async def export_all_from_db_to_google(
         self,
-        upload_to_google_sheets: bool = True,
         params: ControlCompletoParams = None,
-    ) -> StreamingResponse:
-        ejercicios = list(range(params.ejercicio_desde, params.ejercicio_hasta + 1))
-        control_banco_docs = await self.control_banco_repo.find_by_filter(
-            filters={"ejercicio": {"$in": ejercicios}},
-        )
+    ) -> dict:
+        """Exports all control dataframes to Google Sheets.
 
-        if not control_banco_docs:
-            raise HTTPException(status_code=404, detail="No se encontraron registros")
+        Args:
+            params (ControlCompletoParams, optional): Parameters for filtering data. Defaults to None.
 
-        siif = pd.DataFrame()
-        sscc = pd.DataFrame()
-        for ejercicio in ejercicios:
-            df = await self.generate_banco_siif(ejercicio=ejercicio)
-            siif = pd.concat([siif, df], ignore_index=True)
-            df = await self.generate_banco_sscc(ejercicio=ejercicio)
-            sscc = pd.concat([sscc, df], ignore_index=True)
-
-        return export_multiple_dataframes_to_excel(
-            df_sheet_pairs=[
-                (pd.DataFrame(control_banco_docs), "siif_vs_sscc_db"),
-                (sscc, "sscc_db"),
-                (siif, "siif_db"),
-            ],
-            filename="control_banco.xlsx",
-            spreadsheet_key="1CRQjzIVzHKqsZE8_E1t8aRQDfWfZALhbe64WcxHiSM4",
-            upload_to_google_sheets=upload_to_google_sheets,
-        )
+        Returns:
+            dict: Summary of the export operation.
+        """
+        try:
+            return await self.control_banco_service.export_all_from_db_to_google(
+                params=params
+            )
+        except Exception as e:
+            logger.error(f"Error in export_all_from_db_to_google: {e}")
+            raise HTTPException(
+                status_code=500,
+                detail="Error in export_all_from_db_to_google",
+            )
 
 
 ControlCompletoServiceDependency = Annotated[ControlCompletoService, Depends()]
