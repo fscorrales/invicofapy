@@ -17,7 +17,6 @@ Google Sheet:
 __all__ = ["ControlHonorariosService", "ControlHonorariosServiceDependency"]
 
 from dataclasses import dataclass, field
-from datetime import datetime
 from typing import Annotated, List
 
 import numpy as np
@@ -43,9 +42,11 @@ from ...siif.schemas import GrupoPartidaSIIF
 from ...slave.handlers import SlaveMongoMigrator
 from ...sscc.services import BancoINVICOServiceDependency, CtasCtesServiceDependency
 from ...utils import (
+    GoogleExportResponse,
     RouteReturnSchema,
     export_multiple_dataframes_to_excel,
     sync_validated_to_repository,
+    upload_multiple_dataframes_to_google_sheets,
     validate_and_extract_data_from_df,
 )
 from ..handlers import (
@@ -213,19 +214,19 @@ class ControlHonorariosService:
         finally:
             return return_schema
 
-    # -------------------------------------------------
-    async def export_all_from_db(
-        self, upload_to_google_sheets: bool = True
-    ) -> StreamingResponse:
-        ejercicio_actual = datetime.now().year
-        ultimos_ejercicios = list(range(ejercicio_actual - 2, ejercicio_actual + 1))
+    # --------------------------------------------------
+    async def _build_dataframes_to_export(
+        self,
+        params: ControlHonorariosParams,
+    ) -> list[tuple[pd.DataFrame, str]]:
+        ejercicios = list(range(params.ejercicio_desde, params.ejercicio_hasta + 1))
         control_siif_vs_slave_docs = (
             await self.control_siif_vs_slave_repo.find_by_filter(
-                {"ejercicio": {"$in": ultimos_ejercicios}}
+                {"ejercicio": {"$in": ejercicios}}
             )
         )
         control_sgf_vs_slave_docs = await self.control_sgf_vs_slave_repo.find_by_filter(
-            {"ejercicio": {"$in": ultimos_ejercicios}}
+            {"ejercicio": {"$in": ejercicios}}
         )
 
         if not control_siif_vs_slave_docs and not control_sgf_vs_slave_docs:
@@ -234,7 +235,7 @@ class ControlHonorariosService:
         siif = pd.DataFrame()
         slave = pd.DataFrame()
         sgf = pd.DataFrame()
-        for ejercicio in ultimos_ejercicios:
+        for ejercicio in ejercicios:
             df = await get_siif_comprobantes_honorarios(ejercicio=ejercicio)
             siif = pd.concat([siif, df], ignore_index=True)
             df = await self.generate_slave_honorarios(
@@ -246,17 +247,36 @@ class ControlHonorariosService:
             )
             sgf = pd.concat([sgf, df], ignore_index=True)
 
+        return [
+            (pd.DataFrame(control_siif_vs_slave_docs), "siif_vs_slave_db"),
+            (pd.DataFrame(control_sgf_vs_slave_docs), "sgf_vs_slave_db"),
+            (siif, "siif_db"),
+            (slave, "slave_db"),
+            (sgf, "sgf_db"),
+        ]
+
+    # -------------------------------------------------
+    async def export_all_from_db(
+        self,
+        upload_to_google_sheets: bool = True,
+        params: ControlHonorariosParams = None,
+    ) -> StreamingResponse:
         return export_multiple_dataframes_to_excel(
-            df_sheet_pairs=[
-                (pd.DataFrame(control_siif_vs_slave_docs), "siif_vs_slave_db"),
-                (pd.DataFrame(control_sgf_vs_slave_docs), "sgf_vs_slave_db"),
-                (siif, "siif_db"),
-                (slave, "slave_db"),
-                (sgf, "sgf_db"),
-            ],
+            df_sheet_pairs=await self._build_dataframes_to_export(params=params),
             filename="control_honorarios.xlsx",
             spreadsheet_key="1fQhp1CdESnvqzrp3QMV5bFSHmGdi7SNoaBRWtmw-JgA",
             upload_to_google_sheets=upload_to_google_sheets,
+        )
+
+    # -------------------------------------------------
+    async def export_all_from_db_to_google(
+        self,
+        params: ControlHonorariosParams = None,
+    ) -> GoogleExportResponse:
+        return upload_multiple_dataframes_to_google_sheets(
+            df_sheet_pairs=await self._build_dataframes_to_export(params),
+            spreadsheet_key="1fQhp1CdESnvqzrp3QMV5bFSHmGdi7SNoaBRWtmw-JgA",
+            title="Control Honorarios",
         )
 
     # --------------------------------------------------
