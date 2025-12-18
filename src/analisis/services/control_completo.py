@@ -29,10 +29,8 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Annotated, List
 
-import pandas as pd
 from dateutil.relativedelta import relativedelta
 from fastapi import Depends, HTTPException
-from fastapi.responses import StreamingResponse
 from playwright.async_api import async_playwright
 from pydantic import ValidationError
 
@@ -415,6 +413,14 @@ class ControlCompletoService:
             # 🔹 Debitos Bancarios
             partial_schema = await self.control_debitos_bancarios_service.export_all_from_db_to_google(
                 params=params
+            )
+            return_schema.append(partial_schema)
+
+            # 🔹 Escribanos
+            partial_schema = (
+                await self.control_escribanos_service.export_all_from_db_to_google(
+                    params=params
+                )
             )
             return_schema.append(partial_schema)
 

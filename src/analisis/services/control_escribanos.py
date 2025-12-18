@@ -15,7 +15,6 @@ Google Sheet:
 __all__ = ["ControlEscribanosService", "ControlEscribanosServiceDependency"]
 
 from dataclasses import dataclass, field
-from datetime import datetime
 from typing import Annotated, List
 
 import numpy as np
@@ -37,9 +36,11 @@ from ...siif.repositories import (
 )
 from ...sscc.services import BancoINVICOServiceDependency, CtasCtesServiceDependency
 from ...utils import (
+    GoogleExportResponse,
     RouteReturnSchema,
     export_multiple_dataframes_to_excel,
     sync_validated_to_repository,
+    upload_multiple_dataframes_to_google_sheets,
     validate_and_extract_data_from_df,
 )
 from ..handlers import (
@@ -193,17 +194,17 @@ class ControlEscribanosService:
         finally:
             return return_schema
 
-    # -------------------------------------------------
-    async def export_all_from_db(
-        self, upload_to_google_sheets: bool = True
-    ) -> StreamingResponse:
-        ejercicio_actual = datetime.now().year
-        ultimos_ejercicios = list(range(ejercicio_actual - 2, ejercicio_actual + 1))
+    # --------------------------------------------------
+    async def _build_dataframes_to_export(
+        self,
+        params: ControlEscribanosParams,
+    ) -> list[tuple[pd.DataFrame, str]]:
+        ejercicios = list(range(params.ejercicio_desde, params.ejercicio_hasta + 1))
         control_siif_vs_sgf_docs = await self.control_siif_vs_sgf_repo.find_by_filter(
-            {"ejercicio": {"$in": ultimos_ejercicios}}
+            {"ejercicio": {"$in": ejercicios}}
         )
         control_sgf_vs_sscc_docs = await self.control_sgf_vs_sscc_repo.find_by_filter(
-            {"ejercicio": {"$in": ultimos_ejercicios}}
+            {"ejercicio": {"$in": ejercicios}}
         )
 
         if not control_siif_vs_sgf_docs and not control_sgf_vs_sscc_docs:
@@ -212,7 +213,7 @@ class ControlEscribanosService:
         siif = pd.DataFrame()
         sscc = pd.DataFrame()
         sgf = pd.DataFrame()
-        for ejercicio in ultimos_ejercicios:
+        for ejercicio in ejercicios:
             df = await self.generate_siif_escribanos(ejercicio=ejercicio)
             siif = pd.concat([siif, df], ignore_index=True)
             df = await self.generate_banco_escribanos(ejercicio=ejercicio)
@@ -220,17 +221,37 @@ class ControlEscribanosService:
             df = await self.generate_sgf_escribanos(ejercicio=ejercicio)
             sgf = pd.concat([sgf, df], ignore_index=True)
 
+        return [
+            (pd.DataFrame(control_siif_vs_sgf_docs), "siif_vs_sgf_db"),
+            (pd.DataFrame(control_sgf_vs_sscc_docs), "sgf_vs_sscc_db"),
+            (siif, "siif_db"),
+            (sscc, "sscc_db"),
+            (sgf, "sgf_db"),
+        ]
+
+    # -------------------------------------------------
+    async def export_all_from_db(
+        self,
+        upload_to_google_sheets: bool = True,
+        params: ControlEscribanosParams = None,
+    ) -> StreamingResponse:
         return export_multiple_dataframes_to_excel(
-            df_sheet_pairs=[
-                (pd.DataFrame(control_siif_vs_sgf_docs), "siif_vs_sgf_db"),
-                (pd.DataFrame(control_sgf_vs_sscc_docs), "sgf_vs_sscc_db"),
-                (siif, "siif_db"),
-                (sscc, "sscc_db"),
-                (sgf, "sgf_db"),
-            ],
+            df_sheet_pairs=await self._build_dataframes_to_export(params=params),
             filename="control_escribanos.xlsx",
             spreadsheet_key="1Tz3uvUGBL8ZDSFsYRBP8hgIis-hlhs_sQ6V5bI4LaTg",
             upload_to_google_sheets=upload_to_google_sheets,
+        )
+
+        # -------------------------------------------------
+
+    async def export_all_from_db_to_google(
+        self,
+        params: ControlEscribanosParams = None,
+    ) -> GoogleExportResponse:
+        return upload_multiple_dataframes_to_google_sheets(
+            df_sheet_pairs=await self._build_dataframes_to_export(params),
+            spreadsheet_key="1Tz3uvUGBL8ZDSFsYRBP8hgIis-hlhs_sQ6V5bI4LaTg",
+            title="Control Escribanos",
         )
 
     # --------------------------------------------------
