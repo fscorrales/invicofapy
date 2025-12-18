@@ -190,16 +190,14 @@ class ControlAporteEmpresarioService:
             df = await self.generate_siif_retenciones(ejercicio=ejercicio)
             siif_retencion = pd.concat([siif_retencion, df], ignore_index=True)
 
-        return (
-            [
-                (
-                    pd.DataFrame(control_aporte_empresario_docs),
-                    "recursos_vs_retenciones_db",
-                ),
-                (siif_recurso, "recursos_db"),
-                (siif_retencion, "retenciones_db"),
-            ],
-        )
+        return [
+            (
+                pd.DataFrame(control_aporte_empresario_docs),
+                "recursos_vs_retenciones_db",
+            ),
+            (siif_recurso, "recursos_db"),
+            (siif_retencion, "retenciones_db"),
+        ]
 
     # -------------------------------------------------
     async def export_all_from_db(
