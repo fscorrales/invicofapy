@@ -50,15 +50,12 @@ from ...utils import (
     get_r_icaro_path,
 )
 from ..handlers import (
-    get_icaro_carga,
-    get_icaro_estructuras_desc,
-    get_icaro_proveedores,
+    get_full_icaro_carga_desc,
     get_planillometro_hist,
     get_siif_desc_pres,
     get_siif_rf602,
     get_siif_rfp_p605b,
     get_siif_ri102,
-    generate_icaro_carga_desc,
 )
 from ..schemas.reporte_formulacion_presupuesto import (
     ReporteFormulacionPresupuestoParams,
@@ -169,7 +166,6 @@ class ReporteFormulacionPresupuestoService:
         upload_to_google_sheets: bool = True,
         params: ReporteFormulacionPresupuestoParams = None,
     ) -> StreamingResponse:
-
         ejercicio_actual = dt.datetime.now().year
         ultimos_ejercicios = list(range(ejercicio_actual - 2, ejercicio_actual + 2))
         return export_multiple_dataframes_to_excel(
@@ -188,7 +184,9 @@ class ReporteFormulacionPresupuestoService:
                 ),
                 (
                     await self.generate_planillometro_contabilidad(
-                        ejercicio=params.ejercicio, ultimos_ejercicios=5, include_pa6=True
+                        ejercicio=params.ejercicio,
+                        ultimos_ejercicios=5,
+                        include_pa6=True,
                     ),
                     "planillometro_contabilidad",
                 ),
@@ -262,7 +260,7 @@ class ReporteFormulacionPresupuestoService:
         date_up_to: dt.date = None,
         include_pa6: bool = False,
     ):
-        df = await generate_icaro_carga_desc(
+        df = await get_full_icaro_carga_desc(
             ejercicio=ejercicio, es_desc_siif=es_desc_siif
         )
         df.sort_values(["actividad", "partida", "fuente"], inplace=True)
@@ -281,9 +279,11 @@ class ReporteFormulacionPresupuestoService:
         # Incluimos PA6 (ultimo ejercicio)
         if include_pa6:
             df = df.loc[df.ejercicio.astype(int) < int(ejercicio)]
-            df_last = await generate_icaro_carga_desc(
-                ejercicio=ejercicio, es_desc_siif=es_desc_siif, 
-                es_ejercicio_to=False,  es_neto_pa6=False
+            df_last = await get_full_icaro_carga_desc(
+                ejercicio=ejercicio,
+                es_desc_siif=es_desc_siif,
+                es_ejercicio_to=False,
+                es_neto_pa6=False,
             )
             df = pd.concat([df, df_last], axis=0)
 
@@ -439,18 +439,19 @@ class ReporteFormulacionPresupuestoService:
 
         return df
 
-   # -------------------------------------------------
+    # -------------------------------------------------
     async def export_planillometro_contabilidad(
         self,
         upload_to_google_sheets: bool = True,
         params: ReporteFormulacionPresupuestoParams = None,
     ) -> StreamingResponse:
-
         return export_multiple_dataframes_to_excel(
             df_sheet_pairs=[
                 (
                     await self.generate_planillometro_contabilidad(
-                        ejercicio=params.ejercicio, ultimos_ejercicios=5, include_pa6=True
+                        ejercicio=params.ejercicio,
+                        ultimos_ejercicios=5,
+                        include_pa6=True,
                     ),
                     "planillometro_contabilidad",
                 ),

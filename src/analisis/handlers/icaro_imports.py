@@ -4,7 +4,7 @@ __all__ = [
     "get_icaro_proveedores",
     "get_icaro_estructuras_desc",
     "get_icaro_carga_unified_cta_cte",
-    "generate_icaro_carga_desc",
+    "get_full_icaro_carga_desc",
 ]
 
 import pandas as pd
@@ -19,6 +19,7 @@ from ...icaro.repositories import (
 )
 from ...sscc.repositories import CtasCtesRepository
 from .siif_imports import get_siif_desc_pres
+
 
 # --------------------------------------------------
 async def get_icaro_carga_unified_cta_cte(
@@ -37,11 +38,14 @@ async def get_icaro_carga_unified_cta_cte(
         # logger.info(f"df.shape: {df.shape} - df.head: {df.head()}")
         ctas_ctes = pd.DataFrame(await CtasCtesRepository().get_all())
         map_to = ctas_ctes.loc[:, ["map_to", "icaro_cta_cte"]]
-        df = pd.merge(df, map_to, how="left", left_on="cta_cte", right_on="icaro_cta_cte")
+        df = pd.merge(
+            df, map_to, how="left", left_on="cta_cte", right_on="icaro_cta_cte"
+        )
         df["cta_cte"] = df["map_to"]
         df.drop(["map_to", "icaro_cta_cte"], axis="columns", inplace=True)
         # logger.info(f"df.shape: {df.shape} - df.head: {df.head()}")
     return df
+
 
 # --------------------------------------------------
 async def get_icaro_carga(ejercicio: int = None, filters: dict = {}) -> pd.DataFrame:
@@ -154,8 +158,9 @@ async def get_icaro_estructuras_desc() -> pd.DataFrame:
             detail="Error retrieving Icaro's Estructuras Data from the database",
         )
 
+
 # --------------------------------------------------
-async def generate_icaro_carga_desc(
+async def get_full_icaro_carga_desc(
     ejercicio: int = None,
     es_desc_siif: bool = True,
     es_ejercicio_to: bool = True,
