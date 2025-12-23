@@ -5,8 +5,12 @@ __all__ = [
     "get_icaro_estructuras_desc",
     "get_icaro_carga_unified_cta_cte",
     "get_full_icaro_carga_desc",
+    "get_icaro_planillometro_contabilidad",
 ]
 
+import datetime as dt
+
+import numpy as np
 import pandas as pd
 from fastapi import HTTPException
 
@@ -18,7 +22,7 @@ from ...icaro.repositories import (
     ProveedoresRepository,
 )
 from ...sscc.repositories import CtasCtesRepository
-from .siif_imports import get_siif_desc_pres
+from .siif_imports import get_planillometro_hist, get_siif_desc_pres
 
 
 # --------------------------------------------------
@@ -203,4 +207,187 @@ async def get_full_icaro_carga_desc(
     prov.drop_duplicates(subset=["cuit"], inplace=True)
     prov.rename(columns={"desc_proveedor": "proveedor"}, inplace=True)
     df = df.merge(prov, how="left", on="cuit", copy=False)
+    return df
+
+
+# --------------------------------------------------
+async def get_icaro_planillometro_contabilidad(
+    ejercicio: int = None,
+    es_desc_siif: bool = True,
+    incluir_desc_subprog: bool = True,
+    ultimos_ejercicios: str = "All",
+    desagregar_partida: bool = True,
+    agregar_acum_2008: bool = True,
+    date_up_to: dt.date = None,
+    include_pa6: bool = False,
+):
+    df = await get_full_icaro_carga_desc(ejercicio=ejercicio, es_desc_siif=es_desc_siif)
+    df.sort_values(["actividad", "partida", "fuente"], inplace=True)
+
+    # Grupos de columnas
+    group_cols = ["desc_programa"]
+    if incluir_desc_subprog:
+        group_cols = group_cols + ["desc_subprograma"]
+    group_cols = group_cols + ["desc_proyecto", "desc_actividad", "actividad"]
+    if desagregar_partida:
+        group_cols = group_cols + ["partida"]
+
+    # Eliminamos aquellos ejercicios anteriores a 2009
+    df = df.loc[df.ejercicio.astype(int) >= 2009]
+
+    # Incluimos PA6 (ultimo ejercicio)
+    if include_pa6:
+        df = df.loc[df.ejercicio.astype(int) < int(ejercicio)]
+        df_last = await get_full_icaro_carga_desc(
+            ejercicio=ejercicio,
+            es_desc_siif=es_desc_siif,
+            es_ejercicio_to=False,
+            es_neto_pa6=False,
+        )
+        df = pd.concat([df, df_last], axis=0)
+
+    # Filtramos hasta una fecha máxima
+    if date_up_to:
+        date_up_to = np.datetime64(date_up_to)
+        df = df.loc[df["fecha"] <= date_up_to]
+
+    # Agregamos ejecución acumulada de Patricia
+    if agregar_acum_2008:
+        df_acum_2008 = await get_planillometro_hist()
+        df_acum_2008["ejercicio"] = 2008
+        df_acum_2008["avance"] = 1
+        df_acum_2008["desc_obra"] = df_acum_2008["desc_actividad"]
+        df_acum_2008 = df_acum_2008.rename(columns={"acum_2008": "importe"})
+        df["estructura"] = df["actividad"] + "-" + df["partida"]
+        df_dif = df_acum_2008.loc[
+            df_acum_2008["estructura"].isin(df["estructura"].unique().tolist())
+        ]
+        df_dif = df_dif.drop(
+            columns=[
+                "desc_programa",
+                "desc_subprograma",
+                "desc_proyecto",
+                "desc_actividad",
+            ]
+        )
+        if incluir_desc_subprog:
+            columns_to_merge = [
+                "estructura",
+                "desc_programa",
+                "desc_subprograma",
+                "desc_proyecto",
+                "desc_actividad",
+            ]
+        else:
+            columns_to_merge = [
+                "estructura",
+                "desc_programa",
+                "desc_proyecto",
+                "desc_actividad",
+            ]
+        df_dif = pd.merge(
+            df_dif,
+            df.loc[:, columns_to_merge].drop_duplicates(),
+            on=["estructura"],
+            how="left",
+        )
+        df = df.drop(columns=["estructura"])
+        df_acum_2008 = df_acum_2008.loc[
+            ~df_acum_2008["estructura"].isin(df_dif["estructura"].unique().tolist())
+        ]
+        df_acum_2008 = pd.concat([df_acum_2008, df_dif])
+        df = pd.concat([df, df_acum_2008])
+
+    # Ejercicio alta
+    df_alta = df.groupby(group_cols).ejercicio.min().reset_index()
+    df_alta.rename(columns={"ejercicio": "alta"}, inplace=True)
+
+    df_ejercicios = df.copy()
+    if ultimos_ejercicios != "All":
+        ejercicios = int(ultimos_ejercicios)
+        ejercicios = df_ejercicios.sort_values(
+            "ejercicio", ascending=False
+        ).ejercicio.unique()[0:ejercicios]
+        # df_anos = df_anos.loc[df_anos.ejercicio.isin(ejercicios)]
+    else:
+        ejercicios = df_ejercicios.sort_values(
+            "ejercicio", ascending=False
+        ).ejercicio.unique()
+
+    # Ejercicio actual
+    df_ejec_actual = df.copy()
+    df_ejec_actual = df_ejec_actual.loc[df_ejec_actual.ejercicio.isin(ejercicios)]
+    df_ejec_actual = (
+        df_ejec_actual.groupby(group_cols + ["ejercicio"]).importe.sum().reset_index()
+    )
+    df_ejec_actual.rename(columns={"importe": "ejecucion"}, inplace=True)
+
+    # Ejecucion Acumulada
+    df_acum = pd.DataFrame()
+    for ejercicio in ejercicios:
+        df_ejercicio = df.copy()
+        df_ejercicio = df_ejercicio.loc[
+            df_ejercicio.ejercicio.astype(int) <= int(ejercicio)
+        ]
+        df_ejercicio["ejercicio"] = ejercicio
+        df_ejercicio = (
+            df_ejercicio.groupby(group_cols + ["ejercicio"]).importe.sum().reset_index()
+        )
+        df_ejercicio.rename(columns={"importe": "acum"}, inplace=True)
+        df_acum = pd.concat([df_acum, df_ejercicio])
+
+    # Obras en curso
+    df_curso = pd.DataFrame()
+    for ejercicio in ejercicios:
+        df_ejercicio = df.copy()
+        df_ejercicio = df_ejercicio.loc[
+            df_ejercicio.ejercicio.astype(int) <= int(ejercicio)
+        ]
+        df_ejercicio["ejercicio"] = ejercicio
+        obras_curso = df_ejercicio.groupby(["desc_obra"]).avance.max().to_frame()
+        obras_curso = obras_curso.loc[obras_curso.avance < 1].reset_index().desc_obra
+        df_ejercicio = (
+            df_ejercicio.loc[df_ejercicio.desc_obra.isin(obras_curso)]
+            .groupby(group_cols + ["ejercicio"])
+            .importe.sum()
+            .reset_index()
+        )
+        df_ejercicio.rename(columns={"importe": "en_curso"}, inplace=True)
+        df_curso = pd.concat([df_curso, df_ejercicio])
+
+    # Obras terminadas anterior
+    df_term_ant = pd.DataFrame()
+    for ejercicio in ejercicios:
+        df_ejercicio = df.copy()
+        df_ejercicio = df_ejercicio.loc[
+            df_ejercicio.ejercicio.astype(int) < int(ejercicio)
+        ]
+        df_ejercicio["ejercicio"] = ejercicio
+        obras_term_ant = df_ejercicio.groupby(["desc_obra"]).avance.max().to_frame()
+        obras_term_ant = (
+            obras_term_ant.loc[obras_term_ant.avance == 1].reset_index().desc_obra
+        )
+        df_ejercicio = (
+            df_ejercicio.loc[df_ejercicio.desc_obra.isin(obras_term_ant)]
+            .groupby(group_cols + ["ejercicio"])
+            .importe.sum()
+            .reset_index()
+        )
+        df_ejercicio.rename(columns={"importe": "terminadas_ant"}, inplace=True)
+        df_term_ant = pd.concat([df_term_ant, df_ejercicio])
+
+    df = pd.merge(df_alta, df_acum, on=group_cols, how="left")
+    df = pd.merge(df, df_ejec_actual, on=group_cols + ["ejercicio"], how="left")
+    cols = df.columns.tolist()
+    penultima_col = cols.pop(-2)  # Elimina la penúltima columna y la guarda
+    cols.append(penultima_col)  # Agrega la penúltima columna al final
+    df = df[cols]  # Reordena las columnas
+    df = pd.merge(df, df_curso, on=group_cols + ["ejercicio"], how="left")
+    df = pd.merge(df, df_term_ant, on=group_cols + ["ejercicio"], how="left")
+    df = df.fillna(0)
+    df["terminadas_actual"] = df.acum - df.en_curso - df.terminadas_ant
+    df["actividad"] = df["actividad"] + "-" + df["partida"]
+    df = df.rename(columns={"actividad": "estructura"})
+    df = df.drop(columns=["partida"])
+
     return df
