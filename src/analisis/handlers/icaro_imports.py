@@ -4,6 +4,7 @@ __all__ = [
     "get_icaro_proveedores",
     "get_icaro_estructuras_desc",
     "get_icaro_carga_unified_cta_cte",
+    "generate_icaro_carga_desc",
 ]
 
 import pandas as pd
@@ -17,6 +18,7 @@ from ...icaro.repositories import (
     ProveedoresRepository,
 )
 from ...sscc.repositories import CtasCtesRepository
+from .siif_imports import get_siif_desc_pres
 
 # --------------------------------------------------
 async def get_icaro_carga_unified_cta_cte(
@@ -151,3 +153,49 @@ async def get_icaro_estructuras_desc() -> pd.DataFrame:
             status_code=500,
             detail="Error retrieving Icaro's Estructuras Data from the database",
         )
+
+# --------------------------------------------------
+async def generate_icaro_carga_desc(
+    ejercicio: int = None,
+    es_desc_siif: bool = True,
+    es_ejercicio_to: bool = True,
+    es_neto_pa6: bool = True,
+):
+    filters = {}
+    filters["partida"] = {"$in": ["421", "422"]}
+
+    if es_ejercicio_to:
+        filters["ejercicio"] = {"$lte": ejercicio}
+    else:
+        filters["ejercicio"] = ejercicio
+
+    if es_neto_pa6:
+        filters["tipo"] = {"$ne": "PA6"}
+    else:
+        filters["tipo"] = {"$ne": "REG"}
+
+    df = await get_icaro_carga(filters=filters)
+
+    if es_desc_siif:
+        df["estructura"] = df["actividad"] + "-" + df["partida"]
+        df = df.merge(
+            await get_siif_desc_pres(ejercicio_to=ejercicio),
+            how="left",
+            on="estructura",
+            copy=False,
+        )
+        df.drop(labels=["estructura"], axis="columns", inplace=True)
+    else:
+        df = df.merge(
+            await get_icaro_estructuras_desc(),
+            how="left",
+            on="actividad",
+            copy=False,
+        )
+    df.reset_index(drop=True, inplace=True)
+    prov = await get_icaro_proveedores()
+    prov = prov.loc[:, ["cuit", "desc_proveedor"]]
+    prov.drop_duplicates(subset=["cuit"], inplace=True)
+    prov.rename(columns={"desc_proveedor": "proveedor"}, inplace=True)
+    df = df.merge(prov, how="left", on="cuit", copy=False)
+    return df
