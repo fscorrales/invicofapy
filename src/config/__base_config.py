@@ -18,6 +18,8 @@ class BaseAppSettings(BaseSettings):
     SGF_PASSWORD: str | None = None
     SSCC_USERNAME: str | None = None
     SSCC_PASSWORD: str | None = None
+    SGV_USERNAME: str | None = None
+    SGV_PASSWORD: str | None = None
     ADMIN_EMAIL: str | None = None
     ADMIN_PASSWORD: str | None = None
     DB_URI: str = "mongodb://127.0.0.1:27017/invico"
@@ -54,38 +56,3 @@ settings = BaseAppSettings()
 logger = logging.getLogger("uvicorn")
 logger.setLevel(logging.DEBUG if settings.debug else logging.INFO)
 logging.getLogger("passlib").setLevel(logging.ERROR)
-
-# __all__ = [
-#     "SIIF_USERNAME",
-#     "SIIF_PASSWORD",
-#     "MONGODB_URI",
-#     "MONGO_DB_NAME",
-#     "logger",
-# ]
-
-# import logging
-# import os
-# from pathlib import Path
-
-# from dotenv import load_dotenv
-
-# # Load environment variables
-# env_path = Path(__file__).resolve().parent.parent / ".env"
-# load_dotenv(env_path)
-
-# # Set environment variables
-# SIIF_USERNAME = os.getenv("SIIF_USERNAME", None)
-# SIIF_PASSWORD = os.getenv("SIIF_PASSWORD", None)
-# MONGODB_URI = os.getenv("MONGODB_URI", "mongodb://127.0.0.1:27017/INVICO")
-# MONGO_DB_NAME = os.getenv("MONGO_DB_NAME", "invico")
-
-# logger = logging.getLogger("uvicorn")
-# logger.setLevel(logging.DEBUG)
-
-# # Fixing a "bycript issue"
-# logging.getLogger("passlib").setLevel(logging.ERROR)
-
-# __all__ = [
-#     "settings",
-#     "logger",
-# ]
