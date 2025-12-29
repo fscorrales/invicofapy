@@ -9,7 +9,7 @@ from typing import Optional
 
 from pydantic import Field, field_validator, model_validator
 
-from ...utils import CamelModel, get_sscc_cta_cte_path
+from ...utils import CamelModel, get_siif_planillometro_hist_path
 
 
 # --------------------------------------------------
@@ -36,7 +36,7 @@ class ReportePlanillometroParams(CamelModel):
 class ReportePlanillometroSyncParams(ReportePlanillometroParams):
     siif_username: Optional[str] = None
     siif_password: Optional[str] = None
-    ctas_ctes_excel_path: Optional[str] = Field(
-        default=os.path.join(get_sscc_cta_cte_path(), "cta_cte.xlsx"),
-        description="Ruta al archivo Ctas Ctes EXCEL",
+    planillometro_hist_excel_path: Optional[str] = Field(
+        default=os.path.join(get_siif_planillometro_hist_path(), "planillometro_hist.xlsx"),
+        description="Ruta al archivo Planillometro Histórico EXCEL",
     )

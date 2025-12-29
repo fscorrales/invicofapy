@@ -61,8 +61,6 @@ class ReportePlanillometroService:
     # -------------------------------------------------
     async def sync_planillometro_from_source(
         self,
-        username: str,
-        password: str,
         params: ReportePlanillometroSyncParams = None,
     ) -> List[RouteReturnSchema]:
         """Downloads a report from SIIF, processes it, validates the data,
@@ -200,7 +198,7 @@ class ReportePlanillometroService:
             ejercicio=ejercicios[-1],
             ultimos_ejercicios=5,
             include_pa6=False,
-            es_desc_siif=False,
+            incluir_desc_subprog = False,
         )
 
         return [
