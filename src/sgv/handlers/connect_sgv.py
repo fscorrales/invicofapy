@@ -175,8 +175,18 @@ async def read_xls_file(file_path: Path) -> pd.DataFrame:
 
 # --------------------------------------------------
 async def logout(connect: ConnectSGV) -> None:
-    await connect.home_page.locator("id=pt1:pt_np1:pt_cni1").click()
-    await connect.home_page.wait_for_load_state("networkidle")
+    try:
+        await connect.home_page.locator("//*[@id='ctl00_UcPanelArribaUsuarioActual1_lblUsuario']").click()
+        await connect.home_page.wait_for_load_state("networkidle")
+        await connect.home_page.locator("//*[@id='ctl00_UcPanelArribaUsuarioActual1_linkCerrar']").click()
+        await connect.home_page.wait_for_load_state("networkidle")
+        await connect.home_page.evaluate("window.location.reload()")
+        await connect.context.close()
+        await connect.browser.close()
+    except Exception as e:
+        print(f"Ocurrio un error: {e}")
+    # await connect.home_page.locator("id=pt1:pt_np1:pt_cni1").click()
+    # await connect.home_page.wait_for_load_state("networkidle")
 
 
 # --------------------------------------------------
@@ -316,7 +326,7 @@ async def main():
             args.username, args.password, playwright=p, headless=False
         )
         # await go_to_reports(connect=connect_sgv)
-        # await logout(connect=connect_sgv)
+        await logout(connect=connect_sgv)
 
 
 # --------------------------------------------------
