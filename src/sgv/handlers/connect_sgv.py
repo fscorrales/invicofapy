@@ -107,11 +107,10 @@ async def login(
         await page.goto("https://gv.invico.gov.ar/login.aspx")
         "Login with credentials"
         input_username, input_password, btn_connect = await page.locator(
-            "table//input"
+            "table input"
         ).all()
         await input_username.fill(username)
         await input_password.fill(password)
-        # btn_connect = page.locator("id=pt1:cb1")
         await btn_connect.click()
         await page.wait_for_load_state("networkidle")
     except Exception as e:
