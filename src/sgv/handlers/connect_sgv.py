@@ -109,8 +109,8 @@ async def login(
         input_username, input_password, btn_connect = await page.locator(
             "table//input"
         ).all()
-        await input_username.locator("id=pt1:it1::content").fill(username)
-        await input_password.locator("id=pt1:it2::content").fill(password)
+        await input_username.fill(username)
+        await input_password.fill(password)
         # btn_connect = page.locator("id=pt1:cb1")
         await btn_connect.click()
         await page.wait_for_load_state("networkidle")
@@ -324,4 +324,4 @@ async def main():
 if __name__ == "__main__":
     asyncio.run(main())
     # From /invicofapy
-    # python -m src.sgv.handlers.sgv_connect
+    # poetry run python -m src.sgv.handlers.connect_sgv
