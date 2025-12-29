@@ -47,6 +47,7 @@ COLLECTIONS = [
     "slave_honorarios",
     "sscc_banco_invico",
     "sscc_ctas_ctes",
+    "sgv_saldos_barrios_evolucion", 
     "control_recursos",
     "control_aporte_empresario",
     "control_obras",
