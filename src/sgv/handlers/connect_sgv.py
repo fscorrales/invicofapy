@@ -124,6 +124,7 @@ async def login(
 # --------------------------------------------------
 async def go_to_report(connect: ConnectSGV, report: ReportCategory) -> None:
     try:
+        print(f"Navigating to report: {report}")
         # New Tab generated
         report_page = "https://gv.invico.gov.ar/App/Recupero/Informes/" + report.value
         connect.reports_page = await connect.context.new_page()
