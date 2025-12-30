@@ -12,8 +12,8 @@ __all__ = [
     "ConnectSGV",
     "login",
     "logout",
-    "go_to_reports",
-    "SIIFReportManager",
+    "go_to_report",
+    "SGVReportManager",
 ]
 
 import argparse
@@ -82,7 +82,7 @@ class ConnectSGV:
 
 # --------------------------------------------------
 class ReportCategory(str, Enum):
-    Gastos = "SUB - SISTEMA DE CONTROL DE GASTOS"
+    SaldosBarriosEvolucion = "InformeEvolucionDeSaldosPorBarrio.aspx"
     Recursos = "SUB - SISTEMA DE CONTROL de RECURSOS"
     Contabilidad = "SUB - SISTEMA DE CONTABILIDAD PATRIMONIAL"
     Formulacion = "SUB - SISTEMA DE FORMULACION PRESUPUESTARIA"
@@ -122,19 +122,13 @@ async def login(
 
 
 # --------------------------------------------------
-async def go_to_reports(connect: ConnectSGV) -> None:
+async def go_to_report(connect: ConnectSGV, report: ReportCategory) -> None:
     try:
-        btn_reports = connect.home_page.locator("id=pt1:cb12")
-        await btn_reports.wait_for()
-        await btn_reports.click()
-        await connect.home_page.wait_for_load_state("networkidle")
         # New Tab generated
-        async with connect.context.expect_page() as new_page_info:
-            btn_ver_reportes = connect.home_page.locator("id=pt1:cb14")
-            await btn_ver_reportes.wait_for()
-            await btn_ver_reportes.click()  # Opens a new tab
-        connect.reports_page = await new_page_info.value
-        all_pages = connect.context.pages
+        report_page = "https://gv.invico.gov.ar/App/Recupero/Informes/" + report.value
+        connect.reports_page = await connect.context.new_page()
+        await connect.reports_page.goto(report_page)
+        await connect.reports_page.wait_for_load_state("networkidle")
     except Exception as e:
         print(f"Ocurrio un error: {e}")
         await logout(connect)
@@ -176,9 +170,13 @@ async def read_xls_file(file_path: Path) -> pd.DataFrame:
 # --------------------------------------------------
 async def logout(connect: ConnectSGV) -> None:
     try:
-        await connect.home_page.locator("//*[@id='ctl00_UcPanelArribaUsuarioActual1_lblUsuario']").click()
+        await connect.home_page.locator(
+            "//*[@id='ctl00_UcPanelArribaUsuarioActual1_lblUsuario']"
+        ).click()
         await connect.home_page.wait_for_load_state("networkidle")
-        await connect.home_page.locator("//*[@id='ctl00_UcPanelArribaUsuarioActual1_linkCerrar']").click()
+        await connect.home_page.locator(
+            "//*[@id='ctl00_UcPanelArribaUsuarioActual1_linkCerrar']"
+        ).click()
         await connect.home_page.wait_for_load_state("networkidle")
         await connect.home_page.evaluate("window.location.reload()")
         await connect.context.close()
@@ -191,8 +189,8 @@ async def logout(connect: ConnectSGV) -> None:
 
 # --------------------------------------------------
 @dataclass
-class SIIFReportManager(ABC):
-    siif: ConnectSGV = None
+class SGVReportManager(ABC):
+    sgv: ConnectSGV = None
     download: Download = None
     df: pd.DataFrame = None
     clean_df: pd.DataFrame = None
@@ -201,17 +199,17 @@ class SIIFReportManager(ABC):
     async def login(
         self, username: str, password: str, playwright: Playwright, headless: bool
     ) -> ConnectSGV:
-        self.siif = await login(
+        self.sgv = await login(
             username=username,
             password=password,
             playwright=playwright,
             headless=headless,
         )
-        return self.siif
+        return self.sgv
 
     # --------------------------------------------------
-    async def go_to_reports(self) -> None:
-        await go_to_reports(connect=self.siif)
+    async def go_to_report(self, report: ReportCategory) -> None:
+        await go_to_report(connect=self.sgv, report=report)
 
     # --------------------------------------------------
     @abstractmethod
@@ -229,7 +227,7 @@ class SIIFReportManager(ABC):
 
     # --------------------------------------------------
     async def go_back_to_reports_list(self) -> None:
-        await go_back_to_reports_list(connect=self.siif)
+        await go_back_to_reports_list(connect=self.sgv)
 
     # --------------------------------------------------
     @abstractmethod
@@ -281,14 +279,14 @@ class SIIFReportManager(ABC):
     # --------------------------------------------------
     async def select_report_module(self, module: ReportCategory) -> None:
         try:
-            await self.siif.reports_page.click(
+            await self.sgv.reports_page.click(
                 "xpath=//select[@id='pt1:socModulo::content']"
             )
-            cmb_modulo = self.siif.reports_page.locator(
+            cmb_modulo = self.sgv.reports_page.locator(
                 "xpath=//select[@id='pt1:socModulo::content']"
             )
             await cmb_modulo.select_option(value=module.value)
-            await self.siif.reports_page.wait_for_load_state("networkidle")
+            await self.sgv.reports_page.wait_for_load_state("networkidle")
 
         except Exception as e:
             print(f"Error al seleccionar el módulo de reportes: {e}")
@@ -296,23 +294,23 @@ class SIIFReportManager(ABC):
     # --------------------------------------------------
     async def select_specific_report_by_id(self, report_id: str) -> None:
         try:
-            input_filter = self.siif.reports_page.locator(
+            input_filter = self.sgv.reports_page.locator(
                 "input[id='_afrFilterpt1_afr_pc1_afr_tableReportes_afr_c1::content']"
             )
             await input_filter.clear()
             await input_filter.fill(report_id)
             await input_filter.press("Enter")
-            btn_siguiente = self.siif.reports_page.locator(
+            btn_siguiente = self.sgv.reports_page.locator(
                 "div[id='pt1:pc1:btnSiguiente']"
             )
-            await self.siif.reports_page.wait_for_load_state("networkidle")
+            await self.sgv.reports_page.wait_for_load_state("networkidle")
             await btn_siguiente.click()
         except Exception as e:
             print(f"Error al seleccionar el módulo de reportes: {e}")
 
     # --------------------------------------------------
     async def logout(self) -> None:
-        await logout(connect=self.siif)
+        await logout(connect=self.sgv)
 
 
 # --------------------------------------------------

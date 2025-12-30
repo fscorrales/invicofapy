@@ -28,7 +28,7 @@ from ..repositories import SaldosBarriosEvolucionRepository
 from ..schemas import SaldosBarriosEvolucionReport
 from .connect_sgv import (
     ReportCategory,
-    SIIFReportManager,
+    SGVReportManager,
     login,
 )
 
@@ -105,7 +105,7 @@ def get_args():
 
 
 # --------------------------------------------------
-class SaldosBarriosEvolucion(SIIFReportManager):
+class SaldosBarriosEvolucion(SGVReportManager):
     # --------------------------------------------------
     async def download_and_process_report(
         self, ejercicio: int = dt.datetime.now().year, mes: int = 12
@@ -177,8 +177,9 @@ class SaldosBarriosEvolucion(SIIFReportManager):
 
     # --------------------------------------------------
     async def go_to_specific_report(self) -> None:
-        await self.select_report_module(module=ReportCategory.Gastos)
-        await self.select_specific_report_by_id(report_id="38")
+        await self.go_to_report(report=ReportCategory.SaldosBarriosEvolucion)
+        # await self.select_report_module(module=ReportCategory.Gastos)
+        # await self.select_specific_report_by_id(report_id="38")
 
     # --------------------------------------------------
     async def download_report(
@@ -187,34 +188,38 @@ class SaldosBarriosEvolucion(SIIFReportManager):
         try:
             self.download = None
             # Getting DOM elements
-            input_ejercicio = self.siif.reports_page.locator(
-                "//input[@id='pt1:txtAnioEjercicio::content']"
-            )
-            btn_get_reporte = self.siif.reports_page.locator(
-                "//div[@id='pt1:btnVerReporte']"
-            )
-            btn_xls = self.siif.reports_page.locator(
-                "//input[@id='pt1:rbtnXLS::content']"
-            )
-            await btn_xls.click()
+            (
+                input_ejercicio,
+                input_mes,
+            ) = await self.sgv.reports_page.locator(
+                "//table[@class='tablaFiltros']//input"
+            ).all()
+            # input_ejercicio = self.sgv.reports_page.locator(
+            #     "//input[@id='ctl00_ContentPlacePrincipal_ucInformeEvolucionDeSaldosPorBarrio_txtAño_TextBox1']"
+            # )
+            # btn_get_reporte = self.sgv.reports_page.locator(
+            #     "//div[@id='pt1:btnVerReporte']"
+            # )
 
             await input_ejercicio.clear()
             await input_ejercicio.fill(str(ejercicio))
+            await input_mes.clear()
+            await input_mes.fill(str(mes))
 
-            async with self.siif.context.expect_page() as popup_info:
-                async with self.siif.reports_page.expect_download() as download_info:
-                    await btn_get_reporte.click()  # Se abre el popup aquí
+            # async with self.sgv.context.expect_page() as popup_info:
+            #     async with self.sgv.reports_page.expect_download() as download_info:
+            #         await btn_get_reporte.click()  # Se abre el popup aquí
 
-            popup_page = await popup_info.value  # Obtener la ventana emergente
-            self.download = await download_info.value  # Obtener el archivo descargado
+            # popup_page = await popup_info.value  # Obtener la ventana emergente
+            # self.download = await download_info.value  # Obtener el archivo descargado
 
-            # Cerrar la ventana emergente (si realmente se abrió)
-            if popup_page:
-                await popup_page.close()
+            # # Cerrar la ventana emergente (si realmente se abrió)
+            # if popup_page:
+            #     await popup_page.close()
 
-            await self.go_back_to_reports_list()
+            # await self.go_back_to_reports_list()
 
-            return self.download
+            # return self.download
 
         except Exception as e:
             print(f"Error al descargar el reporte: {e}")
@@ -337,20 +342,19 @@ async def main():
         )
         try:
             sgv = SaldosBarriosEvolucion(siif=connect_siif)
-            await sgv.go_to_reports()
             await sgv.go_to_specific_report()
             for ejercicio in args.ejercicios:
                 if args.download:
                     await sgv.download_report(ejercicio=str(ejercicio))
-                    await sgv.save_xls_file(
-                        save_path=save_path,
-                        file_name=str(ejercicio)
-                        + "-InformeEvolucionDeSaldosPorBarrio.xls",
-                    )
-                await sgv.read_xls_file(args.file)
-                print(sgv.df)
-                await sgv.process_dataframe()
-                print(sgv.clean_df)
+                #     await sgv.save_xls_file(
+                #         save_path=save_path,
+                #         file_name=str(ejercicio)
+                #         + "-InformeEvolucionDeSaldosPorBarrio.xls",
+                #     )
+                # await sgv.read_xls_file(args.file)
+                # print(sgv.df)
+                # await sgv.process_dataframe()
+                # print(sgv.clean_df)
         except Exception as e:
             print(f"Error al iniciar sesión: {e}")
         finally:
