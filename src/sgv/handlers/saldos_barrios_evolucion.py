@@ -337,11 +337,11 @@ async def main():
     )
 
     async with async_playwright() as p:
-        connect_siif = await login(
+        connect_sgv = await login(
             args.username, args.password, playwright=p, headless=False
         )
         try:
-            sgv = SaldosBarriosEvolucion(siif=connect_siif)
+            sgv = SaldosBarriosEvolucion(sgv=connect_sgv)
             await sgv.go_to_specific_report()
             for ejercicio in args.ejercicios:
                 if args.download:
