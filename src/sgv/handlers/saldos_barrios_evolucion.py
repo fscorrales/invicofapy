@@ -127,22 +127,22 @@ class SaldosBarriosEvolucion(SGVReportManager):
     async def download_and_sync_validated_to_repository(
         self, ejercicio: int = dt.datetime.now().year, mes: int = 12
     ) -> RouteReturnSchema:
-        """Download, process and sync the rf602 report to the repository."""
+        """Download, process and sync the SaldosBarriosEvolucion report to the repository."""
         try:
             validate_and_errors = validate_and_extract_data_from_df(
                 dataframe=await self.download_and_process_report(
                     ejercicio=ejercicio, mes=mes
                 ),
                 model=SaldosBarriosEvolucionReport,
-                field_id="estructura",
+                field_id="cod_barrio",
             )
             return await sync_validated_to_repository(
                 repository=SaldosBarriosEvolucionRepository(),
                 validation=validate_and_errors,
                 delete_filter={"ejercicio": ejercicio},
-                title=f"SIIF RF602 Report del {ejercicio}",
+                title=f"SGV SaldosBarriosEvolucion Report del {ejercicio}",
                 logger=logger,
-                label=f"Ejercicio {ejercicio} del rf602",
+                label=f"Ejercicio {ejercicio} del SGV SaldosBarriosEvolucion Report",
             )
         except Exception as e:
             print(f"Error al descargar y sincronizar el reporte: {e}")
@@ -151,9 +151,9 @@ class SaldosBarriosEvolucion(SGVReportManager):
     async def sync_validated_sqlite_to_repository(
         self, sqlite_path: str
     ) -> RouteReturnSchema:
-        """Download, process and sync the rf602 report to the repository."""
+        """Download, process and sync the SaldosBarriosEvolucion report to the repository."""
         try:
-            df = get_df_from_sql_table(sqlite_path, table="ppto_gtos_fte_rf602")
+            df = get_df_from_sql_table(sqlite_path, table="saldo_barrio_variacion")
             df.drop(columns=["id"], inplace=True)
             df["ejercicio"] = pd.to_numeric(df["ejercicio"], errors="coerce")
             df = df.loc[df["ejercicio"] < 2024]
@@ -161,16 +161,16 @@ class SaldosBarriosEvolucion(SGVReportManager):
             validate_and_errors = validate_and_extract_data_from_df(
                 dataframe=df,
                 model=SaldosBarriosEvolucionReport,
-                field_id="estructura",
+                field_id="cod_barrio",
             )
 
             return await sync_validated_to_repository(
                 repository=SaldosBarriosEvolucionRepository(),
                 validation=validate_and_errors,
                 delete_filter={"ejercicio": {"$lt": 2024}},
-                title="Sync SIIF RF602 Report from SQLite",
+                title="Sync SGV SaldosBarriosEvolucion Report from SQLite",
                 logger=logger,
-                label="Sync SIIF RF602 Report from SQLite",
+                label="Sync SGV SaldosBarriosEvolucion Report from SQLite",
             )
         except Exception as e:
             print(f"Error migrar y sincronizar el reporte: {e}")
@@ -197,18 +197,24 @@ class SaldosBarriosEvolucion(SGVReportManager):
             # input_ejercicio = self.sgv.reports_page.locator(
             #     "//input[@id='ctl00_ContentPlacePrincipal_ucInformeEvolucionDeSaldosPorBarrio_txtAño_TextBox1']"
             # )
-            # btn_get_reporte = self.sgv.reports_page.locator(
-            #     "//div[@id='pt1:btnVerReporte']"
-            # )
 
-            await input_ejercicio.clear()
-            await input_ejercicio.fill(str(ejercicio))
             await input_mes.clear()
             await input_mes.fill(str(mes))
+            await input_ejercicio.clear()
+            await input_ejercicio.fill(str(ejercicio))
+            await input_ejercicio.press("Enter")
 
+            # await self.sgv.reports_page.wait_for_load_state("networkidle")
+            # btn_export = self.sgv.reports_page.locator(
+            #     "//a[@id='ctl00_ContentPlacePrincipal_ucInformeEvolucionDeSaldosPorBarrio_rpInformeEvoSaldosPorBarrio_ctl05_ctl04_ctl00_ButtonLink']"
+            # )
+            # await btn_export.click()
+
+            # await self.sgv.reports_page.wait_for_load_state("networkidle")
+            # btn_to_excel = self.sgv.reports_page.locator("//a[@title='Excel']")
             # async with self.sgv.context.expect_page() as popup_info:
             #     async with self.sgv.reports_page.expect_download() as download_info:
-            #         await btn_get_reporte.click()  # Se abre el popup aquí
+            #         await btn_to_excel.click()  # Se abre el popup aquí
 
             # popup_page = await popup_info.value  # Obtener la ventana emergente
             # self.download = await download_info.value  # Obtener el archivo descargado
@@ -233,94 +239,28 @@ class SaldosBarriosEvolucion(SGVReportManager):
         else:
             df = dataframe.copy()
 
-        df["ejercicio"] = pd.to_numeric(df.iloc[5, 2][-4:], errors="coerce")
-        df = df.tail(-16)
-        df = df.loc[
-            :,
-            [
-                "ejercicio",
-                "2",
-                "3",
-                "6",
-                "7",
-                "8",
-                "9",
-                "10",
-                "13",
-                "14",
-                "15",
-                "16",
-                "18",
-                "20",
-            ],
-        ]
-        df = df.replace(to_replace="", value=None)
-        df = df.dropna(subset=["2"])
-        df = df.rename(
-            columns={
-                "2": "programa",
-                "3": "subprograma",
-                "6": "proyecto",
-                "7": "actividad",
-                "8": "partida",
-                "9": "fuente",
-                "10": "org",
-                "13": "credito_original",
-                "14": "credito_vigente",
-                "15": "comprometido",
-                "16": "ordenado",
-                "18": "saldo",
-                "20": "pendiente",
-            }
+        df["ejercicio"] = pd.to_numeric(df.iloc[1, 0][-5:][0:4], errors="coerce")
+        df = df.iloc[6:-1, [0, 1, 2, 3, 4, 6, 7]]
+        df.rename(
+            {
+                "0": "cod_barrio",
+                "1": "barrio",
+                "2": "saldo_inicial",
+                "3": "amortizacion",
+                "4": "cambios",
+                "6": "saldo_final",
+            },
+            axis="columns",
+            inplace=True,
         )
-        df["programa"] = df["programa"].str.zfill(2)
-        df["subprograma"] = df["subprograma"].str.zfill(2)
-        df["proyecto"] = df["proyecto"].str.zfill(2)
-        df["actividad"] = df["actividad"].str.zfill(2)
-        df["grupo"] = df["partida"].str[0] + "00"
-        df["estructura"] = (
-            df["programa"]
-            + "-"
-            + df["subprograma"]
-            + "-"
-            + df["proyecto"]
-            + "-"
-            + df["actividad"]
-            + "-"
-            + df["partida"]
-        )
-        df = df.loc[
-            :,
-            [
-                "ejercicio",
-                "estructura",
-                "fuente",
-                "programa",
-                "subprograma",
-                "proyecto",
-                "actividad",
-                "grupo",
-                "partida",
-                "org",
-                "credito_original",
-                "credito_vigente",
-                "comprometido",
-                "ordenado",
-                "saldo",
-                "pendiente",
-            ],
-        ]
-        to_numeric_cols = [
-            "credito_original",
-            "credito_vigente",
-            "comprometido",
-            "ordenado",
-            "saldo",
-            "pendiente",
-        ]
-        df[to_numeric_cols] = (
-            df[to_numeric_cols].apply(pd.to_numeric).astype(np.float64)
-        )
+        df["cod_barrio"] = df["cod_barrio"].astype(int)
+        cols = ["saldo_inicial", "amortizacion", "cambios", "saldo_final"]
+        for col in cols:
+            df[col] = df[col].astype(float)
+        df["amortizacion"] = df["amortizacion"] * (-1)
+        cols = df.columns.tolist()
+        cols = cols[-1:] + cols[:-1]
+        df = df[cols]
 
         self.clean_df = df
         return self.clean_df
