@@ -247,9 +247,9 @@ class ControlIcaroVsSIIFService:
             raise HTTPException(status_code=404, detail="No se encontraron registros")
 
         return [
-            (pd.DataFrame(control_anual_docs), "control_ejecucion_anual"),
-            (pd.DataFrame(control_comprobantes_docs), "control_comprobantes"),
-            (pd.DataFrame(control_pa6_repo), "control_pa6"),
+            (pd.DataFrame(control_anual_docs), "control_ejecucion_anual_db"),
+            (pd.DataFrame(control_comprobantes_docs), "control_comprobantes_db"),
+            (pd.DataFrame(control_pa6_repo), "control_pa6_db"),
         ]
 
     # -------------------------------------------------
