@@ -204,28 +204,28 @@ class SaldosBarriosEvolucion(SGVReportManager):
             await input_ejercicio.fill(str(ejercicio))
             await input_ejercicio.press("Enter")
 
-            # await self.sgv.reports_page.wait_for_load_state("networkidle")
-            # btn_export = self.sgv.reports_page.locator(
-            #     "//a[@id='ctl00_ContentPlacePrincipal_ucInformeEvolucionDeSaldosPorBarrio_rpInformeEvoSaldosPorBarrio_ctl05_ctl04_ctl00_ButtonLink']"
-            # )
-            # await btn_export.click()
+            await self.sgv.reports_page.wait_for_load_state("networkidle")
+            btn_export = self.sgv.reports_page.locator(
+                "//a[@id='ctl00_ContentPlacePrincipal_ucInformeEvolucionDeSaldosPorBarrio_rpInformeEvoSaldosPorBarrio_ctl05_ctl04_ctl00_ButtonLink']"
+            )
+            await btn_export.click()
 
-            # await self.sgv.reports_page.wait_for_load_state("networkidle")
-            # btn_to_excel = self.sgv.reports_page.locator("//a[@title='Excel']")
-            # async with self.sgv.context.expect_page() as popup_info:
-            #     async with self.sgv.reports_page.expect_download() as download_info:
-            #         await btn_to_excel.click()  # Se abre el popup aquí
+            await self.sgv.reports_page.wait_for_load_state("networkidle")
+            btn_to_excel = self.sgv.reports_page.locator("//a[@title='Excel']")
+            async with self.sgv.context.expect_page() as popup_info:
+                async with self.sgv.reports_page.expect_download() as download_info:
+                    await btn_to_excel.click()  # Se abre el popup aquí
 
-            # popup_page = await popup_info.value  # Obtener la ventana emergente
-            # self.download = await download_info.value  # Obtener el archivo descargado
+            popup_page = await popup_info.value  # Obtener la ventana emergente
+            self.download = await download_info.value  # Obtener el archivo descargado
 
-            # # Cerrar la ventana emergente (si realmente se abrió)
-            # if popup_page:
-            #     await popup_page.close()
+            # Cerrar la ventana emergente (si realmente se abrió)
+            if popup_page:
+                await popup_page.close()
 
             # await self.go_back_to_reports_list()
 
-            # return self.download
+            return self.download
 
         except Exception as e:
             print(f"Error al descargar el reporte: {e}")
@@ -286,15 +286,15 @@ async def main():
             for ejercicio in args.ejercicios:
                 if args.download:
                     await sgv.download_report(ejercicio=str(ejercicio))
-                #     await sgv.save_xls_file(
-                #         save_path=save_path,
-                #         file_name=str(ejercicio)
-                #         + "-InformeEvolucionDeSaldosPorBarrio.xls",
-                #     )
-                # await sgv.read_xls_file(args.file)
-                # print(sgv.df)
-                # await sgv.process_dataframe()
-                # print(sgv.clean_df)
+                    await sgv.save_xls_file(
+                        save_path=save_path,
+                        file_name=str(ejercicio)
+                        + "-InformeEvolucionDeSaldosPorBarrio.xls",
+                    )
+                await sgv.read_xls_file(args.file)
+                print(sgv.df)
+                await sgv.process_dataframe()
+                print(sgv.clean_df)
         except Exception as e:
             print(f"Error al iniciar sesión: {e}")
         finally:
@@ -306,4 +306,4 @@ if __name__ == "__main__":
     asyncio.run(main())
     # From /invicofapy
 
-    # poetry run python -m src.sgv.handlers.saldos_barrios_evolucion -d
+    # poetry run python -m src.sgv.handlers.saldos_barrios_evolucion -d -e 2025
