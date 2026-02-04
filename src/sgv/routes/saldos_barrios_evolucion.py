@@ -17,7 +17,7 @@ saldos_barrios_evolucion_router = APIRouter(prefix="/saldos_barrios_evolucion")
 
 
 @saldos_barrios_evolucion_router.post(
-    "/sync_from_siif", response_model=List[RouteReturnSchema]
+    "/sync_from_sgv", response_model=List[RouteReturnSchema]
 )
 async def sync_saldos_barrios_evolucion_from_sgv(
     auth: OptionalAuthorizationDependency,
