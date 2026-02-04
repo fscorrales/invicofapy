@@ -194,17 +194,27 @@ class ReportePlanillometroService:
         #         ignore_index=True,
         #     )
 
-        icaro = await get_icaro_planillometro_contabilidad(
+        contabilidad = await get_icaro_planillometro_contabilidad(
             ejercicio=ejercicios[-1],
             ultimos_ejercicios=5,
             include_pa6=False,
             incluir_desc_subprog = False,
         )
 
+        # icaro = await get_icaro_planillometro_contabilidad(
+        #     ejercicio=ejercicios[-1],
+        #     ultimos_ejercicios=5,
+        #     include_pa6=False,
+        #     incluir_desc_subprog = False,
+        #     incluir_obras_desagregadas=True,
+        #     agregar_acum_2008 = False,
+        # )
+
         return [
             # (pd.DataFrame(control_banco_docs), "siif_vs_sscc_db"),
             # (sscc, "sscc_db"),
-            (icaro, "bd_planillometro_new"),
+            (contabilidad, "bd_planillometro_new"),
+            # (icaro, "icaro_planillometro_new"),
         ]
 
     # -------------------------------------------------

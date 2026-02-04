@@ -215,6 +215,7 @@ async def get_icaro_planillometro_contabilidad(
     ejercicio: int = None,
     es_desc_siif: bool = True,
     incluir_desc_subprog: bool = True,
+    incluir_obras_desagregadas: bool = False,
     ultimos_ejercicios: str = "All",
     desagregar_partida: bool = True,
     agregar_acum_2008: bool = True,
@@ -229,6 +230,8 @@ async def get_icaro_planillometro_contabilidad(
     if incluir_desc_subprog:
         group_cols = group_cols + ["desc_subprograma"]
     group_cols = group_cols + ["desc_proyecto", "desc_actividad", "actividad"]
+    if incluir_obras_desagregadas:
+        group_cols = group_cols + ["desc_obra"]
     if desagregar_partida:
         group_cols = group_cols + ["partida"]
 
