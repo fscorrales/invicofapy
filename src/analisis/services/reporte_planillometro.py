@@ -26,6 +26,8 @@ from pydantic import ValidationError
 
 from ...config import logger
 from ...icaro.handlers import IcaroMongoMigrator
+from ...sgv.handlers import login as sgv_login
+from ...sgv.handlers import logout as sgv_logout
 from ...sgv.handlers.saldos_barrios_evolucion import SaldosBarriosEvolucion
 from ...siif.handlers import (
     Rf602,
@@ -117,7 +119,7 @@ class ReportePlanillometroService:
                     return_schema.append(partial_schema)
 
                 # 🔹 SGV Barrios Evolución
-                connect_sgv = await login(
+                connect_sgv = await sgv_login(
                     username=params.sgv_username,
                     password=params.sgv_password,
                     playwright=p,
@@ -158,6 +160,7 @@ class ReportePlanillometroService:
             finally:
                 try:
                     await logout(connect=connect_siif)
+                    await sgv_logout(connect=connect_sgv)
                 except Exception as e:
                     logger.warning(f"Logout falló o browser ya cerrado: {e}")
                 return return_schema
