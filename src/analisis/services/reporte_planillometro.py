@@ -43,7 +43,10 @@ from ...utils import (
     get_r_icaro_path,
     upload_multiple_dataframes_to_google_sheets,
 )
-from ..handlers import get_icaro_planillometro_contabilidad
+from ..handlers import (
+    get_icaro_planillometro_contabilidad,
+    get_sgv_saldos_barrios_evolucion,
+)
 from ..repositories.reporte_modulos_basicos import (
     ReporteModulosBasicosIcaroRepositoryDependency,
 )
@@ -222,12 +225,22 @@ class ReportePlanillometroService:
         #         ignore_index=True,
         #     )
 
-        contabilidad = await get_icaro_planillometro_contabilidad(
+        planillometro = await get_icaro_planillometro_contabilidad(
             ejercicio=ejercicios[-1],
             ultimos_ejercicios=5,
             include_pa6=False,
             incluir_desc_subprog=False,
         )
+        planillometro["alta"] = planillometro["alta"].astype(str)
+        planillometro = planillometro.rename(
+            columns={
+                "desc_programa": "desc_prog",
+                "desc_proyecto": "desc_proy",
+                "desc_actividad": "desc_act",
+            }
+        )
+
+        sgv = await get_sgv_saldos_barrios_evolucion()
 
         # icaro = await get_icaro_planillometro_contabilidad(
         #     ejercicio=ejercicios[-1],
@@ -241,7 +254,8 @@ class ReportePlanillometroService:
         return [
             # (pd.DataFrame(control_banco_docs), "siif_vs_sscc_db"),
             # (sscc, "sscc_db"),
-            (contabilidad, "bd_planillometro_new"),
+            (planillometro, "bd_planillometro_new"),
+            (sgv, "bd_recuperos_new"),
             # (icaro, "icaro_planillometro_new"),
         ]
 
