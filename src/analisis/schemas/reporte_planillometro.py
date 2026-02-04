@@ -36,7 +36,11 @@ class ReportePlanillometroParams(CamelModel):
 class ReportePlanillometroSyncParams(ReportePlanillometroParams):
     siif_username: Optional[str] = None
     siif_password: Optional[str] = None
+    sgv_username: Optional[str] = None
+    sgv_password: Optional[str] = None
     planillometro_hist_excel_path: Optional[str] = Field(
-        default=os.path.join(get_siif_planillometro_hist_path(), "planillometro_hist.xlsx"),
+        default=os.path.join(
+            get_siif_planillometro_hist_path(), "planillometro_hist.xlsx"
+        ),
         description="Ruta al archivo Planillometro Histórico EXCEL",
     )

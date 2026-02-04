@@ -26,6 +26,7 @@ from pydantic import ValidationError
 
 from ...config import logger
 from ...icaro.handlers import IcaroMongoMigrator
+from ...sgv.handlers.saldos_barrios_evolucion import SaldosBarriosEvolucion
 from ...siif.handlers import (
     Rf602,
     Rf610,
@@ -55,6 +56,9 @@ from ..schemas.reporte_planillometro import (
 class ReportePlanillometroService:
     reporte_mod_bas_icaro_repo: ReporteModulosBasicosIcaroRepositoryDependency
     planillometro_hist_service: PlanillometroHistServiceDependency
+    sgv_saldos_barrios_evolucion_handler: SaldosBarriosEvolucion = field(
+        init=False
+    )  # No se pasa como argumento
     siif_rf610_handler: Rf610 = field(init=False)  # No se pasa como argumento
     siif_rf602_handler: Rf602 = field(init=False)  # No se pasa como argumento
 
@@ -72,7 +76,12 @@ class ReportePlanillometroService:
         Returns:
             RouteReturnSchema
         """
-        if params.siif_username is None or params.siif_password is None:
+        if (
+            params.siif_username is None
+            or params.siif_password is None
+            or params.sgv_username is None
+            or params.sgv_password is None
+        ):
             raise HTTPException(
                 status_code=401,
                 detail="Missing username or password",
@@ -103,6 +112,22 @@ class ReportePlanillometroService:
                 self.siif_rf602_handler = Rf602(siif=connect_siif)
                 for ejercicio in ejercicios:
                     partial_schema = await self.siif_rf602_handler.download_and_sync_validated_to_repository(
+                        ejercicio=int(ejercicio)
+                    )
+                    return_schema.append(partial_schema)
+
+                # 🔹 SGV Barrios Evolución
+                connect_sgv = await login(
+                    username=params.sgv_username,
+                    password=params.sgv_password,
+                    playwright=p,
+                    headless=False,
+                )
+                self.sgv_saldos_barrios_evolucion_handler = SaldosBarriosEvolucion(
+                    sgv=connect_sgv
+                )
+                for ejercicio in ejercicios:
+                    partial_schema = await self.sgv_saldos_barrios_evolucion_handler.download_and_sync_validated_to_repository(
                         ejercicio=int(ejercicio)
                     )
                     return_schema.append(partial_schema)
@@ -198,7 +223,7 @@ class ReportePlanillometroService:
             ejercicio=ejercicios[-1],
             ultimos_ejercicios=5,
             include_pa6=False,
-            incluir_desc_subprog = False,
+            incluir_desc_subprog=False,
         )
 
         # icaro = await get_icaro_planillometro_contabilidad(

@@ -13,7 +13,6 @@ import datetime as dt
 import inspect
 import os
 
-import numpy as np
 import pandas as pd
 from playwright.async_api import Download, async_playwright
 

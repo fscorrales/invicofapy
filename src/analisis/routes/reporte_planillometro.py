@@ -28,6 +28,8 @@ async def sync_planillometro_from_source(
     if auth.is_admin:
         params.siif_username = settings.SIIF_USERNAME
         params.siif_password = settings.SIIF_PASSWORD
+        params.sgv_username = settings.SGV_USERNAME
+        params.sgv_password = settings.SGV_PASSWORD
 
     return await service.sync_planillometro_from_source(params=params)
 
