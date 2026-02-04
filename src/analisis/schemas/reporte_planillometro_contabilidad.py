@@ -1,6 +1,6 @@
 __all__ = [
-    "ReportePlanillometroParams",
-    "ReportePlanillometroSyncParams",
+    "ReportePlanillometroContabildadParams",
+    "ReportePlanillometroContabilidadSyncParams",
 ]
 
 import os
@@ -13,7 +13,7 @@ from ...utils import CamelModel, get_siif_planillometro_hist_path
 
 
 # --------------------------------------------------
-class ReportePlanillometroParams(CamelModel):
+class ReportePlanillometroContabildadParams(CamelModel):
     ejercicio_desde: int = Field(default=date.today().year)
     ejercicio_hasta: int = Field(default=date.today().year)
 
@@ -26,14 +26,14 @@ class ReportePlanillometroParams(CamelModel):
         return v
 
     @model_validator(mode="after")
-    def check_range(self) -> "ReportePlanillometroParams":
+    def check_range(self) -> "ReportePlanillometroContabildadParams":
         if self.ejercicio_hasta < self.ejercicio_desde:
             raise ValueError("Ejercicio Desde no puede ser menor que Ejercicio Hasta")
         return self
 
 
 # --------------------------------------------------
-class ReportePlanillometroSyncParams(ReportePlanillometroParams):
+class ReportePlanillometroContabilidadSyncParams(ReportePlanillometroContabildadParams):
     siif_username: Optional[str] = None
     siif_password: Optional[str] = None
     sgv_username: Optional[str] = None

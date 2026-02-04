@@ -5,25 +5,27 @@ from fastapi import APIRouter, Depends, Query
 from ...auth.services import OptionalAuthorizationDependency
 from ...config import settings
 from ...utils import RouteReturnSchema
-from ..schemas.reporte_planillometro import (
-    ReportePlanillometroParams,
-    ReportePlanillometroSyncParams,
+from ..schemas.reporte_planillometro_contabilidad import (
+    ReportePlanillometroContabildadParams,
+    ReportePlanillometroContabilidadSyncParams,
 )
-from ..services.reporte_planillometro import (
-    ReportePlanillometroServiceDependency,
+from ..services.reporte_planillometro_contabilidad import (
+    ReportePlanillometroContabilidadServiceDependency,
 )
 
-reporte_planillometro_router = APIRouter(prefix="/planillometro")
+reporte_planillometro_contabilidad_router = APIRouter(
+    prefix="/planillometro_contabilidad"
+)
 
 
 # -------------------------------------------------
-@reporte_planillometro_router.post(
+@reporte_planillometro_contabilidad_router.post(
     "/sync_from_source", response_model=List[RouteReturnSchema]
 )
 async def sync_planillometro_from_source(
     auth: OptionalAuthorizationDependency,
-    service: ReportePlanillometroServiceDependency,
-    params: Annotated[ReportePlanillometroSyncParams, Depends()],
+    service: ReportePlanillometroContabilidadServiceDependency,
+    params: Annotated[ReportePlanillometroContabilidadSyncParams, Depends()],
 ):
     if auth.is_admin:
         params.siif_username = settings.SIIF_USERNAME
@@ -35,14 +37,14 @@ async def sync_planillometro_from_source(
 
 
 # -------------------------------------------------
-@reporte_planillometro_router.get(
+@reporte_planillometro_contabilidad_router.get(
     "/export",
     summary="Descarga todos los reportes como archivo .xlsx y exporta a Google Sheets",
     response_description="Archivo Excel con los registros solicitados",
 )
 async def export_all_from_db(
-    service: ReportePlanillometroServiceDependency,
-    params: Annotated[ReportePlanillometroParams, Depends()],
+    service: ReportePlanillometroContabilidadServiceDependency,
+    params: Annotated[ReportePlanillometroContabildadParams, Depends()],
     upload_to_google_sheets: bool = Query(True, alias="uploadToGoogleSheets"),
 ):
     return await service.export_all_from_db(

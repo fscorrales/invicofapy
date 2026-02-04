@@ -12,7 +12,10 @@ Google Sheet:
 
 """
 
-__all__ = ["ReportePlanillometroService", "ReportePlanillometroServiceDependency"]
+__all__ = [
+    "ReportePlanillometroContabilidadService",
+    "ReportePlanillometroContabilidadServiceDependency",
+]
 
 import os
 from dataclasses import dataclass, field
@@ -50,15 +53,15 @@ from ..handlers import (
 from ..repositories.reporte_modulos_basicos import (
     ReporteModulosBasicosIcaroRepositoryDependency,
 )
-from ..schemas.reporte_planillometro import (
-    ReportePlanillometroParams,
-    ReportePlanillometroSyncParams,
+from ..schemas.reporte_planillometro_contabilidad import (
+    ReportePlanillometroContabildadParams,
+    ReportePlanillometroContabilidadSyncParams,
 )
 
 
 # --------------------------------------------------
 @dataclass
-class ReportePlanillometroService:
+class ReportePlanillometroContabilidadService:
     reporte_mod_bas_icaro_repo: ReporteModulosBasicosIcaroRepositoryDependency
     planillometro_hist_service: PlanillometroHistServiceDependency
     sgv_saldos_barrios_evolucion_handler: SaldosBarriosEvolucion = field(
@@ -70,7 +73,7 @@ class ReportePlanillometroService:
     # -------------------------------------------------
     async def sync_planillometro_from_source(
         self,
-        params: ReportePlanillometroSyncParams = None,
+        params: ReportePlanillometroContabilidadSyncParams = None,
     ) -> List[RouteReturnSchema]:
         """Downloads a report from SIIF, processes it, validates the data,
         and stores it in MongoDB if valid.
@@ -201,7 +204,7 @@ class ReportePlanillometroService:
     # --------------------------------------------------
     async def _build_dataframes_to_export(
         self,
-        params: ReportePlanillometroParams,
+        params: ReportePlanillometroContabildadParams,
     ) -> list[tuple[pd.DataFrame, str]]:
         ejercicios = list(range(params.ejercicio_desde, params.ejercicio_hasta + 1))
 
@@ -266,7 +269,7 @@ class ReportePlanillometroService:
     async def export_all_from_db(
         self,
         upload_to_google_sheets: bool = True,
-        params: ReportePlanillometroParams = None,
+        params: ReportePlanillometroContabildadParams = None,
     ) -> StreamingResponse:
         df_sheet_pairs = await self._build_dataframes_to_export(params)
 
@@ -280,7 +283,7 @@ class ReportePlanillometroService:
     # -------------------------------------------------
     async def export_all_from_db_to_google(
         self,
-        params: ReportePlanillometroParams = None,
+        params: ReportePlanillometroContabildadParams = None,
     ) -> GoogleExportResponse:
         df_sheet_pairs = await self._build_dataframes_to_export(params)
 
@@ -291,6 +294,6 @@ class ReportePlanillometroService:
         )
 
 
-ReportePlanillometroServiceDependency = Annotated[
-    ReportePlanillometroService, Depends()
+ReportePlanillometroContabilidadServiceDependency = Annotated[
+    ReportePlanillometroContabilidadService, Depends()
 ]
