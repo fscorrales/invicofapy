@@ -243,6 +243,7 @@ class ReportePlanillometroService:
         sgv = await get_sgv_saldos_barrios_evolucion()
         sgv["ejercicio"] = sgv["ejercicio"].astype(str)
         sgv["cod_barrio"] = sgv["cod_barrio"].astype(int)
+        sgv = sgv.sort_values(by=["ejercicio", "cod_barrio"], ascending=[True, True])
 
         # icaro = await get_icaro_planillometro_contabilidad(
         #     ejercicio=ejercicios[-1],
@@ -256,8 +257,8 @@ class ReportePlanillometroService:
         return [
             # (pd.DataFrame(control_banco_docs), "siif_vs_sscc_db"),
             # (sscc, "sscc_db"),
-            (planillometro, "bd_planillometro_new"),
-            (sgv, "bd_recuperos_new"),
+            (planillometro, "bd_planillometro"),
+            (sgv, "bd_recuperos"),
             # (icaro, "icaro_planillometro_new"),
         ]
 
