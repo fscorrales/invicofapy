@@ -241,6 +241,8 @@ class ReportePlanillometroService:
         )
 
         sgv = await get_sgv_saldos_barrios_evolucion()
+        sgv["ejercicio"] = sgv["ejercicio"].astype(str)
+        sgv["cod_barrio"] = sgv["cod_barrio"].astype(int)
 
         # icaro = await get_icaro_planillometro_contabilidad(
         #     ejercicio=ejercicios[-1],
