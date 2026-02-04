@@ -253,7 +253,7 @@ class SaldosBarriosEvolucion(SGVReportManager):
             axis="columns",
             inplace=True,
         )
-        df["cod_barrio"] = df["cod_barrio"].astype(int)
+        df["cod_barrio"] = df["cod_barrio"].astype(str)
         cols = ["saldo_inicial", "amortizacion", "cambios", "saldo_final"]
         for col in cols:
             df[col] = df[col].astype(float)
