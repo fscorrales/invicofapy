@@ -16,6 +16,7 @@ from .control_viaticos import control_viaticos_router
 from .reporte_formulacion_presupuesto import reporte_formulacion_presupuesto_router
 from .reporte_libro_diario import reporte_libro_diario_router
 from .reporte_modulos_basicos import reporte_modulos_basicos_router
+from .reporte_planillometro import reporte_planillometro_router
 from .reporte_planillometro_contabilidad import (
     reporte_planillometro_contabilidad_router,
 )
@@ -35,6 +36,7 @@ control_router.include_router(control_banco_router)
 
 reporte_router = APIRouter(prefix="/reporte", tags=["Reportes"])
 reporte_router.include_router(reporte_formulacion_presupuesto_router)
+reporte_router.include_router(reporte_planillometro_router)
 reporte_router.include_router(reporte_modulos_basicos_router)
 reporte_router.include_router(reporte_libro_diario_router)
 reporte_router.include_router(reporte_planillometro_contabilidad_router)

@@ -7,15 +7,14 @@ Data required:
     - Icaro (CARGA, ESTRUCTURAS, OBRAS, PROVEEDORES)
     - SIIF rf610
     - SIIF ri102
-    - SGV Saldos Barrios Evolución
 Google Sheet:
     - https://docs.google.com/spreadsheets/d/1Hmb7xmzhZBoicnL5_tN7mr1kOj-r3gw8lCkPErR8Xd4 (Planillometro Contabilidad)
 
 """
 
 __all__ = [
-    "ReportePlanillometroContabilidadService",
-    "ReportePlanillometroContabilidadServiceDependency",
+    "ReportePlanillometroService",
+    "ReportePlanillometroServiceDependency",
 ]
 
 import os
@@ -30,9 +29,6 @@ from pydantic import ValidationError
 
 from ...config import logger
 from ...icaro.handlers import IcaroMongoMigrator
-from ...sgv.handlers import login as sgv_login
-from ...sgv.handlers import logout as sgv_logout
-from ...sgv.handlers.saldos_barrios_evolucion import SaldosBarriosEvolucion
 from ...siif.handlers import (
     Rf602,
     Rf610,
@@ -49,32 +45,28 @@ from ...utils import (
 )
 from ..handlers import (
     get_icaro_planillometro_contabilidad,
-    get_sgv_saldos_barrios_evolucion,
 )
 from ..repositories.reporte_modulos_basicos import (
     ReporteModulosBasicosIcaroRepositoryDependency,
 )
-from ..schemas.reporte_planillometro_contabilidad import (
-    ReportePlanillometroContabildadParams,
-    ReportePlanillometroContabilidadSyncParams,
+from ..schemas.reporte_planillometro import (
+    ReportePlanillometroParams,
+    ReportePlanillometroSyncParams,
 )
 
 
 # --------------------------------------------------
 @dataclass
-class ReportePlanillometroContabilidadService:
+class ReportePlanillometroService:
     reporte_mod_bas_icaro_repo: ReporteModulosBasicosIcaroRepositoryDependency
     planillometro_hist_service: PlanillometroHistServiceDependency
-    sgv_saldos_barrios_evolucion_handler: SaldosBarriosEvolucion = field(
-        init=False
-    )  # No se pasa como argumento
     siif_rf610_handler: Rf610 = field(init=False)  # No se pasa como argumento
     siif_rf602_handler: Rf602 = field(init=False)  # No se pasa como argumento
 
     # -------------------------------------------------
     async def sync_planillometro_from_source(
         self,
-        params: ReportePlanillometroContabilidadSyncParams = None,
+        params: ReportePlanillometroSyncParams = None,
     ) -> List[RouteReturnSchema]:
         """Downloads a report from SIIF, processes it, validates the data,
         and stores it in MongoDB if valid.
@@ -125,22 +117,6 @@ class ReportePlanillometroContabilidadService:
                     )
                     return_schema.append(partial_schema)
 
-                # 🔹 SGV Barrios Evolución
-                connect_sgv = await sgv_login(
-                    username=params.sgv_username,
-                    password=params.sgv_password,
-                    playwright=p,
-                    headless=False,
-                )
-                self.sgv_saldos_barrios_evolucion_handler = SaldosBarriosEvolucion(
-                    sgv=connect_sgv
-                )
-                for ejercicio in ejercicios:
-                    partial_schema = await self.sgv_saldos_barrios_evolucion_handler.download_and_sync_validated_to_repository(
-                        ejercicio=int(ejercicio)
-                    )
-                    return_schema.append(partial_schema)
-
                 # 🔹 Icaro
                 path = os.path.join(get_r_icaro_path(), "ICARO.sqlite")
                 migrator = IcaroMongoMigrator(sqlite_path=path)
@@ -167,7 +143,6 @@ class ReportePlanillometroContabilidadService:
             finally:
                 try:
                     await logout(connect=connect_siif)
-                    await sgv_logout(connect=connect_sgv)
                 except Exception as e:
                     logger.warning(f"Logout falló o browser ya cerrado: {e}")
                 return return_schema
@@ -205,7 +180,7 @@ class ReportePlanillometroContabilidadService:
     # --------------------------------------------------
     async def _build_dataframes_to_export(
         self,
-        params: ReportePlanillometroContabildadParams,
+        params: ReportePlanillometroParams,
     ) -> list[tuple[pd.DataFrame, str]]:
         ejercicios = list(range(params.ejercicio_desde, params.ejercicio_hasta + 1))
 
@@ -229,72 +204,66 @@ class ReportePlanillometroContabilidadService:
         #         ignore_index=True,
         #     )
 
-        planillometro = await get_icaro_planillometro_contabilidad(
+        # planillometro = await get_icaro_planillometro_contabilidad(
+        #     ejercicio=ejercicios[-1],
+        #     ultimos_ejercicios=5,
+        #     include_pa6=False,
+        #     incluir_desc_subprog=False,
+        # )
+        # planillometro["alta"] = planillometro["alta"].astype(str)
+        # planillometro = planillometro.rename(
+        #     columns={
+        #         "desc_programa": "desc_prog",
+        #         "desc_proyecto": "desc_proy",
+        #         "desc_actividad": "desc_act",
+        #     }
+        # )
+
+        icaro = await get_icaro_planillometro_contabilidad(
             ejercicio=ejercicios[-1],
             ultimos_ejercicios=5,
             include_pa6=False,
             incluir_desc_subprog=False,
+            incluir_obras_desagregadas=True,
+            agregar_acum_2008=False,
         )
-        planillometro["alta"] = planillometro["alta"].astype(str)
-        planillometro = planillometro.rename(
-            columns={
-                "desc_programa": "desc_prog",
-                "desc_proyecto": "desc_proy",
-                "desc_actividad": "desc_act",
-            }
-        )
-
-        sgv = await get_sgv_saldos_barrios_evolucion()
-        sgv["ejercicio"] = sgv["ejercicio"].astype(str)
-        sgv["cod_barrio"] = sgv["cod_barrio"].astype(int)
-        sgv = sgv.sort_values(by=["ejercicio", "cod_barrio"], ascending=[True, True])
-
-        # icaro = await get_icaro_planillometro_contabilidad(
-        #     ejercicio=ejercicios[-1],
-        #     ultimos_ejercicios=5,
-        #     include_pa6=False,
-        #     incluir_desc_subprog = False,
-        #     incluir_obras_desagregadas=True,
-        #     agregar_acum_2008 = False,
-        # )
 
         return [
             # (pd.DataFrame(control_banco_docs), "siif_vs_sscc_db"),
             # (sscc, "sscc_db"),
-            (planillometro, "bd_planillometro"),
-            (sgv, "bd_recuperos"),
-            # (icaro, "icaro_planillometro_new"),
+            # (planillometro, "bd_planillometro"),
+            (icaro, "planillometro_icaro_new"),
         ]
 
     # -------------------------------------------------
     async def export_all_from_db(
         self,
         upload_to_google_sheets: bool = True,
-        params: ReportePlanillometroContabildadParams = None,
+        params: ReportePlanillometroParams = None,
     ) -> StreamingResponse:
         df_sheet_pairs = await self._build_dataframes_to_export(params)
 
         return export_multiple_dataframes_to_excel(
             df_sheet_pairs=df_sheet_pairs,
-            filename="planillometro_contabilidad.xlsx",
-            spreadsheet_key="1Hmb7xmzhZBoicnL5_tN7mr1kOj-r3gw8lCkPErR8Xd4",
+            filename="planillometros.xlsx",
+            spreadsheet_key="1DPn8eEVDyD9Ug6r03fIMGoK4NPxHsWD2a_3qITzPAIs",
             upload_to_google_sheets=upload_to_google_sheets,
         )
 
     # -------------------------------------------------
     async def export_all_from_db_to_google(
         self,
-        params: ReportePlanillometroContabildadParams = None,
+        params: ReportePlanillometroParams = None,
     ) -> GoogleExportResponse:
         df_sheet_pairs = await self._build_dataframes_to_export(params)
 
         return upload_multiple_dataframes_to_google_sheets(
             df_sheet_pairs=df_sheet_pairs,
-            spreadsheet_key="1Hmb7xmzhZBoicnL5_tN7mr1kOj-r3gw8lCkPErR8Xd4",
+            spreadsheet_key="1DPn8eEVDyD9Ug6r03fIMGoK4NPxHsWD2a_3qITzPAIs",
             title="Planillometros",
         )
 
 
-ReportePlanillometroContabilidadServiceDependency = Annotated[
-    ReportePlanillometroContabilidadService, Depends()
+ReportePlanillometroServiceDependency = Annotated[
+    ReportePlanillometroService, Depends()
 ]
