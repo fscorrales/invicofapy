@@ -394,6 +394,7 @@ async def get_icaro_planillometro_contabilidad(
     df["terminadas_actual"] = df.acum - df.en_curso - df.terminadas_ant
     df["actividad"] = df["actividad"] + "-" + df["partida"]
     df = df.rename(columns={"actividad": "estructura"})
-    df = df.drop(columns=["partida"])
+    if not desagregar_partida:
+        df = df.drop(columns=["partida"])
 
     return df
