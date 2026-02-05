@@ -2,6 +2,7 @@ from .control_aporte_empresario import *
 from .control_banco import *
 from .control_completo import *
 from .control_debitos_bancarios import *
+from .control_deuda_flotante import *
 from .control_escribanos import *
 from .control_haberes import *
 from .control_honorarios import *
