@@ -221,7 +221,7 @@ class ReportePlanillometroService:
 
         icaro = await get_icaro_planillometro_contabilidad(
             ejercicio=ejercicios[-1],
-            ultimos_ejercicios=5,
+            ultimos_ejercicios=len(ejercicios),
             include_pa6=False,
             incluir_desc_subprog=False,
             incluir_obras_desagregadas=True,
