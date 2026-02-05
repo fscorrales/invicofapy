@@ -223,8 +223,10 @@ class ReportePlanillometroService:
             ejercicio=ejercicios[-1],
             ultimos_ejercicios=len(ejercicios),
             include_pa6=False,
-            incluir_desc_subprog=False,
-            incluir_obras_desagregadas=True,
+            desagregar_desc_subprog=False,
+            desagregar_obras=True,
+            desagregar_fuente=True,
+            desagregar_partida=True,
             agregar_acum_2008=False,
         )
 

@@ -214,10 +214,11 @@ async def get_full_icaro_carga_desc(
 async def get_icaro_planillometro_contabilidad(
     ejercicio: int = None,
     es_desc_siif: bool = True,
-    incluir_desc_subprog: bool = True,
-    incluir_obras_desagregadas: bool = False,
     ultimos_ejercicios: str = "All",
+    desagregar_desc_subprog: bool = True,
+    desagregar_obras: bool = False,
     desagregar_partida: bool = True,
+    desagregar_fuente: bool = False,
     agregar_acum_2008: bool = True,
     date_up_to: dt.date = None,
     include_pa6: bool = False,
@@ -227,13 +228,15 @@ async def get_icaro_planillometro_contabilidad(
 
     # Grupos de columnas
     group_cols = ["desc_programa"]
-    if incluir_desc_subprog:
+    if desagregar_desc_subprog:
         group_cols = group_cols + ["desc_subprograma"]
     group_cols = group_cols + ["desc_proyecto", "desc_actividad", "actividad"]
-    if incluir_obras_desagregadas:
+    if desagregar_obras:
         group_cols = group_cols + ["desc_obra"]
     if desagregar_partida:
         group_cols = group_cols + ["partida"]
+    if desagregar_fuente:
+        group_cols = group_cols + ["fuente"]
 
     # Eliminamos aquellos ejercicios anteriores a 2009
     df = df.loc[df.ejercicio.astype(int) >= 2009]
@@ -273,7 +276,7 @@ async def get_icaro_planillometro_contabilidad(
                 "desc_actividad",
             ]
         )
-        if incluir_desc_subprog:
+        if desagregar_desc_subprog:
             columns_to_merge = [
                 "estructura",
                 "desc_programa",

@@ -233,7 +233,7 @@ class ReportePlanillometroContabilidadService:
             ejercicio=ejercicios[-1],
             ultimos_ejercicios=5,
             include_pa6=False,
-            incluir_desc_subprog=False,
+            desagregar_desc_subprog=False,
         )
         planillometro["alta"] = planillometro["alta"].astype(str)
         planillometro = planillometro.rename(
