@@ -30,13 +30,13 @@ async def sync_control_deuda_flotante_from_source(
     return await service.sync_control_deuda_flotante_from_source(params=params)
 
 
-# # -------------------------------------------------
-# @control_deuda_flotante_router.post("/compute", response_model=List[RouteReturnSchema])
-# async def compute_all(
-#     service: ControlDeudaFlotanteServiceDependency,
-#     params: Annotated[ControlDeudaFlotanteParams, Depends()],
-# ):
-#     return await service.compute_all(params=params)
+# -------------------------------------------------
+@control_deuda_flotante_router.post("/compute", response_model=List[RouteReturnSchema])
+async def compute_all(
+    service: ControlDeudaFlotanteServiceDependency,
+    params: Annotated[ControlDeudaFlotanteParams, Depends()],
+):
+    return await service.compute_all(params=params)
 
 
 # -------------------------------------------------

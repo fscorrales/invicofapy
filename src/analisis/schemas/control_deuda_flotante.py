@@ -47,12 +47,27 @@ class ControlDeudaFlotanteSyncParams(ControlDeudaFlotanteParams):
 
 # -------------------------------------------------
 class ControlDeudaFlotanteReport(BaseModel):
+    ejercicio_contable: int
     ejercicio: int
-    mes: str
+    fuente: int
     cta_cte: str
-    ejecutado_siif: float
-    debitos_sscc: float
-    diferencia: float
+    nro_original: str
+    saldo_rdeu: float
+    cuit: str
+    glosa: str
+    nro_expte: Optional[str] = None
+    mes: str
+    fecha: date
+    fecha_aprobado: date
+    cta_contable: str
+    nro_entrada: str
+    auxiliar_1: str
+    auxiliar_2: str
+    tipo_comprobante: str
+    creditos: float
+    debitos: float
+    saldo_contable: float
+    nro_comprobante: Optional[str] = None
 
 
 # -------------------------------------------------

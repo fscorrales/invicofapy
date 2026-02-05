@@ -44,6 +44,7 @@ from ...utils import (
 )
 from ..handlers import (
     get_siif_rcocc31,
+    get_siif_rdeu012_unified_cta_cte,
     get_siif_rvicon03,
 )
 from ..repositories.control_debitos_bancarios import (
@@ -171,33 +172,33 @@ class ControlDeudaFlotanteService:
                     logger.warning(f"Logout falló o browser ya cerrado: {e}")
                 return return_schema
 
-    # # -------------------------------------------------
-    # async def compute_all(
-    #     self, params: ControlDeudaFlotanteParams
-    # ) -> List[RouteReturnSchema]:
-    #     """
-    #     Compute all controls for the given params.
-    #     """
-    #     return_schema = []
-    #     try:
-    #         # 🔹 Control Debitos Bancarios
-    #         partial_schema = await self.compute_control_debitos_bancarios(params=params)
-    #         return_schema.extend(partial_schema)
+    # -------------------------------------------------
+    async def compute_all(
+        self, params: ControlDeudaFlotanteParams
+    ) -> List[RouteReturnSchema]:
+        """
+        Compute all controls for the given params.
+        """
+        return_schema = []
+        try:
+            # 🔹 Control Deuda Flotante
+            partial_schema = await self.compute_control_deuda_flotante(params=params)
+            return_schema.extend(partial_schema)
 
-    #     except ValidationError as e:
-    #         logger.error(f"Validation Error: {e}")
-    #         raise HTTPException(
-    #             status_code=400,
-    #             detail="Invalid response format from Control de Debitos Bancarios",
-    #         )
-    #     except Exception as e:
-    #         logger.error(f"Error in compute_all: {e}")
-    #         raise HTTPException(
-    #             status_code=500,
-    #             detail="Error in compute_all",
-    #         )
-    #     finally:
-    #         return return_schema
+        except ValidationError as e:
+            logger.error(f"Validation Error: {e}")
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid response format from Control de Deuda Flotante",
+            )
+        except Exception as e:
+            logger.error(f"Error in compute_all: {e}")
+            raise HTTPException(
+                status_code=500,
+                detail="Error in compute_all",
+            )
+        finally:
+            return return_schema
 
     # --------------------------------------------------
     async def _build_dataframes_to_export(
@@ -253,165 +254,186 @@ class ControlDeudaFlotanteService:
             title="Control Deuda Flotante",
         )
 
-    # # --------------------------------------------------
-    # async def generate_siif_debitos_bancarios(
-    #     self,
-    #     ejercicio: int = None,
-    # ) -> pd.DataFrame:
-    #     df = await get_siif_comprobantes_gtos_unified_cta_cte(
-    #         ejercicio=ejercicio, partidas=["355"]
-    #     )
-    #     df = df.reset_index(drop=True)
-    #     return df
+    # --------------------------------------------------
+    async def generate_last_rdeu012(
+        self,
+        ejercicio: int = None,
+    ) -> pd.DataFrame:
+        df = await get_siif_rdeu012_unified_cta_cte(ejercicio=ejercicio)
+        df = df.reset_index(drop=True)
+        df = df.loc[df["mes_hasta"].str.endswith(ejercicio), :]
+        months = df["mes_hasta"].tolist()
+        # Convertir cada elemento de la lista a un objeto datetime
+        dates = [datetime.strptime(month, "%m/%Y") for month in months]
+        # Obtener la fecha más reciente y Convertir la fecha mayor a un string en el formato 'MM/YYYY'
+        gt_month = max(dates).strftime("%m/%Y")
+        df = df.loc[df["mes_hasta"] == gt_month, :]
+        df = df.rename(
+            columns={"nro_origen": "nro_original", "saldo": "saldo_rdeu"},
+        )
+        # Elimino comprobantes específicos (error en SIIF)
+        df = df.loc[
+            ~df["nro_comprobante"].isin(["02749/11"])
+        ]  # No debería estar en la RDEU
+        return df
 
-    # # --------------------------------------------------
-    # async def siif_summarize(
-    #     self,
-    #     ejercicio: int = None,
-    #     groupby_cols: List[str] = ["ejercicio", "mes", "cta_cte"],
-    # ) -> pd.DataFrame:
-    #     """
-    #     Summarize SIIF data for the specified groupby columns.
+    # --------------------------------------------------
+    async def generate_rcocc31_liabilities(
+        self,
+        ejercicio: int = None,
+    ) -> pd.DataFrame:
+        tipos_comprobantes = ["CAO", "CAP", "CAM", "CAD", "ANP", "AJU"]
+        filters = {
+            "tipo_comprobante": {"$in": tipos_comprobantes},
+            "cta_contable": {"$regex": "/^2/"},
+        }
+        df = await get_siif_rcocc31(ejercicio=ejercicio, filters=filters)
+        df = df.reset_index(drop=True)
+        # df = df.loc[df["cta_contable"].str.startswith("2"), :]
+        # df = df.loc[df["tipo_comprobante"].isin(tipos_comprobantes), :]
+        df = df.rename(columns={"saldo": "saldo_contable"})
+        return df
 
-    #     Args:
-    #         groupby_cols (List[str], optional): A list of columns to group the data by.
-    #             Defaults to ['ejercicio', 'mes', 'cta_cte']. It could also include 'fecha'
+    # --------------------------------------------------
+    async def generate_aju_not_in_rdue012(
+        self,
+        filter_rdeu: pd.DataFrame,
+        rcocc31: pd.DataFrame,
+        ejercicio: int = None,
+    ) -> pd.DataFrame:
 
-    #     Returns:
-    #         pd.DataFrame: A DataFrame summarizing the SIIF data based on the specified groupby columns.
+        aju = rcocc31.loc[rcocc31["tipo_comprobante"].isin(["AJU"])]
+        aju["nro_comprobante"] = aju["nro_entrada"] + "/" + aju["ejercicio"].str[2:]
 
-    #     This method imports and processes SIIF data related to the 'Debitos Bancarios' category. It then groups
-    #     the data by the specified columns, calculates the sum of numeric values, and returns the resulting
-    #     DataFrame. Any missing values are filled with zeros.
+        # Elimino Amortizaciones Acum. del Pasivo (cta. contable empieza con 2241)
+        aju = aju.loc[~aju["cta_contable"].str.startswith("2241")]
 
-    #     Example:
-    #         To summarize 'siif' data based on custom grouping columns:
+        # Elimino Otros Fondos de Terceros a Pagar (cta. contable 2113-2-9)
+        aju = aju.loc[~aju["cta_contable"].isin(["2113-2-9"])]
 
-    #         ```python
-    #         siif_summary = control.siif_summarize(groupby_cols=["ejercicio", "mes"])
-    #         ```
-    #     """
-    #     df = await self.generate_siif_debitos_bancarios(ejercicio=ejercicio)
-    #     df = df.groupby(groupby_cols)["importe"].sum()
-    #     df = df.reset_index()
-    #     df = df.fillna(0)
-    #     return df
+        # Elimino comprobantes específicos (error en SIIF)
+        aju = aju.loc[
+            ~aju["nro_comprobante"].isin(["16535/11"])
+        ]  # AJUSTE DE SUELDOS Y SALARIOS A PAGAR
+        aju = aju.loc[
+            ~aju["nro_comprobante"].isin(["15793/12"])
+        ]  # AJUSTES RETENCIONES. COMPROB.225/2012
+        aju = aju.loc[
+            ~aju["nro_comprobante"].isin(["17773/16"])
+        ]  # ERROR PAGO COMPROBANTE GTOS. 2749/2011
+        aju = aju.loc[
+            ~aju["nro_comprobante"].isin(["17096/13"])
+        ]  # REGISTROS PAGOS A.R.T. ENERO Y FEBRERO/2013
+        aju = aju.loc[
+            ~aju["nro_comprobante"].isin(["17097/13"])
+        ]  # PAGO COMPR. CAO 5413/13. MAP 5429/13. ERROR SISTEMA
+        aju = aju.loc[
+            ~aju["nro_comprobante"].isin(["19897/17"])
+        ]  # AJUSTES DE LOS DRI DEL AÑO 2017. DEVOLUCIÓN RETENCIÓN IMP. GCIAS. 245
+        aju = aju.loc[
+            ~aju["nro_comprobante"].isin(["15142/21"])
+        ]  # AJU SALIDA DE BANCO DEL DRI 497-10-09-2021
+        aju = aju.loc[
+            ~aju["nro_comprobante"].isin(["16986/24"])
+        ]  # DEV RET INDEBIDAS IIBB- DRI 1348.AJUSTE CTA OTROS ANTICIPOS.
 
-    # # --------------------------------------------------
-    # async def generate_banco_debitos(
-    #     self,
-    #     ejercicio: int = None,
-    # ) -> pd.DataFrame:
-    #     codigos_imputacion = ["031"]
-    #     filters = {
-    #         "cod_imputacion": {"$in": codigos_imputacion},
-    #     }
-    #     df = await get_banco_invico_unified_cta_cte(
-    #         ejercicio=ejercicio, filters=filters
-    #     )
-    #     return df
+        # Conservo los AJU con saldo mayor a 0.1 y el 16536/11
+        aju_keep = aju.loc[aju["nro_comprobante"].isin(["16536/11"])]
+        # aju_keep = aju_keep.append(aju[aju['tipo_comprobante'] == 'DRI'])
+        aju_keep = aju_keep.drop(columns=["nro_comprobante"])
+        filtered_aju = aju.groupby("nro_original").sum()["saldo_contable"]
+        filtered_aju = filtered_aju[abs(filtered_aju) > 0.1]
+        aju = aju.merge(
+            filtered_aju.reset_index()["nro_original"], on="nro_original", how="right"
+        )
+        aju = pd.concat([aju, aju_keep], axis=0)
+        df = pd.DataFrame(columns=filter_rdeu.columns)
+        df = df.drop(columns=["ejercicio", "nro_original"])
+        df = pd.concat([df, aju], axis=1)
+        df["ejercicio_contable"] = ejercicio
+        df["fuente"] = "11"
+        df["saldo_rdeu"] = df["saldo_contable"] * (-1)
+        return df
 
-    # # --------------------------------------------------
-    # async def sscc_summarize(
-    #     self,
-    #     ejercicio: int = None,
-    #     groupby_cols: List[str] = ["ejercicio", "mes", "cta_cte"],
-    # ) -> pd.DataFrame:
-    #     """
-    #     Summarize and filter bank data related to INVICO (Instituto de Vivienda de Corrientes).
+    # --------------------------------------------------
+    async def compute_control_deuda_flotante(
+        self,
+        params: ControlDeudaFlotanteParams,
+    ) -> List[RouteReturnSchema]:
+        return_schema = []
+        try:
+            ejercicios = list(range(params.ejercicio_desde, params.ejercicio_hasta + 1))
+            for ejercicio in ejercicios:
+                rdeu = self.generate_last_rdeu012(ejercicio=ejercicio)
+                rcocc31 = self.generate_rcocc31_liabilities(ejercicio=ejercicio)
+                cyo = rdeu["nro_comprobante"].tolist()
+                cyo = list(map(lambda x: str(int(x[:-3])), cyo))
+                aju = rcocc31.loc[rcocc31["tipo_comprobante"].isin(["AJU"])]
+                df = rcocc31.loc[rcocc31["nro_original"].isin(cyo)]
+                filter_rcocc31 = pd.concat([df, aju])
+                rdeu["ejercicio_contable"] = ejercicio
+                rdeu = rdeu[
+                    ["ejercicio_contable"]
+                    + [col for col in rdeu.columns if col != "ejercicio_contable"]
+                ]
+                # ctrl_rdeu.rdeu012 = pd.concat([ctrl_rdeu.rdeu012, rdeu])
+                # ctrl_rdeu.rcocc31 = pd.concat([ctrl_rdeu.rcocc31, filter_rcocc31])
+                rdeu = rdeu.loc[
+                    :,
+                    [
+                        "ejercicio_contable",
+                        "ejercicio",
+                        "fuente",
+                        "cta_cte",
+                        "nro_original",
+                        "saldo_rdeu",
+                        "cuit",
+                        "glosa",
+                        "nro_expte",
+                    ],
+                ]
+                ctrl_rdeu = rdeu.merge(
+                    filter_rcocc31,
+                    how="left",
+                    on=["ejercicio", "nro_original"],
+                )
 
-    #     Args:
-    #         groupby_cols (List[str], optional): A list of columns to group the data by for
-    #             summarization. Defaults to ['ejercicio', 'mes', 'cta_cte'].
-    #             It could also include 'fecha'
+                aju = await self.generate_aju_not_in_rdue012(
+                    filter_rdeu=rdeu, rcocc31=filter_rcocc31, ejercicio=ejercicio
+                )
+                ctrl_rdeu = pd.concat([ctrl_rdeu, aju])
 
-    #     Returns:
-    #         pd.DataFrame: A DataFrame containing summarized and filtered bank data related to INVICO.
+                # 🔹 Validar datos usando Pydantic
+                validate_and_errors = validate_and_extract_data_from_df(
+                    dataframe=ctrl_rdeu,
+                    model=ControlDeudaFlotanteReport,
+                    field_id="nro_entrada",
+                )
 
-    #     This method imports bank data related to INVICO for the specified exercise (year),
-    #     filters out specific 'cod_imputacion' values, and summarizes the data based on the
-    #     provided groupby columns. The resulting DataFrame contains the summarized and
-    #     filtered bank data for further analysis.
-    #     """
-    #     df = await self.generate_banco_debitos(ejercicio=ejercicio)
-    #     df = df.groupby(groupby_cols)["importe"].sum()
-    #     df = df.reset_index()
-    #     df["importe"] = df["importe"] * -1
-    #     return df
+                partial_schema = await sync_validated_to_repository(
+                    repository=self.control_deuda_flotante_repo,
+                    validation=validate_and_errors,
+                    delete_filter={"ejercicio": ejercicio},
+                    title=f"Control Deuda Flotante del ejercicio {ejercicio}",
+                    logger=logger,
+                    label=f"Control Deuda Flotante del ejercicio {ejercicio}",
+                )
+                return_schema.append(partial_schema)
 
-    # # --------------------------------------------------
-    # async def compute_control_debitos_bancarios(
-    #     self,
-    #     params: ControlDebitosBancariosParams,
-    #     only_diff=False,
-    # ) -> List[RouteReturnSchema]:
-    #     return_schema = []
-    #     groupby_cols = ["ejercicio", "mes", "cta_cte"]
-    #     try:
-    #         ejercicios = list(range(params.ejercicio_desde, params.ejercicio_hasta + 1))
-    #         for ejercicio in ejercicios:
-    #             siif = await self.siif_summarize(
-    #                 ejercicio=ejercicio, groupby_cols=groupby_cols
-    #             )
-    #             siif = siif.rename(columns={"importe": "ejecutado_siif"})
-    #             siif = siif.set_index(groupby_cols)
-    #             sscc = await self.sscc_summarize(
-    #                 ejercicio=ejercicio, groupby_cols=groupby_cols
-    #             )
-    #             sscc = sscc.rename(columns={"importe": "debitos_sscc"})
-    #             sscc = sscc.set_index(groupby_cols)
-    #             # Obtener los índices faltantes en siif
-    #             missing_indices = sscc.index.difference(siif.index)
-    #             # Reindexar el DataFrame siif con los índices faltantes
-    #             siif = siif.reindex(siif.index.union(missing_indices))
-    #             sscc = sscc.reindex(siif.index)
-    #             siif = siif.fillna(0)
-    #             sscc = sscc.fillna(0)
-    #             df = siif.merge(sscc, how="outer", on=groupby_cols)
-    #             df = df.reset_index()
-    #             df = df.fillna(0)
-    #             df["diferencia"] = df["ejecutado_siif"] - df["debitos_sscc"]
-    #             if only_diff:
-    #                 # Seleccionar solo las columnas numéricas
-    #                 numeric_cols = df.select_dtypes(include=np.number).columns.drop(
-    #                     "ejercicio"
-    #                 )
-    #                 # Filtrar el DataFrame utilizando las columnas numéricas válidas
-    #                 # df = df[df[numeric_cols].sum(axis=1) != 0]
-    #                 df = df[np.abs(df[numeric_cols].sum(axis=1)) > 0.01]
-    #                 df = df.reset_index(drop=True)
-
-    #             # 🔹 Validar datos usando Pydantic
-    #             validate_and_errors = validate_and_extract_data_from_df(
-    #                 dataframe=df,
-    #                 model=ControlDebitosBancariosReport,
-    #                 field_id="mes",
-    #             )
-
-    #             partial_schema = await sync_validated_to_repository(
-    #                 repository=self.control_debitos_bancarios_repo,
-    #                 validation=validate_and_errors,
-    #                 delete_filter={"ejercicio": ejercicio},
-    #                 title=f"Control Debitos Bancarios del ejercicio {ejercicio}",
-    #                 logger=logger,
-    #                 label=f"Control Debitos Bancarios del ejercicio {ejercicio}",
-    #             )
-    #             return_schema.append(partial_schema)
-
-    #     except ValidationError as e:
-    #         logger.error(f"Validation Error: {e}")
-    #         raise HTTPException(
-    #             status_code=400,
-    #             detail="Invalid response format from Control Debitos Bancarios",
-    #         )
-    #     except Exception as e:
-    #         logger.error(f"Error in Control Debitos Bancarios: {e}")
-    #         raise HTTPException(
-    #             status_code=500,
-    #             detail="Error in Control Debitos Bancarios",
-    #         )
-    #     finally:
-    #         return return_schema
+        except ValidationError as e:
+            logger.error(f"Validation Error: {e}")
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid response format from Control Deuda Flotante",
+            )
+        except Exception as e:
+            logger.error(f"Error in Control Deuda Flotante: {e}")
+            raise HTTPException(
+                status_code=500,
+                detail="Error in Control Deuda Flotante",
+            )
+        finally:
+            return return_schema
 
 
 ControlDeudaFlotanteServiceDependency = Annotated[
