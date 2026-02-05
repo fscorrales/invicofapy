@@ -207,14 +207,14 @@ class ControlDeudaFlotanteService:
     ) -> list[tuple[pd.DataFrame, str]]:
         ejercicios = list(range(params.ejercicio_desde, params.ejercicio_hasta + 1))
 
-        # control_debitos_bancarios_docs = (
-        #     await self.control_debitos_bancarios_repo.find_by_filter(
-        #         {"ejercicio": {"$in": ejercicios}}
-        #     )
-        # )
+        control_deuda_flotante_docs = (
+            await self.control_deuda_flotante_repo.find_by_filter(
+                {"ejercicio": {"$in": ejercicios}}
+            )
+        )
 
-        # if not control_debitos_bancarios_docs:
-        #     raise HTTPException(status_code=404, detail="No se encontraron registros")
+        if not control_deuda_flotante_docs:
+            raise HTTPException(status_code=404, detail="No se encontraron registros")
 
         rvicon03 = pd.DataFrame()
         rcocc31 = pd.DataFrame()
@@ -225,7 +225,7 @@ class ControlDeudaFlotanteService:
             rcocc31 = pd.concat([rcocc31, df], ignore_index=True)
 
         return [
-            # (pd.DataFrame(control_debitos_bancarios_docs), "siif_vs_sscc_db"),
+            (pd.DataFrame(control_deuda_flotante_docs), "bd_rdeu_cta_contable_new"),
             (rvicon03, "bd_rvicon03"),
             (rcocc31, "bd_rcocc31"),
         ]
@@ -261,7 +261,7 @@ class ControlDeudaFlotanteService:
     ) -> pd.DataFrame:
         df = await get_siif_rdeu012_unified_cta_cte(ejercicio=ejercicio)
         df = df.reset_index(drop=True)
-        df = df.loc[df["mes_hasta"].str.endswith(ejercicio), :]
+        df = df.loc[df["mes_hasta"].str.endswith(str(ejercicio)), :]
         months = df["mes_hasta"].tolist()
         # Convertir cada elemento de la lista a un objeto datetime
         dates = [datetime.strptime(month, "%m/%Y") for month in months]
@@ -285,11 +285,11 @@ class ControlDeudaFlotanteService:
         tipos_comprobantes = ["CAO", "CAP", "CAM", "CAD", "ANP", "AJU"]
         filters = {
             "tipo_comprobante": {"$in": tipos_comprobantes},
-            "cta_contable": {"$regex": "/^2/"},
+            # "cta_contable": {"$regex": "/^2/"},
         }
         df = await get_siif_rcocc31(ejercicio=ejercicio, filters=filters)
         df = df.reset_index(drop=True)
-        # df = df.loc[df["cta_contable"].str.startswith("2"), :]
+        df = df.loc[df["cta_contable"].str.startswith("2"), :]
         # df = df.loc[df["tipo_comprobante"].isin(tipos_comprobantes), :]
         df = df.rename(columns={"saldo": "saldo_contable"})
         return df
@@ -303,7 +303,7 @@ class ControlDeudaFlotanteService:
     ) -> pd.DataFrame:
 
         aju = rcocc31.loc[rcocc31["tipo_comprobante"].isin(["AJU"])]
-        aju["nro_comprobante"] = aju["nro_entrada"] + "/" + aju["ejercicio"].str[2:]
+        aju["nro_comprobante"] = aju["nro_entrada"] + "/" + aju["ejercicio"].astype(str).str[2:]
 
         # Elimino Amortizaciones Acum. del Pasivo (cta. contable empieza con 2241)
         aju = aju.loc[~aju["cta_contable"].str.startswith("2241")]
@@ -341,7 +341,8 @@ class ControlDeudaFlotanteService:
         aju_keep = aju.loc[aju["nro_comprobante"].isin(["16536/11"])]
         # aju_keep = aju_keep.append(aju[aju['tipo_comprobante'] == 'DRI'])
         aju_keep = aju_keep.drop(columns=["nro_comprobante"])
-        filtered_aju = aju.groupby("nro_original").sum()["saldo_contable"]
+        # filtered_aju = aju.groupby("nro_original").sum()["saldo_contable"]
+        filtered_aju = aju.groupby("nro_original")["saldo_contable"].sum()
         filtered_aju = filtered_aju[abs(filtered_aju) > 0.1]
         aju = aju.merge(
             filtered_aju.reset_index()["nro_original"], on="nro_original", how="right"
@@ -365,12 +366,15 @@ class ControlDeudaFlotanteService:
             ejercicios = list(range(params.ejercicio_desde, params.ejercicio_hasta + 1))
             for ejercicio in ejercicios:
                 rdeu = await self.generate_last_rdeu012(ejercicio=ejercicio)
+                # print(f"rdeu.shape: {rdeu.shape} - rdeu.head: {rdeu.head()}")
                 rcocc31 = await self.generate_rcocc31_liabilities(ejercicio=ejercicio)
+                # print(f"rcocc31.shape: {rcocc31.shape} - rcocc31.head: {rcocc31.head()}")
                 cyo = rdeu["nro_comprobante"].tolist()
                 cyo = list(map(lambda x: str(int(x[:-3])), cyo))
                 aju = rcocc31.loc[rcocc31["tipo_comprobante"].isin(["AJU"])]
                 df = rcocc31.loc[rcocc31["nro_original"].isin(cyo)]
                 filter_rcocc31 = pd.concat([df, aju])
+                # print(f"filter_rcocc31.shape: {filter_rcocc31.shape} - filter_rcocc31.head: {filter_rcocc31.head()}")
                 rdeu["ejercicio_contable"] = ejercicio
                 rdeu = rdeu[
                     ["ejercicio_contable"]

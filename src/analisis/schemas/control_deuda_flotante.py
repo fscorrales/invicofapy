@@ -6,7 +6,7 @@ __all__ = [
 ]
 
 import os
-from datetime import date
+from datetime import date, datetime
 from typing import Optional
 
 from pydantic import BaseModel, Field, field_validator, model_validator
@@ -57,8 +57,8 @@ class ControlDeudaFlotanteReport(BaseModel):
     glosa: str
     nro_expte: Optional[str] = None
     mes: str
-    fecha: date
-    fecha_aprobado: date
+    fecha: datetime
+    fecha_aprobado: datetime
     cta_contable: str
     nro_entrada: str
     auxiliar_1: str
