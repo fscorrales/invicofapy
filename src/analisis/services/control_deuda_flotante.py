@@ -364,8 +364,8 @@ class ControlDeudaFlotanteService:
         try:
             ejercicios = list(range(params.ejercicio_desde, params.ejercicio_hasta + 1))
             for ejercicio in ejercicios:
-                rdeu = self.generate_last_rdeu012(ejercicio=ejercicio)
-                rcocc31 = self.generate_rcocc31_liabilities(ejercicio=ejercicio)
+                rdeu = await self.generate_last_rdeu012(ejercicio=ejercicio)
+                rcocc31 = await self.generate_rcocc31_liabilities(ejercicio=ejercicio)
                 cyo = rdeu["nro_comprobante"].tolist()
                 cyo = list(map(lambda x: str(int(x[:-3])), cyo))
                 aju = rcocc31.loc[rcocc31["tipo_comprobante"].isin(["AJU"])]
