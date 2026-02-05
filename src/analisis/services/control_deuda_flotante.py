@@ -225,8 +225,8 @@ class ControlDeudaFlotanteService:
 
         return [
             # (pd.DataFrame(control_debitos_bancarios_docs), "siif_vs_sscc_db"),
-            (rvicon03, "bd_rvicon03_new"),
-            (rcocc31, "bd_rcocc31_new"),
+            (rvicon03, "bd_rvicon03"),
+            (rcocc31, "bd_rcocc31"),
         ]
 
     # -------------------------------------------------
