@@ -47,8 +47,8 @@ from ..handlers import (
     get_siif_rdeu012_unified_cta_cte,
     get_siif_rvicon03,
 )
-from ..repositories.control_debitos_bancarios import (
-    ControlDebitosBancariosRepositoryDependency,
+from ..repositories.control_deuda_flotante import (
+    ControlDeudaFlotanteRepositoryDependency,
 )
 from ..schemas.control_deuda_flotante import (
     ControlDeudaFlotanteParams,
@@ -60,7 +60,7 @@ from ..schemas.control_deuda_flotante import (
 # --------------------------------------------------
 @dataclass
 class ControlDeudaFlotanteService:
-    control_debitos_bancarios_repo: ControlDebitosBancariosRepositoryDependency
+    control_deuda_flotante_repo: ControlDeudaFlotanteRepositoryDependency
     sscc_ctas_ctes_service: CtasCtesServiceDependency
     siif_rcocc31_handler: Rcocc31 = field(init=False)  # No se pasa como argumento
     siif_rvicon03_handler: Rvicon03 = field(init=False)  # No se pasa como argumento

@@ -47,7 +47,7 @@ COLLECTIONS = [
     "slave_honorarios",
     "sscc_banco_invico",
     "sscc_ctas_ctes",
-    "sgv_saldos_barrios_evolucion", 
+    "sgv_saldos_barrios_evolucion",
     "control_recursos",
     "control_aporte_empresario",
     "control_obras",
@@ -61,6 +61,7 @@ COLLECTIONS = [
     "control_escribanos_sgf_vs_sscc",
     "control_debitos_bancarios",
     "control_viaticos_rendicion",
+    "control_deuda_flotante",
     "control_banco",
     "reporte_modulos_basicos_icaro",
 ]
