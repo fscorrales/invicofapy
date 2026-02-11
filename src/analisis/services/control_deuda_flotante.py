@@ -83,8 +83,6 @@ class ControlDeudaFlotanteService:
         if (
             params.siif_username is None
             or params.siif_password is None
-            or params.sscc_username is None
-            or params.sscc_password is None
         ):
             raise HTTPException(
                 status_code=401,
@@ -116,6 +114,7 @@ class ControlDeudaFlotanteService:
                 for ejercicio in ejercicios:
                     cuentas_contables = await get_siif_rvicon03(ejercicio=ejercicio)
                     cuentas_contables = cuentas_contables["cta_contable"].unique()
+                    cuentas_contables = list(filter(lambda cta_contable: cta_contable.startswith("2"), cuentas_contables))
                     logger.info(
                         f"Se Bajaran las siguientes cuentas contables: {cuentas_contables}"
                     )
@@ -209,23 +208,25 @@ class ControlDeudaFlotanteService:
 
         control_deuda_flotante_docs = (
             await self.control_deuda_flotante_repo.find_by_filter(
-                {"ejercicio": {"$in": ejercicios}}
+                {"ejercicio_contable": {"$in": ejercicios}}
             )
         )
 
         if not control_deuda_flotante_docs:
             raise HTTPException(status_code=404, detail="No se encontraron registros")
 
-        rvicon03 = pd.DataFrame()
-        rcocc31 = pd.DataFrame()
-        for ejercicio in ejercicios:
-            df = await get_siif_rvicon03(ejercicio=ejercicio)
-            rvicon03 = pd.concat([rvicon03, df], ignore_index=True)
-            df = await get_siif_rcocc31(ejercicio=ejercicio)
-            rcocc31 = pd.concat([rcocc31, df], ignore_index=True)
+        rvicon03 = await get_siif_rvicon03(ejercicio=params.ejercicio_hasta)
+        rcocc31 = await get_siif_rcocc31(ejercicio=params.ejercicio_hasta)
+        # rvicon03 = pd.DataFrame()
+        # rcocc31 = pd.DataFrame()
+        # for ejercicio in ejercicios:
+        #     df = await get_siif_rvicon03(ejercicio=ejercicio)
+        #     rvicon03 = pd.concat([rvicon03, df], ignore_index=True)
+        #     df = await get_siif_rcocc31(ejercicio=ejercicio)
+        #     rcocc31 = pd.concat([rcocc31, df], ignore_index=True)
 
         return [
-            (pd.DataFrame(control_deuda_flotante_docs), "bd_rdeu_cta_contable_new"),
+            (pd.DataFrame(control_deuda_flotante_docs), "bd_rdeu_cta_contable"),
             (rvicon03, "bd_rvicon03"),
             (rcocc31, "bd_rcocc31"),
         ]
@@ -259,7 +260,7 @@ class ControlDeudaFlotanteService:
         self,
         ejercicio: int = None,
     ) -> pd.DataFrame:
-        df = await get_siif_rdeu012_unified_cta_cte(ejercicio=ejercicio)
+        df = await get_siif_rdeu012_unified_cta_cte()
         df = df.reset_index(drop=True)
         df = df.loc[df["mes_hasta"].str.endswith(str(ejercicio)), :]
         months = df["mes_hasta"].tolist()
@@ -362,6 +363,8 @@ class ControlDeudaFlotanteService:
         params: ControlDeudaFlotanteParams,
     ) -> List[RouteReturnSchema]:
         return_schema = []
+        ctrl_rdeu = pd.DataFrame()
+        acum_rcocc31 = pd.DataFrame()
         try:
             ejercicios = list(range(params.ejercicio_desde, params.ejercicio_hasta + 1))
             for ejercicio in ejercicios:
@@ -371,17 +374,21 @@ class ControlDeudaFlotanteService:
                 # print(f"rcocc31.shape: {rcocc31.shape} - rcocc31.head: {rcocc31.head()}")
                 cyo = rdeu["nro_comprobante"].tolist()
                 cyo = list(map(lambda x: str(int(x[:-3])), cyo))
-                aju = rcocc31.loc[rcocc31["tipo_comprobante"].isin(["AJU"])]
-                df = rcocc31.loc[rcocc31["nro_original"].isin(cyo)]
-                filter_rcocc31 = pd.concat([df, aju])
+                # aju = rcocc31.loc[rcocc31["tipo_comprobante"].isin(["AJU"])]
+                # df = rcocc31.loc[rcocc31["nro_original"].isin(cyo)]
+                filter_rcocc31 = pd.concat([
+                    rcocc31.loc[rcocc31["nro_original"].isin(cyo)], 
+                    rcocc31.loc[rcocc31["tipo_comprobante"].isin(["AJU"])]
+                    ])
                 # print(f"filter_rcocc31.shape: {filter_rcocc31.shape} - filter_rcocc31.head: {filter_rcocc31.head()}")
                 rdeu["ejercicio_contable"] = ejercicio
                 rdeu = rdeu[
                     ["ejercicio_contable"]
                     + [col for col in rdeu.columns if col != "ejercicio_contable"]
                 ]
+                acum_rcocc31 = pd.concat([acum_rcocc31, filter_rcocc31])
                 # ctrl_rdeu.rdeu012 = pd.concat([ctrl_rdeu.rdeu012, rdeu])
-                # ctrl_rdeu.rcocc31 = pd.concat([ctrl_rdeu.rcocc31, filter_rcocc31])
+
                 rdeu = rdeu.loc[
                     :,
                     [
@@ -396,15 +403,25 @@ class ControlDeudaFlotanteService:
                         "nro_expte",
                     ],
                 ]
+                # ctrl_rdeu = pd.concat([
+                #     ctrl_rdeu,
+                #     rdeu.merge(
+                #         filter_rcocc31,
+                #         how="left",
+                #         on=["ejercicio", "nro_original"],
+                #     )
+                # ])
+                print(rdeu.loc[rdeu["nro_original"] == "1072"])
                 ctrl_rdeu = rdeu.merge(
-                    filter_rcocc31,
+                    acum_rcocc31,
                     how="left",
                     on=["ejercicio", "nro_original"],
-                )
+                )              
 
                 aju = await self.generate_aju_not_in_rdue012(
-                    filter_rdeu=rdeu, rcocc31=filter_rcocc31, ejercicio=ejercicio
+                    filter_rdeu=rdeu, rcocc31=acum_rcocc31, ejercicio=ejercicio
                 )
+                # print(f"aju.shape: {aju.shape} - aju.head: {aju.head()}")
                 ctrl_rdeu = pd.concat([ctrl_rdeu, aju])
 
                 # 🔹 Validar datos usando Pydantic
@@ -417,7 +434,7 @@ class ControlDeudaFlotanteService:
                 partial_schema = await sync_validated_to_repository(
                     repository=self.control_deuda_flotante_repo,
                     validation=validate_and_errors,
-                    delete_filter={"ejercicio": ejercicio},
+                    delete_filter={"ejercicio_contable": ejercicio},
                     title=f"Control Deuda Flotante del ejercicio {ejercicio}",
                     logger=logger,
                     label=f"Control Deuda Flotante del ejercicio {ejercicio}",

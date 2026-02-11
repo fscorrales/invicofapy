@@ -17,8 +17,8 @@ from ...utils import BaseFilterParams, CamelModel, get_sscc_cta_cte_path
 
 # --------------------------------------------------
 class ControlDeudaFlotanteParams(CamelModel):
-    ejercicio_desde: int = Field(default=date.today().year)
-    ejercicio_hasta: int = Field(default=date.today().year)
+    ejercicio_desde: int = Field(default=2010)
+    ejercicio_hasta: int = Field(default=date.today().year-1)
 
     @field_validator("ejercicio_desde", "ejercicio_hasta")
     @classmethod
@@ -50,11 +50,11 @@ class ControlDeudaFlotanteReport(BaseModel):
     ejercicio_contable: int
     ejercicio: int
     fuente: int
-    cta_cte: str
+    cta_cte: Optional[str] = None
     nro_original: str
     saldo_rdeu: float
-    cuit: str
-    glosa: str
+    cuit: Optional[str] = None
+    glosa: Optional[str] = None
     nro_expte: Optional[str] = None
     mes: str
     fecha: datetime
