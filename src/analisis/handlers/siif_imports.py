@@ -143,6 +143,9 @@ async def get_siif_desc_pres(
         subset=["programa", "subprograma", "proyecto"], inplace=True, keep="first"
     )
     # Actividades únicos
+    # Reemplazar los NaN por una cadena vacía en la columna 'desc_actividad'
+    df['desc_actividad'] = df['desc_actividad'].fillna('')
+    
     df_act = df.loc[
         :,
         [
@@ -154,6 +157,7 @@ async def get_siif_desc_pres(
             "desc_actividad",
         ],
     ]
+
     df_act.drop_duplicates(subset=["estructura"], inplace=True, keep="first")
     # Merge all
     df = df_act.merge(df_prog, how="left", on="programa", copy=False)

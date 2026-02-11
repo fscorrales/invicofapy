@@ -202,6 +202,8 @@ async def get_full_icaro_carga_desc(
             copy=False,
         )
     df.reset_index(drop=True, inplace=True)
+
+    # Agregar proveedores
     prov = await get_icaro_proveedores()
     prov = prov.loc[:, ["cuit", "desc_proveedor"]]
     prov.drop_duplicates(subset=["cuit"], inplace=True)
@@ -217,7 +219,7 @@ async def get_icaro_planillometro_contabilidad(
     ultimos_ejercicios: str = "All",
     desagregar_desc_subprog: bool = True,
     desagregar_obras: bool = False,
-    desagregar_partida: bool = True,
+    desagregar_partida: bool = False,
     desagregar_fuente: bool = False,
     agregar_acum_2008: bool = True,
     date_up_to: dt.date = None,
@@ -230,11 +232,9 @@ async def get_icaro_planillometro_contabilidad(
     group_cols = ["desc_programa"]
     if desagregar_desc_subprog:
         group_cols = group_cols + ["desc_subprograma"]
-    group_cols = group_cols + ["desc_proyecto", "desc_actividad", "actividad"]
+    group_cols = group_cols + ["desc_proyecto", "desc_actividad", "actividad", "partida"]
     if desagregar_obras:
         group_cols = group_cols + ["desc_obra"]
-    if desagregar_partida:
-        group_cols = group_cols + ["partida"]
     if desagregar_fuente:
         group_cols = group_cols + ["fuente"]
 
@@ -297,12 +297,13 @@ async def get_icaro_planillometro_contabilidad(
             on=["estructura"],
             how="left",
         )
-        df = df.drop(columns=["estructura"])
         df_acum_2008 = df_acum_2008.loc[
             ~df_acum_2008["estructura"].isin(df_dif["estructura"].unique().tolist())
         ]
         df_acum_2008 = pd.concat([df_acum_2008, df_dif])
         df = pd.concat([df, df_acum_2008])
+        df = df.drop(columns=["estructura"])
+
 
     # Ejercicio alta
     df_alta = df.groupby(group_cols).ejercicio.min().reset_index()
@@ -319,6 +320,7 @@ async def get_icaro_planillometro_contabilidad(
         ejercicios = df_ejercicios.sort_values(
             "ejercicio", ascending=False
         ).ejercicio.unique()
+
 
     # Ejercicio actual
     df_ejec_actual = df.copy()
@@ -339,8 +341,10 @@ async def get_icaro_planillometro_contabilidad(
         df_ejercicio = (
             df_ejercicio.groupby(group_cols + ["ejercicio"]).importe.sum().reset_index()
         )
+        
         df_ejercicio.rename(columns={"importe": "acum"}, inplace=True)
         df_acum = pd.concat([df_acum, df_ejercicio])
+
 
     # Obras en curso
     df_curso = pd.DataFrame()
