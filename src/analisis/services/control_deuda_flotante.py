@@ -215,15 +215,15 @@ class ControlDeudaFlotanteService:
         if not control_deuda_flotante_docs:
             raise HTTPException(status_code=404, detail="No se encontraron registros")
 
-        rvicon03 = await get_siif_rvicon03(ejercicio=params.ejercicio_hasta)
-        rcocc31 = await get_siif_rcocc31(ejercicio=params.ejercicio_hasta)
-        # rvicon03 = pd.DataFrame()
-        # rcocc31 = pd.DataFrame()
-        # for ejercicio in ejercicios:
-        #     df = await get_siif_rvicon03(ejercicio=ejercicio)
-        #     rvicon03 = pd.concat([rvicon03, df], ignore_index=True)
-        #     df = await get_siif_rcocc31(ejercicio=ejercicio)
-        #     rcocc31 = pd.concat([rcocc31, df], ignore_index=True)
+        # rvicon03 = await get_siif_rvicon03(ejercicio=params.ejercicio_hasta)
+        # rcocc31 = await get_siif_rcocc31(ejercicio=params.ejercicio_hasta)
+        rvicon03 = pd.DataFrame()
+        rcocc31 = pd.DataFrame()
+        for ejercicio in ejercicios[-2:]:
+            df = await get_siif_rvicon03(ejercicio=ejercicio)
+            rvicon03 = pd.concat([rvicon03, df], ignore_index=True)
+            df = await get_siif_rcocc31(ejercicio=ejercicio)
+            rcocc31 = pd.concat([rcocc31, df], ignore_index=True)
 
         return [
             (pd.DataFrame(control_deuda_flotante_docs), "bd_rdeu_cta_contable"),
@@ -411,7 +411,7 @@ class ControlDeudaFlotanteService:
                 #         on=["ejercicio", "nro_original"],
                 #     )
                 # ])
-                print(rdeu.loc[rdeu["nro_original"] == "1072"])
+
                 ctrl_rdeu = rdeu.merge(
                     acum_rcocc31,
                     how="left",
@@ -428,7 +428,7 @@ class ControlDeudaFlotanteService:
                 validate_and_errors = validate_and_extract_data_from_df(
                     dataframe=ctrl_rdeu,
                     model=ControlDeudaFlotanteReport,
-                    field_id="nro_entrada",
+                    field_id="nro_original",
                 )
 
                 partial_schema = await sync_validated_to_repository(
