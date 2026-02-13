@@ -14,6 +14,7 @@ from .control_icaro_vs_siif import control_icaro_vs_siif_router
 from .control_obras import control_obras_router
 from .control_recursos import control_recursos_router
 from .control_viaticos import control_viaticos_router
+from .reporte_ejecucion_obras import reporte_ejecucion_obras_router
 from .reporte_formulacion_presupuesto import reporte_formulacion_presupuesto_router
 from .reporte_libro_diario import reporte_libro_diario_router
 from .reporte_modulos_basicos import reporte_modulos_basicos_router
@@ -42,3 +43,4 @@ reporte_router.include_router(reporte_planillometro_router)
 reporte_router.include_router(reporte_modulos_basicos_router)
 reporte_router.include_router(reporte_libro_diario_router)
 reporte_router.include_router(reporte_planillometro_contabilidad_router)
+reporte_router.include_router(reporte_ejecucion_obras_router)
