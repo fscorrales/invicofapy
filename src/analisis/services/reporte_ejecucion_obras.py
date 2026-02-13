@@ -222,7 +222,7 @@ class ReporteEjecucionObrasService:
     ) -> pd.DataFrame:
         df = await get_full_icaro_carga_desc(
             ejercicio=ejercicio,
-            es_desc_siif=True,
+            es_desc_siif=False,
             es_neto_pa6=True,
             es_ejercicio_to=False,
         )
@@ -230,6 +230,8 @@ class ReporteEjecucionObrasService:
         if df.empty:
             raise HTTPException(status_code=404, detail="No se encontraron registros")
 
+
+        df["estructura"] = df["actividad"] + "-" + df["partida"]
         df = (
             df.groupby(
                 [
@@ -247,6 +249,21 @@ class ReporteEjecucionObrasService:
             .to_frame()
             .reset_index()
         )
+        df = df.rename(columns={
+            "desc_programa": "nro_desc_programa", 
+            "desc_subprograma": "nro_desc_subprograma", 
+            "desc_proyecto": "nro_desc_proyecto", 
+            "desc_actividad": "nro_desc_actividad"
+        })
+        df["nro_programa"] = df["estructura"].str[0:2]
+        df["nro_subprograma"] = df["estructura"].str[0:5]
+        df["nro_proyecto"] = df["estructura"].str[0:8]
+        df["nro_actividad"] = df["estructura"].str[0:11]
+        df["nro_partida"] = df["estructura"].str[12:15]
+        df["desc_programa"] = df["nro_desc_programa"].str[5:]
+        df["desc_subprograma"] = df["nro_desc_subprograma"].str[5:]
+        df["desc_proyecto"] = df["nro_desc_proyecto"].str[5:]
+        df["desc_actividad"] = df["nro_desc_actividad"].str[5:]
         return df
 
 
