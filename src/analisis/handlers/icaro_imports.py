@@ -112,20 +112,22 @@ async def get_icaro_estructuras_desc() -> pd.DataFrame:
     try:
         docs = await EstructurasRepository().get_all()
         df = pd.DataFrame(docs)
-        df_prog = df.loc[len(df["estructura"]) == 2]
+        df = df.drop(columns=["_id"])
+
+        df_prog = df.loc[df["estructura"].str.len() == 2].copy()
         df_prog = df_prog.rename(
             columns={"estructura": "programa", "desc_estructura": "desc_programa"}
         )
-        df_subprog = df.loc[len(df["estructura"]) == 5]
-        df_subprog = df_prog.rename(
+        df_subprog = df.loc[df["estructura"].str.len() == 5].copy()
+        df_subprog = df_subprog.rename(
             columns={"estructura": "subprograma", "desc_estructura": "desc_subprograma"}
         )
-        df_proy = df.loc[len(df["estructura"]) == 8]
-        df_proy = df_prog.rename(
+        df_proy = df.loc[df["estructura"].str.len() == 8].copy()
+        df_proy = df_proy.rename(
             columns={"estructura": "proyecto", "desc_estructura": "desc_proyecto"}
         )
-        df_act = df.loc[len(df["estructura"]) == 11]
-        df_act = df_prog.rename(
+        df_act = df.loc[df["estructura"].str.len() == 11].copy()
+        df_act = df_act.rename(
             columns={"estructura": "actividad", "desc_estructura": "desc_actividad"}
         )
         df_act["programa"] = df_act["actividad"].str[0:2]
@@ -136,22 +138,22 @@ async def get_icaro_estructuras_desc() -> pd.DataFrame:
         df = df.merge(df_subprog, how="left", on="subprograma", copy=False)
         df = df.merge(df_prog, how="left", on="programa", copy=False)
         # Combine number with description
-        df["programa_desc"] = df["actividad"].str[0:2] + " - " + df["desc_programa"]
+        df["desc_programa"] = df["actividad"].str[0:2] + " - " + df["desc_programa"]
         df.desc_subprograma.fillna(value="", inplace=True)
-        df["subprograma_desc"] = (
+        df["desc_subprograma"] = (
             df["actividad"].str[3:5] + " - " + df["desc_subprograma"]
         )
-        df["proyecto_desc"] = df["actividad"].str[6:8] + " - " + df["desc_proyecto"]
-        df["actividad_desc"] = df["actividad"].str[9:11] + " - " + df["desc_actividad"]
+        df["desc_proyecto"] = df["actividad"].str[6:8] + " - " + df["desc_proyecto"]
+        df["desc_actividad"] = df["actividad"].str[9:11] + " - " + df["desc_actividad"]
 
         df = df.loc[
             :,
             [
                 "actividad",
-                "programa_desc",
-                "subprograma_desc",
-                "proyecto_desc",
-                "actividad_desc",
+                "desc_programa",
+                "desc_subprograma",
+                "desc_proyecto",
+                "desc_actividad",
             ],
         ]
         return df
