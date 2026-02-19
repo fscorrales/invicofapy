@@ -7,7 +7,7 @@ Data required:
     - Icaro (CARGA, ESTRUCTURAS, OBRAS, PROVEEDORES)
     - SIIF rf610
 Google Sheet:
-    - https://docs.google.com/spreadsheets/d/1AYeTncc1ewP8Duj13t7o6HCwAHNEWILRMNQiZHAs82I (Ejecución Obras)
+    - https://docs.google.com/spreadsheets/d/1NgOT665gNX53IdsXvAhlNPLslVJd5SG--geJm7aDtUA (Ejecución Obras)
 
 """
 
@@ -198,7 +198,7 @@ class ReporteEjecucionObrasService:
         return export_multiple_dataframes_to_excel(
             df_sheet_pairs=df_sheet_pairs,
             filename="ejecucion_obras.xlsx",
-            spreadsheet_key="1AYeTncc1ewP8Duj13t7o6HCwAHNEWILRMNQiZHAs82I",
+            spreadsheet_key="1NgOT665gNX53IdsXvAhlNPLslVJd5SG--geJm7aDtUA",
             upload_to_google_sheets=upload_to_google_sheets,
         )
 
@@ -211,7 +211,7 @@ class ReporteEjecucionObrasService:
 
         return upload_multiple_dataframes_to_google_sheets(
             df_sheet_pairs=df_sheet_pairs,
-            spreadsheet_key="1AYeTncc1ewP8Duj13t7o6HCwAHNEWILRMNQiZHAs82I",
+            spreadsheet_key="1NgOT665gNX53IdsXvAhlNPLslVJd5SG--geJm7aDtUA",
             title="Ejecución Obras",
         )
 
@@ -229,7 +229,6 @@ class ReporteEjecucionObrasService:
 
         if df.empty:
             raise HTTPException(status_code=404, detail="No se encontraron registros")
-
 
         df["estructura"] = df["actividad"] + "-" + df["partida"]
         df = (
@@ -249,12 +248,14 @@ class ReporteEjecucionObrasService:
             .to_frame()
             .reset_index()
         )
-        df = df.rename(columns={
-            "desc_programa": "nro_desc_programa", 
-            "desc_subprograma": "nro_desc_subprograma", 
-            "desc_proyecto": "nro_desc_proyecto", 
-            "desc_actividad": "nro_desc_actividad"
-        })
+        df = df.rename(
+            columns={
+                "desc_programa": "nro_desc_programa",
+                "desc_subprograma": "nro_desc_subprograma",
+                "desc_proyecto": "nro_desc_proyecto",
+                "desc_actividad": "nro_desc_actividad",
+            }
+        )
         df["nro_programa"] = df["estructura"].str[0:2]
         df["nro_subprograma"] = df["estructura"].str[0:5]
         df["nro_proyecto"] = df["estructura"].str[0:8]
