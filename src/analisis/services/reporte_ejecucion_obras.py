@@ -29,6 +29,7 @@ from pydantic import ValidationError
 from ...config import logger
 from ...icaro.handlers import IcaroMongoMigrator
 from ...siif.handlers import (
+    Rf602,
     Rf610,
     login,
     logout,
@@ -40,9 +41,7 @@ from ...utils import (
     get_r_icaro_path,
     upload_multiple_dataframes_to_google_sheets,
 )
-from ..handlers import (
-    get_full_icaro_carga_desc,
-)
+from ..handlers import get_full_icaro_carga_desc, get_siif_ppto_gto_con_desc
 from ..repositories.reporte_modulos_basicos import (
     ReporteModulosBasicosIcaroRepositoryDependency,
 )
@@ -57,6 +56,7 @@ from ..schemas.reporte_ejecucion_obras import (
 class ReporteEjecucionObrasService:
     reporte_mod_bas_icaro_repo: ReporteModulosBasicosIcaroRepositoryDependency
     siif_rf610_handler: Rf610 = field(init=False)  # No se pasa como argumento
+    siif_rf602_handler: Rf602 = field(init=False)  # No se pasa como argumento
 
     # -------------------------------------------------
     async def sync_ejecucion_obras_from_source(
@@ -95,6 +95,14 @@ class ReporteEjecucionObrasService:
                 await self.siif_rf610_handler.go_to_reports()
                 for ejercicio in ejercicios:
                     partial_schema = await self.siif_rf610_handler.download_and_sync_validated_to_repository(
+                        ejercicio=int(ejercicio)
+                    )
+                    return_schema.append(partial_schema)
+
+                # 🔹 RF602
+                self.siif_rf602_handler = Rf602(siif=connect_siif)
+                for ejercicio in ejercicios:
+                    partial_schema = await self.siif_rf602_handler.download_and_sync_validated_to_repository(
                         ejercicio=int(ejercicio)
                     )
                     return_schema.append(partial_schema)
@@ -168,6 +176,7 @@ class ReporteEjecucionObrasService:
         #     raise HTTPException(status_code=404, detail="No se encontraron registros")
 
         icaro = pd.DataFrame()
+        siif = pd.DataFrame()
 
         for ejercicio in ejercicios:
             icaro = pd.concat(
@@ -179,12 +188,17 @@ class ReporteEjecucionObrasService:
                 ],
                 ignore_index=True,
             )
+            siif = pd.concat(
+                [
+                    siif,
+                    await get_siif_ppto_gto_con_desc(ejercicio=ejercicio),
+                ],
+                ignore_index=True,
+            )
 
         return [
-            # (pd.DataFrame(control_banco_docs), "siif_vs_sscc_db"),
-            # (sscc, "sscc_db"),
-            # (planillometro, "bd_planillometro"),
-            (icaro, "bd_icaro_new"),
+            (siif, "bd_siif_new"),
+            (icaro, "bd_icaro"),
         ]
 
     # -------------------------------------------------
