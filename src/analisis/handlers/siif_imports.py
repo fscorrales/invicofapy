@@ -214,6 +214,11 @@ async def get_siif_ppto_gto_con_desc(ejercicio: int = None) -> pd.DataFrame:
             on=["ejercicio", "estructura"],
             how="left",
         )
+        df["nro_programa"] = df["estructura"].str[0:2]
+        df["nro_subprograma"] = df["estructura"].str[0:5]
+        df["nro_proyecto"] = df["estructura"].str[0:8]
+        df["nro_actividad"] = df["estructura"].str[0:11]
+        df["nro_partida"] = df["estructura"].str[12:15]
 
         return df
     except Exception as e:
