@@ -197,7 +197,7 @@ class ReporteEjecucionObrasService:
             )
 
         return [
-            (siif, "bd_siif_new"),
+            (siif, "bd_siif"),
             (icaro, "bd_icaro"),
         ]
 
