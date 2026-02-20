@@ -3,6 +3,7 @@ __all__ = [
     "get_siif_rfondo07tp",
     "get_siif_rf602",
     "get_siif_desc_pres",
+    "get_siif_ppto_gto_con_desc",
     "get_siif_ri102",
     "get_siif_rci02_unified_cta_cte",
     "get_siif_rcg01_uejp",
@@ -144,8 +145,8 @@ async def get_siif_desc_pres(
     )
     # Actividades únicos
     # Reemplazar los NaN por una cadena vacía en la columna 'desc_actividad'
-    df['desc_actividad'] = df['desc_actividad'].fillna('')
-    
+    df["desc_actividad"] = df["desc_actividad"].fillna("")
+
     df_act = df.loc[
         :,
         [
@@ -175,6 +176,58 @@ async def get_siif_desc_pres(
         inplace=True,
     )
     return df
+
+
+# --------------------------------------------------
+async def get_siif_ppto_gto_con_desc(ejercicio: int = None) -> pd.DataFrame:
+    """
+    Join rf602 () with rf610 (desc_pres) data from the repository.
+    """
+    try:
+        if ejercicio is None:
+            docs_rf610 = await Rf610Repository().get_all()
+            docs_rf602 = await Rf602Repository().get_all()
+        else:
+            filters = {
+                "ejercicio": int(ejercicio),
+            }
+            docs_rf602 = await Rf602Repository().find_by_filter(filters=filters)
+            docs_rf610 = await Rf610Repository().find_by_filter(filters=filters)
+        df_rf610 = pd.DataFrame(docs_rf610)
+        df_rf602 = pd.DataFrame(docs_rf602)
+
+        df_rf610_filtered = df_rf610[
+            [
+                "ejercicio",
+                "estructura",
+                "desc_programa",
+                "desc_subprograma",
+                "desc_proyecto",
+                "desc_actividad",
+                "desc_grupo",
+                "desc_partida",
+            ]
+        ]
+        df = pd.merge(
+            left=df_rf602,
+            right=df_rf610_filtered,
+            on=["ejercicio", "estructura"],
+            how="left",
+        )
+        df["nro_programa"] = df["estructura"].str[0:2]
+        df["nro_subprograma"] = df["estructura"].str[0:5]
+        df["nro_proyecto"] = df["estructura"].str[0:8]
+        df["nro_actividad"] = df["estructura"].str[0:11]
+
+        return df
+    except Exception as e:
+        logger.error(
+            f"Error retrieving SIIF's Joined Rf602 and Rf610 from database: {e}"
+        )
+        raise HTTPException(
+            status_code=500,
+            detail="Error retrieving SIIF's Joined Rf602 and Rf610 from the database",
+        )
 
 
 # --------------------------------------------------
