@@ -139,7 +139,7 @@ async def get_icaro_estructuras_desc() -> pd.DataFrame:
         df = df.merge(df_prog, how="left", on="programa", copy=False)
         # Combine number with description
         df["desc_programa"] = df["actividad"].str[0:2] + " - " + df["desc_programa"]
-        df.desc_subprograma.fillna(value="", inplace=True)
+        df['desc_subprograma'] = df['desc_subprograma'].fillna(value="")
         df["desc_subprograma"] = (
             df["actividad"].str[3:5] + " - " + df["desc_subprograma"]
         )

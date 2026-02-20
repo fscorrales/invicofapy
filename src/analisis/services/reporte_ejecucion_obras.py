@@ -191,7 +191,7 @@ class ReporteEjecucionObrasService:
             siif = pd.concat(
                 [
                     siif,
-                    await get_siif_ppto_gto_con_desc(ejercicio=ejercicio),
+                    await self.generate_reporte_ejecucion_obras_siif(ejercicio=ejercicio),
                 ],
                 ignore_index=True,
             )
@@ -281,6 +281,20 @@ class ReporteEjecucionObrasService:
         df["desc_actividad"] = df["nro_desc_actividad"].str[5:]
         return df
 
+
+    # --------------------------------------------------
+    async def generate_reporte_ejecucion_obras_siif(
+        self,
+        ejercicio: int,
+    ) -> pd.DataFrame:
+        df = await get_siif_ppto_gto_con_desc(ejercicio=ejercicio)
+
+        if df.empty:
+            raise HTTPException(status_code=404, detail="No se encontraron registros")
+
+        df = df.loc[df["partida"].isin(["421", "422"])]
+
+        return df
 
 ReporteEjecucionObrasServiceDependency = Annotated[
     ReporteEjecucionObrasService, Depends()
