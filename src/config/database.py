@@ -50,6 +50,7 @@ COLLECTIONS = [
     "sscc_banco_invico_sdo_final",
     "sscc_ctas_ctes",
     "sgv_saldos_barrios_evolucion",
+    "sgo_listado_obras",
     "control_recursos",
     "control_aporte_empresario",
     "control_obras",

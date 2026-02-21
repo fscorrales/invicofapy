@@ -20,6 +20,8 @@ class BaseAppSettings(BaseSettings):
     SSCC_PASSWORD: str | None = None
     SGV_USERNAME: str | None = None
     SGV_PASSWORD: str | None = None
+    SGO_USERNAME: str | None = None
+    SGO_PASSWORD: str | None = None
     ADMIN_EMAIL: str | None = None
     ADMIN_PASSWORD: str | None = None
     DB_URI: str = "mongodb://127.0.0.1:27017/invico"
