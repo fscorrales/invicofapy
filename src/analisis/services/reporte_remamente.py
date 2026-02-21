@@ -162,14 +162,6 @@ class ReporteRemanenteService:
                 )
                 return_schema.append(partial_schema)
 
-                # 🔹 Icaro
-                # path = os.path.join(get_r_icaro_path(), "ICARO.sqlite")
-                # migrator = IcaroMongoMigrator(sqlite_path=path)
-                # return_schema.append(await migrator.migrate_carga())
-                # return_schema.append(await migrator.migrate_estructuras())
-                # return_schema.append(await migrator.migrate_proveedores())
-                # return_schema.append(await migrator.migrate_obras())
-
             except ValidationError as e:
                 logger.error(f"Validation Error: {e}")
                 raise HTTPException(status_code=400, detail="Invalid response format")

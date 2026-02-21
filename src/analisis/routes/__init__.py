@@ -22,6 +22,7 @@ from .reporte_planillometro import reporte_planillometro_router
 from .reporte_planillometro_contabilidad import (
     reporte_planillometro_contabilidad_router,
 )
+from .reporte_remanente import reporte_remanente_router
 
 control_router = APIRouter(prefix="/control", tags=["Controles"])
 control_router.include_router(control_completo_router)
@@ -44,3 +45,4 @@ reporte_router.include_router(reporte_modulos_basicos_router)
 reporte_router.include_router(reporte_libro_diario_router)
 reporte_router.include_router(reporte_planillometro_contabilidad_router)
 reporte_router.include_router(reporte_ejecucion_obras_router)
+reporte_router.include_router(reporte_remanente_router)
