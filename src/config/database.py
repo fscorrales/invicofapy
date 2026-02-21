@@ -25,6 +25,7 @@ COLLECTIONS = [
     "siif_rci02",
     "siif_rfp_p605b",
     "siif_rdeu012",
+    "siif_rdeu012b2_c",
     "siif_rcocc31",
     "siif_rvicon03",
     "siif_planillometro_hist",
