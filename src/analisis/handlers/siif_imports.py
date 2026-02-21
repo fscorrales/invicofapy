@@ -10,6 +10,7 @@ __all__ = [
     "get_siif_comprobantes_gtos_joined",
     "get_siif_comprobantes_gtos_unified_cta_cte",
     "get_planillometro_hist",
+    "get_rdeu012b2_c",
     "get_siif_rfp_p605b",
     "get_siif_rdeu012_unified_cta_cte",
     "get_siif_rvicon03",
@@ -31,6 +32,7 @@ from ...siif.repositories import (
     Rcg01UejpRepository,
     Rci02Repository,
     Rcocc31Repository,
+    Rdeu012b2CRepository,
     Rdeu012Repository,
     Rf602Repository,
     Rf610Repository,
@@ -384,6 +386,23 @@ async def get_planillometro_hist(filters: dict = {}) -> pd.DataFrame:
         raise HTTPException(
             status_code=500,
             detail="Error retrieving Planillometro Historico from the database",
+        )
+
+
+# --------------------------------------------------
+async def get_rdeu012b2_c(filters: dict = {}) -> pd.DataFrame:
+    """
+    Get the Rdeu012b2C data from the repository.
+    """
+    try:
+        docs = await Rdeu012b2CRepository().find_by_filter(filters=filters)
+        df = pd.DataFrame(docs)
+        return df
+    except Exception as e:
+        logger.error(f"Error retrieving Rdeu012b2C from database: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="Error retrieving Rdeu012b2C from the database",
         )
 
 
