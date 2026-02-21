@@ -49,7 +49,13 @@ from ...utils import (
     export_multiple_dataframes_to_excel,
     upload_multiple_dataframes_to_google_sheets,
 )
-from ..handlers import get_siif_desc_pres, get_siif_rf602
+from ..handlers import (
+    get_banco_invico_sdo_final,
+    get_siif_desc_pres,
+    get_siif_rci02_unified_cta_cte,
+    get_siif_rdeu012_unified_cta_cte,
+    get_siif_rf602,
+)
 from ..repositories.reporte_modulos_basicos import (
     ReporteModulosBasicosIcaroRepositoryDependency,
 )
@@ -271,11 +277,6 @@ class ReporteRemanenteService:
         )
 
     # --------------------------------------------------
-    # def import_sdo_final_banco_invico(self) -> pd.DataFrame:
-    #     df = self.import_df.import_sdo_final_banco_invico(ejercicio=self.ejercicio)
-    #     return df
-
-    # --------------------------------------------------
     async def generate_hoja_trabajo(self, ejercicio: int) -> pd.DataFrame:
         df = await get_siif_rf602(
             ejercicio=ejercicio,
@@ -326,7 +327,10 @@ class ReporteRemanenteService:
         df["f_y_f"] = None
         return df
 
-    def hoja_trabajo_proyectos(self, hoja_trabajo_df: pd.DataFrame) -> pd.DataFrame:
+    # --------------------------------------------------
+    def generate_hoja_trabajo_proyectos(
+        self, hoja_trabajo_df: pd.DataFrame
+    ) -> pd.DataFrame:
         df = hoja_trabajo_df.copy()
         df["estructura"] = df["estructura"].str[0:8]
         df = df.drop(
@@ -350,23 +354,31 @@ class ReporteRemanenteService:
         return df
 
     # --------------------------------------------------
-    def deuda_flotante(self) -> pd.DataFrame:
-        rdeu = self.import_df.import_siif_rdeu012(ejercicio=self.ejercicio)
-        months = rdeu["mes_hasta"].tolist()
+    async def generate_deuda_flotante(
+        self,
+        ejercicio: int = None,
+    ) -> pd.DataFrame:
+        df = await get_siif_rdeu012_unified_cta_cte()
+        # df = df.reset_index(drop=True)
+        # df = df.loc[df["mes_hasta"].str.endswith(str(ejercicio)), :]
+        months = df["mes_hasta"].tolist()
         # Convertir cada elemento de la lista a un objeto datetime
-        dates = [dt.datetime.strptime(month, "%m/%Y") for month in months]
+        dates = [datetime.strptime(month, "%m/%Y") for month in months]
         # Obtener la fecha más reciente y Convertir la fecha mayor a un string en el formato 'MM/YYYY'
         gt_month = max(dates).strftime("%m/%Y")
 
-        rdeu = rdeu.loc[rdeu["mes_hasta"] == gt_month, :]
-        return rdeu
+        df = df.loc[df["mes_hasta"] == gt_month, :]
+        return df
+
+    # # --------------------------------------------------
+    # def generate_deuda_flotante_tg(self) -> pd.DataFrame:
+    #     return self.import_df.import_siif_rdeu012b2_c(mes_hasta="12/" + self.ejercicio)
 
     # --------------------------------------------------
-    def deuda_flotante_tg(self) -> pd.DataFrame:
-        return self.import_df.import_siif_rdeu012b2_c(mes_hasta="12/" + self.ejercicio)
-
-    # --------------------------------------------------
-    def remanente_met_1(self):
+    async def generate_remanente_met_1(
+        self,
+        params: ReporteRemanenteParams,
+    ) -> pd.DataFrame:
         """
         El cálculo de Remanente por método I consiste en restarle al saldo real de Banco SSCC
         (Resumen Gral de Saldos), al cierre del ejercicio, la deuda flotante (reporte SIIF
@@ -381,40 +393,61 @@ class ReporteRemanenteService:
         - Tener en cuenta los ajustes contables que buscan regularizar comprobantes del SIIF
         que quedaron en la Deuda Flotante y no deben formar parte de la misma.
         """
-        # SALDO_UCAPFI = 4262062.77 #Saldo Real
-        SALDO_UCAPFI = 4262059.73  # Saldo ajustado
-        banco_sscc = self.import_sdo_final_banco_invico()
-        rdeu = self.deuda_flotante()
-        rem_met_1 = {
-            "Fuente 10": {
-                "saldo_bco": banco_sscc.loc[banco_sscc["cta_cte"].isin(["130832-03"])][
-                    "saldo"
-                ].sum(),
-                "rdeu": rdeu.loc[rdeu.fuente.isin(["10", "12"])]["saldo"].sum(),
-            },
-            "Fuente 13": {
-                "saldo_bco": banco_sscc.loc[banco_sscc["cta_cte"] == "130832-16"][
-                    "saldo"
-                ].sum()
-                + SALDO_UCAPFI,
-                "rdeu": rdeu.loc[rdeu.fuente.isin(["13"])]["saldo"].sum(),
-            },
-            "Fuente 11": {
-                "saldo_bco": banco_sscc.loc[
-                    ~banco_sscc["cta_cte"].isin(["130832-03", "130832-16"])
-                ]["saldo"].sum()
-                - SALDO_UCAPFI,
-                "rdeu": rdeu.loc[rdeu.fuente.isin(["11"])]["saldo"].sum(),
-            },
-        }
-        rem_met_1 = pd.DataFrame.from_dict(rem_met_1, orient="index")
-        rem_met_1.reset_index(inplace=True)
-        rem_met_1.columns = ["fuente", "saldo_bco", "rdeu"]
-        rem_met_1["rte_met_1"] = rem_met_1.saldo_bco - rem_met_1.rdeu
-        return rem_met_1
+        try:
+            df = pd.DataFrame()
+            ejercicios = list(range(params.ejercicio_desde, params.ejercicio_hasta + 1))
+            for ejercicio in ejercicios:
+                # SALDO_UCAPFI = 4262062.77 #Saldo Real
+                SALDO_UCAPFI = 4262059.73  # Saldo ajustado
+                banco_sscc = await get_banco_invico_sdo_final(ejercicio=ejercicio)
+                rdeu = await self.generate_deuda_flotante(ejercicio=ejercicio)
+                rem_met_1 = {
+                    "Fuente 10": {
+                        "saldo_bco": banco_sscc.loc[
+                            banco_sscc["cta_cte"].isin(["130832-03"])
+                        ]["saldo"].sum(),
+                        "rdeu": rdeu.loc[rdeu.fuente.isin(["10", "12"])]["saldo"].sum(),
+                    },
+                    "Fuente 13": {
+                        "saldo_bco": banco_sscc.loc[
+                            banco_sscc["cta_cte"] == "130832-16"
+                        ]["saldo"].sum()
+                        + SALDO_UCAPFI,
+                        "rdeu": rdeu.loc[rdeu.fuente.isin(["13"])]["saldo"].sum(),
+                    },
+                    "Fuente 11": {
+                        "saldo_bco": banco_sscc.loc[
+                            ~banco_sscc["cta_cte"].isin(["130832-03", "130832-16"])
+                        ]["saldo"].sum()
+                        - SALDO_UCAPFI,
+                        "rdeu": rdeu.loc[rdeu.fuente.isin(["11"])]["saldo"].sum(),
+                    },
+                }
+                rem_met_1 = pd.DataFrame.from_dict(rem_met_1, orient="index")
+                rem_met_1.reset_index(inplace=True)
+                rem_met_1.columns = ["fuente", "saldo_bco", "rdeu"]
+                rem_met_1["rte_met_1"] = rem_met_1.saldo_bco - rem_met_1.rdeu
+                df = pd.concat([df, rem_met_1], ignore_index=True)
+        except ValidationError as e:
+            logger.error(f"Validation Error: {e}")
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid response format from Control Obras",
+            )
+        except Exception as e:
+            logger.error(f"Error in generate_remanente_met_1: {e}")
+            raise HTTPException(
+                status_code=500,
+                detail="Error in generate_remanente_met_1",
+            )
+        finally:
+            return df
 
     # --------------------------------------------------
-    def remanente_met_2(self):
+    async def generate_remanente_met_2(
+        self,
+        params: ReporteRemanenteParams,
+    ) -> pd.DataFrame:
         """
         El cálculo de Remanente por método II consiste en restarle a los Recursos SIIF
         (reporte SIIF rci02), ingresados en el ejercicio bajo análisis, los Gastos SIIF
@@ -422,78 +455,116 @@ class ReporteRemanenteService:
         que buscan regularizar comprobantes del SIIF que quedaron en la Deuda Flotante
         y no deben formar parte de la misma.
         """
-        recursos = self.import_df.import_siif_rci02(ejercicio=self.ejercicio)
-        gastos = self.import_df.import_siif_rf602(ejercicio=self.ejercicio)
-        rem_met_2 = recursos.importe.groupby([recursos.fuente]).sum()
-        rem_met_2 = pd.concat(
-            [
-                rem_met_2,
-                gastos.ordenado.groupby([gastos.fuente]).sum(),
-                gastos.saldo.groupby([gastos.fuente]).sum(),
-            ],
-            axis=1,
-        )
-        rem_met_2.columns = ["recursos", "gastos", "saldo_pres"]
-        rem_met_2["rte_met_2"] = rem_met_2.recursos - rem_met_2.gastos
-        rem_met_2.reset_index(inplace=True)
-        # rem_met_2 = rem_met_2[~rem_met_2.index.isin(['11'], level=1)]
-        # rem_met_2.dropna(inplace=True)
-        return rem_met_2
+        try:
+            df = pd.DataFrame()
+            ejercicios = list(range(params.ejercicio_desde, params.ejercicio_hasta + 1))
+            for ejercicio in ejercicios:
+                recursos = await get_siif_rci02_unified_cta_cte(ejercicio=ejercicio)
+                gastos = await get_siif_rf602(ejercicio=ejercicio)
+                rem_met_2 = recursos.importe.groupby([recursos.fuente]).sum()
+                rem_met_2 = pd.concat(
+                    [
+                        rem_met_2,
+                        gastos.ordenado.groupby([gastos.fuente]).sum(),
+                        gastos.saldo.groupby([gastos.fuente]).sum(),
+                    ],
+                    axis=1,
+                )
+                rem_met_2.columns = ["recursos", "gastos", "saldo_pres"]
+                rem_met_2["rte_met_2"] = rem_met_2.recursos - rem_met_2.gastos
+                rem_met_2.reset_index(inplace=True)
+                # rem_met_2 = rem_met_2[~rem_met_2.index.isin(['11'], level=1)]
+                # rem_met_2.dropna(inplace=True)
+                df = pd.concat([df, rem_met_2], ignore_index=True)
+        except ValidationError as e:
+            logger.error(f"Validation Error: {e}")
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid response format from Control Obras",
+            )
+        except Exception as e:
+            logger.error(f"Error in generate_remanente_met_2: {e}")
+            raise HTTPException(
+                status_code=500,
+                detail="Error in generate_remanente_met_2",
+            )
+        finally:
+            return rem_met_2
 
     # --------------------------------------------------
-    def remanente_met_2_hist(self):
-        recursos = self.import_df.import_siif_rci02()
-        gastos = self.import_df.import_siif_rf602()
-        rem_solicitado = (
-            recursos.loc[recursos.es_remanente == True]
-            .importe.groupby([recursos.ejercicio, recursos.fuente])
-            .sum()
-            .to_frame()
-        )
-        rem_solicitado.reset_index(inplace=True)
-        rem_solicitado["ejercicio"] = (
-            rem_solicitado["ejercicio"].astype(int) - 1
-        ).astype(str)
-        rem_met_2_hist = recursos.importe.groupby(
-            [recursos.ejercicio, recursos.fuente]
-        ).sum()
-        rem_met_2_hist = pd.concat(
-            [
-                rem_met_2_hist,
-                gastos.ordenado.groupby([gastos.ejercicio, gastos.fuente]).sum(),
-                gastos.saldo.groupby([gastos.ejercicio, gastos.fuente]).sum(),
-            ],
-            axis=1,
-        )
-        rem_met_2_hist.reset_index(inplace=True)
-        rem_met_2_hist = rem_met_2_hist.merge(
-            rem_solicitado, how="left", on=["ejercicio", "fuente"], copy=False
-        )
-        rem_met_2_hist.columns = [
-            "ejercicio",
-            "fuente",
-            "recursos",
-            "gastos",
-            "saldo_pres",
-            "rte_solicitado",
-        ]
-        rem_met_2_hist["rte_met_2"] = rem_met_2_hist.recursos - rem_met_2_hist.gastos
-        # rem_met_2_hist["mal_rte_met_2"] = rem_met_2_hist.saldo_pres- rem_met_2_hist.rte_met_2
-        rem_met_2_hist["dif_rte_solicitado"] = (
-            rem_met_2_hist.rte_solicitado - rem_met_2_hist.rte_met_2
-        )
-        rem_met_2_hist = rem_met_2_hist[~rem_met_2_hist.fuente.isin(["11"])]
-        # No sé qué pasó en Fuente 13 en el 2013, por eso lo filtro
-        # rem_met_2_hist = rem_met_2_hist[~rem_met_2_hist.index.isin(['2011', '2012', '2013'], level=0)]
-        # rem_met_2_hist.reset_index(inplace=True)
-        rem_met_2_hist.dropna(inplace=True)
-        return rem_met_2_hist
+    async def generate_remanente_met_2_hist(
+        self,
+    ) -> pd.DataFrame:
+        try:
+            recursos = await get_siif_rci02_unified_cta_cte(ejercicio=None)
+            gastos = await get_siif_rf602(ejercicio=None)
+            rem_solicitado = (
+                recursos.loc[recursos.es_remanente]
+                .importe.groupby([recursos.ejercicio, recursos.fuente])
+                .sum()
+                .to_frame()
+            )
+            rem_solicitado.reset_index(inplace=True)
+            rem_solicitado["ejercicio"] = (
+                rem_solicitado["ejercicio"].astype(int) - 1
+            ).astype(str)
+            rem_met_2_hist = recursos.importe.groupby(
+                [recursos.ejercicio, recursos.fuente]
+            ).sum()
+            rem_met_2_hist = pd.concat(
+                [
+                    rem_met_2_hist,
+                    gastos.ordenado.groupby([gastos.ejercicio, gastos.fuente]).sum(),
+                    gastos.saldo.groupby([gastos.ejercicio, gastos.fuente]).sum(),
+                ],
+                axis=1,
+            )
+            rem_met_2_hist.reset_index(inplace=True)
+            rem_met_2_hist = rem_met_2_hist.merge(
+                rem_solicitado, how="left", on=["ejercicio", "fuente"], copy=False
+            )
+            rem_met_2_hist.columns = [
+                "ejercicio",
+                "fuente",
+                "recursos",
+                "gastos",
+                "saldo_pres",
+                "rte_solicitado",
+            ]
+            rem_met_2_hist["rte_met_2"] = (
+                rem_met_2_hist.recursos - rem_met_2_hist.gastos
+            )
+            # rem_met_2_hist["mal_rte_met_2"] = rem_met_2_hist.saldo_pres- rem_met_2_hist.rte_met_2
+            rem_met_2_hist["dif_rte_solicitado"] = (
+                rem_met_2_hist.rte_solicitado - rem_met_2_hist.rte_met_2
+            )
+            rem_met_2_hist = rem_met_2_hist[~rem_met_2_hist.fuente.isin(["11"])]
+            # No sé qué pasó en Fuente 13 en el 2013, por eso lo filtro
+            # rem_met_2_hist = rem_met_2_hist[~rem_met_2_hist.index.isin(['2011', '2012', '2013'], level=0)]
+            # rem_met_2_hist.reset_index(inplace=True)
+            rem_met_2_hist.dropna(inplace=True)
+        except ValidationError as e:
+            logger.error(f"Validation Error: {e}")
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid response format from Control Obras",
+            )
+        except Exception as e:
+            logger.error(f"Error in generate_remanente_met_2: {e}")
+            raise HTTPException(
+                status_code=500,
+                detail="Error in generate_remanente_met_2",
+            )
+        finally:
+            return rem_met_2_hist
 
     # --------------------------------------------------
-    def remanente_dif_met(self):
-        rem_met_1 = self.remanente_met_1()
+    def generate_remanente_dif_met(
+        self, rem_met_1: pd.DataFrame, rem_met_2: pd.DataFrame
+    ) -> pd.DataFrame:
+        rem_met_1 = rem_met_1.copy()
         rem_met_1 = rem_met_1.loc[:, ["fuente", "rte_met_1"]]
-        rem_met_2 = self.remanente_met_2()
+        rem_met_2 = rem_met_2.copy()
         rem_met_2 = rem_met_2.loc[:, ["fuente", "rte_met_2"]]
         # rem_met_2 = rem_met_2.loc[~rem_met_2['fuente'].isin(['10', '12'])]
         rem_met_2 = pd.DataFrame(
