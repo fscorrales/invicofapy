@@ -1,11 +1,18 @@
-__all__ = ["get_banco_invico_unified_cta_cte", "get_banco_invico_cert_neg"]
+__all__ = [
+    "get_banco_invico_unified_cta_cte",
+    "get_banco_invico_cert_neg",
+    "get_banco_invico_sdo_final",
+]
 
 
 import pandas as pd
 
-from ...sscc.repositories import BancoINVICORepository, CtasCtesRepository
-
 from ...config import logger
+from ...sscc.repositories import (
+    BancoINVICORepository,
+    BancoINVICOSdoFinalRepository,
+    CtasCtesRepository,
+)
 
 
 # --------------------------------------------------
@@ -25,7 +32,9 @@ async def get_banco_invico_unified_cta_cte(
         # logger.info(f"df.shape: {df.shape} - df.head: {df.head()}")
         ctas_ctes = pd.DataFrame(await CtasCtesRepository().get_all())
         map_to = ctas_ctes.loc[:, ["map_to", "sscc_cta_cte"]]
-        df = pd.merge(df, map_to, how="left", left_on="cta_cte", right_on="sscc_cta_cte")
+        df = pd.merge(
+            df, map_to, how="left", left_on="cta_cte", right_on="sscc_cta_cte"
+        )
         df["cta_cte"] = df["map_to"]
         df.drop(["map_to", "sscc_cta_cte"], axis="columns", inplace=True)
         # logger.info(f"df.shape: {df.shape} - df.head: {df.head()}")
@@ -63,4 +72,30 @@ async def get_banco_invico_cert_neg(
                 "importe_neto",
             ],
         ]
+    return df
+
+
+# --------------------------------------------------
+async def get_banco_invico_sdo_final(
+    ejercicio: int = None, filters: dict = {}
+) -> pd.DataFrame:
+    """
+    Get the Banco INVICO data from the repository.
+    """
+    if ejercicio is not None:
+        filters.update({"ejercicio": ejercicio})
+    docs = await BancoINVICOSdoFinalRepository().safe_find_by_filter(filters=filters)
+    # logger.info(f"len(docs): {len(docs)}")
+    df = pd.DataFrame(docs)
+    df.reset_index(drop=True, inplace=True)
+    if not df.empty:
+        # logger.info(f"df.shape: {df.shape} - df.head: {df.head()}")
+        ctas_ctes = pd.DataFrame(await CtasCtesRepository().get_all())
+        map_to = ctas_ctes.loc[:, ["map_to", "sscc_cta_cte"]]
+        df = pd.merge(
+            df, map_to, how="left", left_on="cta_cte", right_on="sscc_cta_cte"
+        )
+        df["cta_cte"] = df["map_to"]
+        df.drop(["map_to", "sscc_cta_cte"], axis="columns", inplace=True)
+        # logger.info(f"df.shape: {df.shape} - df.head: {df.head()}")
     return df
