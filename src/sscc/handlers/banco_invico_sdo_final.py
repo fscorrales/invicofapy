@@ -114,7 +114,7 @@ class BancoINVICOSdoFinal(SSCCReportManager):
     ) -> RouteReturnSchema:
         """Download, process and sync the SSCC Banco INVICO report to the repository."""
         try:
-            df = get_df_from_sql_table(sqlite_path, table="banco_invico")
+            df = get_df_from_sql_table(sqlite_path, table="sdo_final_banco_invico")
             df.drop(columns=["id"], inplace=True)
             df["ejercicio"] = pd.to_numeric(df["ejercicio"], errors="coerce")
             df = df.loc[df["ejercicio"] < 2024]
