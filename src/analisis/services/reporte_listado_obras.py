@@ -16,6 +16,7 @@ __all__ = [
 ]
 
 import os
+import re
 from dataclasses import dataclass
 from typing import Annotated, List
 
@@ -136,7 +137,7 @@ class ReporteListadoObrasService:
         icaro = await self.generate_reporte_listado_obras_icaro()
         return [
             # (siif, "bd_siif"),
-            (icaro, "icaro_new"),
+            (icaro, "icaro"),
         ]
 
     # -------------------------------------------------
@@ -177,6 +178,17 @@ class ReporteListadoObrasService:
             raise HTTPException(status_code=404, detail="No se encontraron registros")
 
         df = df.drop(columns=["_id"])
+        df["imputacion"] = df["actividad"] + "-" + df["partida"]
+
+        def extraer_cod_obra(desc):
+            match = re.match(r'^\d{6}-\d{2}\b', str(desc))
+            return match.group(0) if match else ""
+
+        df['cod_obra'] = df['desc_obra'].apply(extraer_cod_obra)
+
+        # Reordenar para que cod_obra sea el primer campo
+        cols = ['cod_obra', 'desc_obra', 'imputacion'] + [c for c in df.columns if c not in ('cod_obra', 'desc_obra', 'imputacion')]
+        df = df[cols]
         # # Supongamos que tienes un DataFrame df con una columna 'columna_con_numeros' que contiene los registros con la parte numérica al principio
         # df["desc_obra"] = df["desc_obra"].str.replace(r"^\d+-\d+", "", regex=True)
         # df["desc_obra"] = df["desc_obra"].str.lstrip()
