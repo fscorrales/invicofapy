@@ -142,13 +142,16 @@ class ReporteEjecucionGastosService:
         #     raise HTTPException(status_code=404, detail="No se encontraron registros")
 
         # siif = pd.DataFrame()
-        # sscc = pd.DataFrame()
+        siif_ejec_gastos = pd.DataFrame()
 
-        # for ejercicio in ejercicios:
-        #     siif = pd.concat(
-        #         [siif, await self.generate_banco_siif(ejercicio=ejercicio)],
-        #         ignore_index=True,
-        #     )
+        for ejercicio in ejercicios:
+            siif_ejec_gastos = pd.concat(
+                [
+                    siif_ejec_gastos,
+                    await self.generate_siif_pres_with_desc(ejercicio=ejercicio),
+                ],
+                ignore_index=True,
+            )
         #     sscc = pd.concat(
         #         [sscc, await self.generate_banco_sscc(ejercicio=ejercicio)],
         #         ignore_index=True,
@@ -210,8 +213,11 @@ class ReporteEjecucionGastosService:
 
     # --------------------------------------------------
     async def generate_siif_pres_with_desc(self, ejercicio: int) -> pd.DataFrame:
-        ultimos_ejercicios = list(range(ejercicio - 3, ejercicio + 1))
-        df = await get_siif_rf602(filters={"ejercicio": {"$in": ultimos_ejercicios}})
+        df = await get_siif_rf602(ejercicio=ejercicio)
+
+        if df.empty:
+            raise HTTPException(status_code=404, detail="No se encontraron registros")
+
         df = df.sort_values(by=["ejercicio", "estructura"], ascending=[False, True])
         df = df.merge(
             await get_siif_desc_pres(ejercicio_to=ejercicio),
