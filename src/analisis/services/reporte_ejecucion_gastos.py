@@ -177,7 +177,7 @@ class ReporteEjecucionGastosService:
             # (pd.DataFrame(control_banco_docs), "siif_vs_sscc_db"),
             # (sscc, "sscc_db"),
             # (planillometro, "bd_planillometro"),
-            (siif_ejec_gastos, "siif_ejec_gastos_nes"),
+            (siif_ejec_gastos, "siif_ejec_gastos"),
         ]
 
     # -------------------------------------------------
@@ -231,8 +231,8 @@ class ReporteEjecucionGastosService:
             inplace=True,
         )
 
-        df["programa"] = df["programa"].astype(int)
-        df["fuente"] = df["fuente"].astype(int)
+        # df["programa"] = df["programa"].astype(int)
+        # df["fuente"] = df["fuente"].astype(int)
 
         first_cols = [
             "ejercicio",
