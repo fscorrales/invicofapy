@@ -32,7 +32,7 @@ from ...siif.repositories import (
     Rcg01UejpRepository,
     Rci02Repository,
     Rcocc31Repository,
-    Rdeu012b2CRepository,
+    Rdeu012b2CuitRepository,
     Rdeu012Repository,
     Rf602Repository,
     Rf610Repository,
@@ -395,7 +395,7 @@ async def get_rdeu012b2_c(filters: dict = {}) -> pd.DataFrame:
     Get the Rdeu012b2C data from the repository.
     """
     try:
-        docs = await Rdeu012b2CRepository().find_by_filter(filters=filters)
+        docs = await Rdeu012b2CuitRepository().find_by_filter(filters=filters)
         df = pd.DataFrame(docs)
         return df
     except Exception as e:
