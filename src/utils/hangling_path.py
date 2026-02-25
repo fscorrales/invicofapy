@@ -11,7 +11,7 @@ __all__ = [
     "get_sqlite_path",
     "get_r_icaro_path",
     "get_slave_path",
-    "get_siif_rdeu012b2_c_path",
+    "get_siif_rdeu012b2_cuit_path",
 ]
 
 import inspect
@@ -76,8 +76,8 @@ def get_siif_planillometro_hist_path():
 
 
 # --------------------------------------------------
-def get_siif_rdeu012b2_c_path():
-    dir_path = os.path.join(get_download_siif_path(), "Rdeu012b2C")
+def get_siif_rdeu012b2_cuit_path():
+    dir_path = os.path.join(get_download_siif_path(), "Deuda Flotante TGP")
     return dir_path
 
 

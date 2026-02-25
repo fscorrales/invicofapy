@@ -5,6 +5,7 @@ __all__ = [
     "Rdeu012b2CuitFilter",
 ]
 
+from datetime import datetime
 from typing import Optional
 
 from pydantic import BaseModel, Field
@@ -20,15 +21,21 @@ class Rdeu012b2CuitParams(BaseModel):
 
 # -------------------------------------------------
 class Rdeu012b2CuitReport(BaseModel):
-    desc_programa: str
-    desc_subprograma: Optional[str] = None
-    desc_proyecto: Optional[str] = None
-    desc_actividad: Optional[str] = None
-    actividad: Optional[str] = None
-    partida: Optional[str] = None
-    estructura: Optional[str] = None
-    alta: Optional[str] = None
-    acum_2008: Optional[float] = None
+    ejercicio: Optional[int] = None
+    mes_hasta: Optional[str] = None
+    entidad: Optional[str] = None
+    ejercicio_deuda: Optional[int] = None
+    fuente: Optional[str] = None
+    nro_entrada: Optional[str] = None
+    nro_origen: Optional[str] = None
+    importe: Optional[float] = None
+    saldo: Optional[float] = None
+    org_fin: Optional[str] = None
+    nro_expte: Optional[str] = None
+    cta_cte: Optional[str] = None
+    glosa: Optional[str] = None
+    fecha_desde: Optional[datetime] = None
+    fecha_hasta: Optional[datetime] = None
 
 
 # -------------------------------------------------
@@ -38,4 +45,4 @@ class Rdeu012b2CuitDocument(Rdeu012b2CuitReport):
 
 # -------------------------------------------------
 class Rdeu012b2CuitFilter(BaseFilterParams):
-    estructura: Optional[str] = None
+    ejercicio: Optional[int] = None

@@ -20,6 +20,7 @@ import pdfplumber
 from ...config import logger
 from ...utils import (
     RouteReturnSchema,
+    get_df_from_sql_table,
     sync_validated_to_repository,
     validate_and_extract_data_from_df,
 )
@@ -71,8 +72,8 @@ def parsear_fila(texto):
         "saldo": saldo_a_pagar,
         "nro_expte": nro_expediente,
         "cta_cte": cta_cte,
-        "descripcion": descripcion,
-        "texto_completo": texto,
+        "glosa": descripcion,
+        # "texto_completo": texto,
     }
 
 
@@ -228,30 +229,37 @@ def get_args():
 # --------------------------------------------------
 class Rdeu012b2Cuit:
     # --------------------------------------------------
-    def __init__(self, pdf_path: str):
-        self.pdf_path = pdf_path
+    def __init__(self):
+        self.clean_df = pd.DataFrame()
 
         # Repositorios por colección
-        self.rdeu012b2_cuit_repo = Rdeu012b2CuitRepository()
+        # self.rdeu012b2_cuit_repo = Rdeu012b2CuitRepository()
 
     # --------------------------------------------------
-    def from_pdf(self) -> pd.DataFrame:
-        df = extraer_datos_pdf(self.pdf_path)
-        return df
+    def from_pdf(self, pdf_path: str = None) -> pd.DataFrame:
+        df = extraer_datos_pdf(pdf_path)
+        self.clean_df = df
+        return self.clean_df
 
     # --------------------------------------------------
-    async def migrate_deuda_flotante(self):
-        df = self.from_pdf()
-        await self.rdeu012b2_cuit_repo.delete_all()
-        await self.rdeu012b2_cuit_repo.save_all(df.to_dict(orient="records"))
+    # async def migrate_deuda_flotante(self):
+    #     df = self.from_pdf()
+    #     await self.rdeu012b2_cuit_repo.delete_all()
+    #     await self.rdeu012b2_cuit_repo.save_all(df.to_dict(orient="records"))
 
     # --------------------------------------------------
-    async def sync_validated_pdf_to_repository(
-        self, ejercicio: int = dt.datetime.now().year
+    async def sync_validated_sqlite_to_repository(
+        self, sqlite_path: str
     ) -> RouteReturnSchema:
-        """Download, process and sync the planillometro report to the repository."""
+        """Download, process and sync the deuda flotante report to the repository."""
         try:
-            df = self.from_pdf()
+            df = get_df_from_sql_table(sqlite_path, table="deuda_flotante_rdeu012b2_c")
+            df.drop(columns=["id"], inplace=True)
+            df["ejercicio"] = pd.to_numeric(df["ejercicio"], errors="coerce")
+            df = df.loc[df["ejercicio"] < 2025]
+            df["ejercicio_deuda"] = pd.to_numeric(
+                df["ejercicio_deuda"], errors="coerce"
+            )
 
             validate_and_errors = validate_and_extract_data_from_df(
                 dataframe=df,
@@ -262,7 +270,34 @@ class Rdeu012b2Cuit:
             return await sync_validated_to_repository(
                 repository=Rdeu012b2CuitRepository(),
                 validation=validate_and_errors,
-                delete_filter={"ejercicio": ejercicio},
+                delete_filter={"ejercicio": {"$lt": 2025}},
+                title="Sync SIIF Rdeu012b2Cuit Report from SQLite",
+                logger=logger,
+                label="Sync SIIF Rdeu012b2Cuit Report from SQLite",
+            )
+        except Exception as e:
+            print(f"Error migrar y sincronizar el reporte: {e}")
+
+    # --------------------------------------------------
+    async def sync_validated_pdf_to_repository(
+        self, pdf_path: str
+    ) -> RouteReturnSchema:
+        """Download, process and sync the planillometro report to the repository."""
+        try:
+            df = self.from_pdf(pdf_path)
+
+            validate_and_errors = validate_and_extract_data_from_df(
+                dataframe=df,
+                model=Rdeu012b2CuitReport,
+                field_id="nro_entrada",
+            )
+
+            return await sync_validated_to_repository(
+                repository=Rdeu012b2CuitRepository(),
+                validation=validate_and_errors,
+                delete_filter={
+                    "ejercicio": df["ejercicio"].iloc[0] if not df.empty else None
+                },
                 title="Sync Deuda Flotante (TPF) from PDF",
                 logger=logger,
                 label="Sync Deuda Flotante (TPF) from PDF",
@@ -273,26 +308,37 @@ class Rdeu012b2Cuit:
 
 # --------------------------------------------------
 async def main():
-    """Make a jazz noise here"""
-    from ...config import Database
+    # """Make a jazz noise here"""
+    # from ...config import Database
 
-    Database.initialize()
-    try:
-        await Database.client.admin.command("ping")
-        print("Connected to MongoDB")
-    except Exception as e:
-        print("Error connecting to MongoDB:", e)
-        return
+    # Database.initialize()
+    # try:
+    #     await Database.client.admin.command("ping")
+    #     print("Connected to MongoDB")
+    # except Exception as e:
+    #     print("Error connecting to MongoDB:", e)
+    #     return
+
+    # args = get_args()
+    # try:
+    #     migrator = Rdeu012b2Cuit(
+    #         pdf_path=args.file,
+    #     )
+
+    #     await migrator.migrate_deuda_flotante()
+    # except Exception as e:
+    #     print(f"Error during migration: {e}")
+
+    """Make a jazz noise here"""
 
     args = get_args()
-    try:
-        migrator = Rdeu012b2Cuit(
-            pdf_path=args.file,
-        )
 
-        await migrator.migrate_deuda_flotante()
+    try:
+        rdeu012b2cuit = Rdeu012b2Cuit()
+        rdeu012b2cuit.from_pdf(pdf_path=args.file)
+        print(rdeu012b2cuit.clean_df)
     except Exception as e:
-        print(f"Error during migration: {e}")
+        print(f"Error al iniciar sesión: {e}")
 
 
 # --------------------------------------------------

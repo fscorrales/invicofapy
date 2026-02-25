@@ -1,7 +1,7 @@
 __all__ = ["Rdeu012b2CuitService", "Rdeu012b2CuitServiceDependency"]
 
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Annotated, List
 
 import pandas as pd
@@ -24,6 +24,11 @@ from ..schemas import Rdeu012b2CuitDocument
 @dataclass
 class Rdeu012b2CuitService:
     repository: Rdeu012b2CuitRepositoryDependency
+    rdeu012b2_cuit: Rdeu012b2Cuit = field(init=False)  # No se pasa como argumento
+
+    # -------------------------------------------------
+    def __post_init__(self):
+        self.rdeu012b2_cuit = Rdeu012b2Cuit()
 
     # -------------------------------------------------
     async def get_rdeu012b2_cuit_from_db(
@@ -31,21 +36,20 @@ class Rdeu012b2CuitService:
     ) -> List[Rdeu012b2CuitDocument]:
         return await self.repository.safe_find_with_filter_params(
             params=params,
-            error_title="Error retrieving Rdeu012b2C from the database",
+            error_title="Error retrieving Rdeu012b2Cuit from the database",
         )
 
     # -------------------------------------------------
-    async def sync_rdeu012b2_cuit_from_excel(
-        self, excel_path: str
-    ) -> RouteReturnSchema:
+    async def sync_rdeu012b2_cuit_from_pdf(self, pdf_path: str) -> RouteReturnSchema:
         # ✅ Validación temprana
-        if not os.path.exists(excel_path):
-            raise HTTPException(status_code=404, detail="Archivo Excel no encontrado")
+        if not os.path.exists(pdf_path):
+            raise HTTPException(status_code=404, detail="Archivo PDF no encontrado")
 
         return_schema = RouteReturnSchema()
         try:
-            rdeu012b2_c = Rdeu012b2Cuit(pdf_path=excel_path)
-            return_schema = await rdeu012b2_c.sync_validated_pdf_to_repository()
+            return_schema = await self.rdeu012b2_cuit.sync_validated_pdf_to_repository(
+                pdf_path=pdf_path
+            )
         except ValidationError as e:
             logger.error(f"Validation Error: {e}")
             raise HTTPException(status_code=400, detail="Invalid response format")
@@ -59,6 +63,35 @@ class Rdeu012b2CuitService:
             return return_schema
 
     # -------------------------------------------------
+    async def sync_rdeu012b2_cuit_from_sqlite(
+        self, sqlite_path: str
+    ) -> RouteReturnSchema:
+        # ✅ Validación temprana
+        if not os.path.exists(sqlite_path):
+            raise HTTPException(status_code=404, detail="Archivo SQLite no encontrado")
+
+        return_schema = RouteReturnSchema()
+        try:
+            return_schema = (
+                await self.rdeu012b2_cuit.sync_validated_sqlite_to_repository(
+                    sqlite_path=sqlite_path
+                )
+            )
+        except ValidationError as e:
+            logger.error(f"Validation Error: {e}")
+            raise HTTPException(
+                status_code=400, detail="Invalid response format from SIIF"
+            )
+        except Exception as e:
+            logger.error(f"Error during report processing: {e}")
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid credentials or unable to authenticate",
+            )
+        finally:
+            return return_schema
+
+    # ----------------------------------------------------
     async def export_rdeu012b2_cuit_from_db(self) -> StreamingResponse:
         docs = await self.repository.get_all()
 
@@ -68,8 +101,8 @@ class Rdeu012b2CuitService:
 
         return export_dataframe_as_excel_response(
             df,
-            filename="rdeu012b2_c.xlsx",
-            sheet_name="rdeu012b2_c",
+            filename="rdeu012b2_cuit.xlsx",
+            sheet_name="rdeu012b2_cuit",
         )
 
 
