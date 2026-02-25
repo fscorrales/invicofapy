@@ -12,6 +12,7 @@ __all__ = [
     "get_r_icaro_path",
     "get_slave_path",
     "get_siif_rdeu012b2_cuit_path",
+    "get_sscc_saldos_path",
 ]
 
 import inspect
@@ -60,6 +61,12 @@ def get_download_sscc_path():
 # --------------------------------------------------
 def get_sscc_cta_cte_path():
     dir_path = os.path.join(get_download_sscc_path(), "cta_cte")
+    return dir_path
+
+
+# --------------------------------------------------
+def get_sscc_saldos_path():
+    dir_path = os.path.join(get_download_sscc_path(), "Saldos SSCC")
     return dir_path
 
 
@@ -113,6 +120,7 @@ def main():
     print(f"Download SGF Path: {get_download_sgf_path()}")
     print(f"Download SSCC Path: {get_download_sscc_path()}")
     print(f"SSCC Cta Cte Path: {get_sscc_cta_cte_path()}")
+    print(f"SSCC Saldos Path: {get_sscc_saldos_path()}")
     print(f"Download SIIF Path: {get_download_siif_path()}")
     print(f"SIIF Planillometro Hist Path: {get_siif_planillometro_hist_path()}")
     print(f"SIIF Rdeu012b2Cuit Path: {get_siif_rdeu012b2_cuit_path()}")
