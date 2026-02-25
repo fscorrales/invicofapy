@@ -14,6 +14,9 @@ __pycache__/
 *.xls
 *.xlsx
 
+# PDF
+*.pdf
+
 # Coma flotante extensions
 *.csv
 

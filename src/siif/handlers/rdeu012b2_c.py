@@ -24,7 +24,87 @@ from ...utils import (
 )
 from ..repositories import Rdeu012b2CRepository
 from ..schemas import Rdeu012b2CReport
+import pdfplumber
+import pandas as pd
+import re
 
+PDF_PATH = "202512-rdeu012b2_Cuit.pdf"  # Cambiar por la ruta real del archivo
+
+# --------------------------------------------------
+def parsear_fila(texto):
+    """
+    Script para leer el PDF de deuda flotante (rdeu012b2_Cuit) y cargarlo en un DataFrame.
+    Requiere: pip install pdfplumber pandas
+    Parsea una fila del PDF con el formato:
+    NroEntrada NroOrigen CodFte Org_Fin Monto SaldoAPagar NroExpediente CtaCte Descripcion
+
+    Ejemplo:
+    '393 393 13 0 5.951.535,09 1.965.478,36 900011962016 130868045 P/TRANSFERENCIAS...'
+    """
+    # Numeros con formato argentino: punto de miles, coma decimal. Ej: 5.951.535,09
+    patron_monto = r'\d{1,3}(?:\.\d{3})+,\d+'
+
+    # Numero de expediente y cuenta corriente (9+ digitos consecutivos sin puntos)
+    patron_expediente = r'\b\d{9,}\b'
+
+    montos = re.findall(patron_monto, texto)
+    expedientes = re.findall(patron_expediente, texto)
+
+    partes = texto.split()
+    nro_entrada = partes[0] if len(partes) > 0 else ""
+    nro_origen  = partes[1] if len(partes) > 1 else ""
+    cod_fte     = partes[2] if len(partes) > 2 else ""
+    org_fin     = partes[3] if len(partes) > 3 else ""
+
+    monto          = montos[0] if len(montos) > 0 else ""
+    saldo_a_pagar  = montos[1] if len(montos) > 1 else ""
+    nro_expediente = expedientes[0] if len(expedientes) > 0 else ""
+    cta_cte        = expedientes[1] if len(expedientes) > 1 else ""
+
+    desc_match = re.search(r'P/TRANSFER.*', texto, re.IGNORECASE)
+    descripcion = desc_match.group(0).strip() if desc_match else ""
+
+    return {
+        "NroEntrada":    nro_entrada,
+        "NroOrigen":     nro_origen,
+        "CodFte":        cod_fte,
+        "Org_Fin":       org_fin,
+        "Monto":         monto,
+        "SaldoAPagar":   saldo_a_pagar,
+        "NroExpediente": nro_expediente,
+        "CtaCte":        cta_cte,
+        "Descripcion":   descripcion,
+        "TextoCompleto": texto,
+    }
+
+# --------------------------------------------------
+def extraer_datos_pdf(pdf_path):
+    filas = []
+
+    with pdfplumber.open(pdf_path) as pdf:
+        for page in pdf.pages:
+            tables = page.extract_tables()
+            for table in tables:
+                for row in table:
+                    if not row or len(row) == 0:
+                        continue
+                    texto = row[0].strip() if row[0] else ""
+
+                    # Ignorar encabezados, totales y metadatos
+                    if (not texto
+                            or texto.startswith("Nro")
+                            or texto.startswith("Total")
+                            or texto.startswith("Beneficiario")
+                            or texto.startswith("Entidad")
+                            or texto.startswith("DESDE")):
+                        continue
+
+                    # Solo procesar filas que empiezan con un numero (registros reales)
+                    if re.match(r'^\d+', texto):
+                        filas.append(parsear_fila(texto))
+
+    df = pd.DataFrame(filas)
+    return df
 
 def validate_excel_file(path):
     if not os.path.exists(path):
@@ -191,3 +271,16 @@ if __name__ == "__main__":
     # From /invicofapy
 
     # poetry run python -m src.siif.handlers.rdeu012b2_c
+
+# if __name__ == "__main__":
+#     df = extraer_datos_pdf(PDF_PATH)
+
+#     print(f"Filas extraidas: {len(df)}")
+#     print(f"Columnas: {list(df.columns)}")
+#     print("\nMuestra de datos (columnas principales):")
+#     print(df[["NroEntrada", "CodFte", "Monto", "SaldoAPagar", "NroExpediente", "CtaCte"]].to_string())
+
+#     # Guardar a CSV
+#     output_csv = "deuda_flotante.csv"
+#     df.to_csv(output_csv, index=False, encoding="utf-8-sig")
+#     print(f"\nDatos guardados en: {output_csv}")
