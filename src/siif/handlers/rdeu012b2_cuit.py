@@ -292,15 +292,15 @@ class Rdeu012b2Cuit:
                 field_id="nro_entrada",
             )
 
+            ejercicio = df["ejercicio"].iloc[0] if not df.empty else None
+
             return await sync_validated_to_repository(
                 repository=Rdeu012b2CuitRepository(),
                 validation=validate_and_errors,
-                delete_filter={
-                    "ejercicio": df["ejercicio"].iloc[0] if not df.empty else None
-                },
-                title="Sync Deuda Flotante (TPF) from PDF",
+                delete_filter={"ejercicio": int(ejercicio)},
+                title="Sync Deuda Flotante (TGP) from PDF",
                 logger=logger,
-                label="Sync Deuda Flotante (TPF) from PDF",
+                label="Sync Deuda Flotante (TGP) from PDF",
             )
         except Exception as e:
             print(f"Error migrar y sincronizar el reporte: {e}")

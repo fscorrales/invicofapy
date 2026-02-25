@@ -115,6 +115,7 @@ def main():
     print(f"SSCC Cta Cte Path: {get_sscc_cta_cte_path()}")
     print(f"Download SIIF Path: {get_download_siif_path()}")
     print(f"SIIF Planillometro Hist Path: {get_siif_planillometro_hist_path()}")
+    print(f"SIIF Rdeu012b2Cuit Path: {get_siif_rdeu012b2_cuit_path()}")
     print(f"DB Path: {get_sqlite_path()}")
     print(f"R Icaro Path: {get_r_icaro_path()}")
     print(f"Slave Path: {get_slave_path()}")
