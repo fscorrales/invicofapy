@@ -252,7 +252,7 @@ class ReporteRemanenteService:
             hoja_trabajo_proy = pd.concat(
                 [
                     hoja_trabajo_proy,
-                    await self.generate_hoja_trabajo_proyectos(
+                    self.generate_hoja_trabajo_proyectos(
                         hoja_trabajo_df=hoja_trabajo
                     ),
                 ],
@@ -275,17 +275,17 @@ class ReporteRemanenteService:
             rem_dif = pd.concat(
                 [
                     rem_dif,
-                    await self.generate_remanente_dif_met(rem_met_1, rem_met_2),
+                    self.generate_remanente_dif_met(rem_met_1, rem_met_2),
                 ],
                 ignore_index=True,
             )
 
         return [
-            (hoja_trabajo, "hoja_trabajo"),
-            (hoja_trabajo_proy, "hoja_trabajo_proyectos"),
-            (rem_met_1, "remanente_met_1"),
-            (rem_met_2, "remanente_met_2"),
-            (rem_dif, "remanente_dif_met"),
+            (hoja_trabajo, "HojaTrabajoFdoProv"),
+            (hoja_trabajo_proy, "HojaTrabajoProyectos"),
+            (rem_met_1, "RemMet1"),
+            (rem_met_2, "RemMet2"),
+            (rem_dif, "RemDifMet"),
         ]
 
     # -------------------------------------------------
@@ -335,10 +335,9 @@ class ReporteRemanenteService:
         # df = df.loc[df["fuente"] != "11"]
         df["estructura"] = df["estructura"].str[:-4]
         df_desc = await get_siif_desc_pres(ejercicio_to=ejercicio)
-        df_desc = df_desc.drop(["estructura"], axis=1)
+        df_desc["estructura"] = df_desc["estructura"].str[:-4]
         df_desc = df_desc.rename(
             columns={
-                "actividad": "estructura",
                 "desc_programa": "prog_con_desc",
                 "desc_subprograma": "subprog_con_desc",
                 "desc_proyecto": "proy_con_desc",
@@ -398,7 +397,7 @@ class ReporteRemanenteService:
         self,
         ejercicio: int = None,
     ) -> pd.DataFrame:
-        df = await get_siif_rdeu012_unified_cta_cte()
+        df = await get_siif_rdeu012_unified_cta_cte(ejercicio=ejercicio)
         # df = df.reset_index(drop=True)
         # df = df.loc[df["mes_hasta"].str.endswith(str(ejercicio)), :]
         months = df["mes_hasta"].tolist()
@@ -441,6 +440,8 @@ class ReporteRemanenteService:
                 SALDO_UCAPFI = 4262059.73  # Saldo ajustado
                 banco_sscc = await get_banco_invico_sdo_final(ejercicio=ejercicio)
                 rdeu = await self.generate_deuda_flotante(ejercicio=ejercicio)
+                print(f"Rdeu shape: {rdeu.shape}")
+                print(f"Rdeu head: {rdeu.head()}")
                 rem_met_1 = {
                     "Fuente 10": {
                         "saldo_bco": banco_sscc.loc[
@@ -610,7 +611,7 @@ class ReporteRemanenteService:
         rem_met_2 = pd.DataFrame(
             [
                 [
-                    "Fuente 10 y 12",
+                    "Fuente 10",
                     rem_met_2.loc[rem_met_2["fuente"].isin(["10", "12"])][
                         "rte_met_2"
                     ].sum(),
@@ -628,6 +629,7 @@ class ReporteRemanenteService:
         )
         rem_met = rem_met_1.merge(rem_met_2, how="left", on="fuente")
         rem_met["dif_metodos"] = rem_met.rte_met_1 - rem_met.rte_met_2
+        print(rem_met)
         return rem_met
 
 
