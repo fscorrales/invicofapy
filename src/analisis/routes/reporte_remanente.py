@@ -9,7 +9,7 @@ from ..schemas.reporte_remanente import (
     ReporteRemanenteParams,
     ReporteRemanenteSyncParams,
 )
-from ..services.reporte_remamente import (
+from ..services.reporte_remanente import (
     ReporteRemanenteServiceDependency,
 )
 

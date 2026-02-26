@@ -12,7 +12,7 @@ Data required:
     - SSCC ctas_ctes (manual data)
     - Saldos por cuenta Banco INVICO (SSCC) al 31/12 de cada año (SSCC-Cuentas-Resumen Gral de Saldos)
 Google Sheet:
-    - https://docs.google.com/spreadsheets/d/1hLbpzEXFp3hcGEbRolQTIj8_HSQ0vwWPB3XuQVR7NXs (Ejecución Obras)
+    - https://docs.google.com/spreadsheets/d/1hLbpzEXFp3hcGEbRolQTIj8_HSQ0vwWPB3XuQVR7NXs (Remanente)
 
 """
 
@@ -21,7 +21,6 @@ __all__ = [
     "ReporteRemanenteServiceDependency",
 ]
 
-import os
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Annotated, List
@@ -37,12 +36,16 @@ from ...config import logger
 from ...siif.handlers import (
     Rci02,
     Rdeu012,
+    Rdeu012b2Cuit,
     Rf602,
     Rf610,
     login,
     logout,
 )
-from ...sscc.services import CtasCtesServiceDependency
+from ...sscc.services import (
+    BancoINVICOSdoFinalServiceDependency,
+    CtasCtesServiceDependency,
+)
 from ...utils import (
     GoogleExportResponse,
     RouteReturnSchema,
@@ -70,9 +73,13 @@ from ..schemas.reporte_remanente import (
 class ReporteRemanenteService:
     reporte_mod_bas_icaro_repo: ReporteModulosBasicosIcaroRepositoryDependency
     sscc_ctas_ctes_service: CtasCtesServiceDependency
+    sscc_banco_invico_sdo_service: BancoINVICOSdoFinalServiceDependency
     siif_rf610_handler: Rf610 = field(init=False)  # No se pasa como argumento
     siif_rf602_handler: Rf602 = field(init=False)  # No se pasa como argumento
     siif_rdeu012_handler: Rdeu012 = field(init=False)  # No se pasa como argumento
+    siif_rdeu012b2cuit_handler: Rdeu012b2Cuit = field(
+        init=False
+    )  # No se pasa como argumento
     siif_rci02_handler: Rci02 = field(init=False)  # No se pasa como argumento
 
     # -------------------------------------------------
@@ -154,6 +161,18 @@ class ReporteRemanenteService:
                     )
                     return_schema.append(partial_schema)
 
+                # 🔹Rdeu012b2Cuit
+                partial_schema = await self.siif_rdeu012b2cuit_handler.sync_validated_pdf_to_repository(
+                    pdf_path=params.rdeu012b2cuit_pdf_path,
+                )
+                return_schema.append(partial_schema)
+
+                # 🔹Banco INVICO Sdo Final
+                partial_schema = await self.sscc_banco_invico_sdo_service.sync_banco_invico_sdo_final_from_csv(
+                    csv_path=params.saldos_csv_path,
+                )
+                return_schema.append(partial_schema)
+
                 # 🔹Ctas Ctes
                 partial_schema = (
                     await self.sscc_ctas_ctes_service.sync_ctas_ctes_from_excel(
@@ -178,35 +197,35 @@ class ReporteRemanenteService:
                     logger.warning(f"Logout falló o browser ya cerrado: {e}")
                 return return_schema
 
-    # -------------------------------------------------
-    async def generate_all(
-        self, params: ReporteRemanenteParams = None
-    ) -> List[RouteReturnSchema]:
-        """
-        Compute all controls for the given params.
-        """
-        return_schema = []
-        try:
-            # 🔹 Reporte Planillometro
-            partial_schema = await self.generate_reporte_ejecucion_obras_icaro(
-                params=params
-            )
-            return_schema.append(partial_schema)
+    # # -------------------------------------------------
+    # async def generate_all(
+    #     self, params: ReporteRemanenteParams = None
+    # ) -> List[RouteReturnSchema]:
+    #     """
+    #     Compute all controls for the given params.
+    #     """
+    #     return_schema = []
+    #     try:
+    #         # 🔹 Reporte Planillometro
+    #         partial_schema = await self.generate_reporte_ejecucion_obras_icaro(
+    #             params=params
+    #         )
+    #         return_schema.append(partial_schema)
 
-        except ValidationError as e:
-            logger.error(f"Validation Error: {e}")
-            raise HTTPException(
-                status_code=400,
-                detail="Invalid response format from Reporte Remanente generation",
-            )
-        except Exception as e:
-            logger.error(f"Error in compute_all: {e}")
-            raise HTTPException(
-                status_code=500,
-                detail="Error in compute_all",
-            )
-        finally:
-            return return_schema
+    #     except ValidationError as e:
+    #         logger.error(f"Validation Error: {e}")
+    #         raise HTTPException(
+    #             status_code=400,
+    #             detail="Invalid response format from Reporte Remanente generation",
+    #         )
+    #     except Exception as e:
+    #         logger.error(f"Error in compute_all: {e}")
+    #         raise HTTPException(
+    #             status_code=500,
+    #             detail="Error in compute_all",
+    #         )
+    #     finally:
+    #         return return_schema
 
     # --------------------------------------------------
     async def _build_dataframes_to_export(
@@ -223,6 +242,10 @@ class ReporteRemanenteService:
         #     raise HTTPException(status_code=404, detail="No se encontraron registros")
 
         hoja_trabajo = pd.DataFrame()
+        hoja_trabajo_proy = pd.DataFrame()
+        rem_met_1 = pd.DataFrame()
+        rem_met_2 = pd.DataFrame()
+        rem_dif = pd.DataFrame()
 
         for ejercicio in ejercicios:
             hoja_trabajo = pd.concat(
@@ -232,12 +255,43 @@ class ReporteRemanenteService:
                 ],
                 ignore_index=True,
             )
+            hoja_trabajo_proy = pd.concat(
+                [
+                    hoja_trabajo_proy,
+                    await self.generate_hoja_trabajo_proyectos(
+                        hoja_trabajo_df=hoja_trabajo
+                    ),
+                ],
+                ignore_index=True,
+            )
+            rem_met_1 = pd.concat(
+                [
+                    rem_met_1,
+                    await self.generate_remanente_met_1(params=params),
+                ],
+                ignore_index=True,
+            )
+            rem_met_2 = pd.concat(
+                [
+                    rem_met_2,
+                    await self.generate_remanente_met_2(params=params),
+                ],
+                ignore_index=True,
+            )
+            rem_dif = pd.concat(
+                [
+                    rem_dif,
+                    await self.generate_remanente_dif_met(rem_met_1, rem_met_2),
+                ],
+                ignore_index=True,
+            )
 
         return [
-            # (pd.DataFrame(control_banco_docs), "siif_vs_sscc_db"),
-            # (sscc, "sscc_db"),
-            # (planillometro, "bd_planillometro"),
             (hoja_trabajo, "hoja_trabajo"),
+            (hoja_trabajo_proy, "hoja_trabajo_proyectos"),
+            (rem_met_1, "remanente_met_1"),
+            (rem_met_2, "remanente_met_2"),
+            (rem_dif, "remanente_dif_met"),
         ]
 
     # -------------------------------------------------

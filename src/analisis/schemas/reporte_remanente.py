@@ -9,7 +9,12 @@ from typing import Optional
 
 from pydantic import Field, field_validator, model_validator
 
-from ...utils import CamelModel, get_sscc_cta_cte_path
+from ...utils import (
+    CamelModel,
+    get_siif_rdeu012b2_cuit_path,
+    get_sscc_cta_cte_path,
+    get_sscc_saldos_path,
+)
 
 
 # --------------------------------------------------
@@ -36,7 +41,15 @@ class ReporteRemanenteParams(CamelModel):
 class ReporteRemanenteSyncParams(ReporteRemanenteParams):
     siif_username: Optional[str] = None
     siif_password: Optional[str] = None
+    rdeu012b2cuit_pdf_path: Optional[str] = Field(
+        default=os.path.join(get_siif_rdeu012b2_cuit_path(), "rdeu012b2cuit.pdf"),
+        description="Ruta al archivo Rdeu012b2Cuit PDF",
+    )
     ctas_ctes_excel_path: Optional[str] = Field(
         default=os.path.join(get_sscc_cta_cte_path(), "cta_cte.xlsx"),
         description="Ruta al archivo Ctas Ctes EXCEL",
+    )
+    saldos_csv_path: Optional[str] = Field(
+        default=os.path.join(get_sscc_saldos_path(), "saldos.csv"),
+        description="Ruta al archivo Saldos CSV",
     )
