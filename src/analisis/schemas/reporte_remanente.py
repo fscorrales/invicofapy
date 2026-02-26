@@ -42,14 +42,14 @@ class ReporteRemanenteSyncParams(ReporteRemanenteParams):
     siif_username: Optional[str] = None
     siif_password: Optional[str] = None
     rdeu012b2cuit_pdf_path: Optional[str] = Field(
-        default=os.path.join(get_siif_rdeu012b2_cuit_path(), "rdeu012b2cuit.pdf"),
+        default=os.path.join(get_siif_rdeu012b2_cuit_path(), "rdeu012b2_cuit.pdf"),
         description="Ruta al archivo Rdeu012b2Cuit PDF",
+    )
+    saldos_csv_path: Optional[str] = Field(
+        default=os.path.join(get_sscc_saldos_path(), "saldos_sscc.csv"),
+        description="Ruta al archivo Saldos CSV",
     )
     ctas_ctes_excel_path: Optional[str] = Field(
         default=os.path.join(get_sscc_cta_cte_path(), "cta_cte.xlsx"),
         description="Ruta al archivo Ctas Ctes EXCEL",
-    )
-    saldos_csv_path: Optional[str] = Field(
-        default=os.path.join(get_sscc_saldos_path(), "saldos.csv"),
-        description="Ruta al archivo Saldos CSV",
     )

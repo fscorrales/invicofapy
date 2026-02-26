@@ -36,12 +36,12 @@ from ...config import logger
 from ...siif.handlers import (
     Rci02,
     Rdeu012,
-    Rdeu012b2Cuit,
     Rf602,
     Rf610,
     login,
     logout,
 )
+from ...siif.services import Rdeu012b2CuitServiceDependency
 from ...sscc.services import (
     BancoINVICOSdoFinalServiceDependency,
     CtasCtesServiceDependency,
@@ -59,9 +59,6 @@ from ..handlers import (
     get_siif_rdeu012_unified_cta_cte,
     get_siif_rf602,
 )
-from ..repositories.reporte_modulos_basicos import (
-    ReporteModulosBasicosIcaroRepositoryDependency,
-)
 from ..schemas.reporte_remanente import (
     ReporteRemanenteParams,
     ReporteRemanenteSyncParams,
@@ -71,15 +68,12 @@ from ..schemas.reporte_remanente import (
 # --------------------------------------------------
 @dataclass
 class ReporteRemanenteService:
-    reporte_mod_bas_icaro_repo: ReporteModulosBasicosIcaroRepositoryDependency
     sscc_ctas_ctes_service: CtasCtesServiceDependency
     sscc_banco_invico_sdo_service: BancoINVICOSdoFinalServiceDependency
+    siif_rdeu012b2cuit_service: Rdeu012b2CuitServiceDependency
     siif_rf610_handler: Rf610 = field(init=False)  # No se pasa como argumento
     siif_rf602_handler: Rf602 = field(init=False)  # No se pasa como argumento
     siif_rdeu012_handler: Rdeu012 = field(init=False)  # No se pasa como argumento
-    siif_rdeu012b2cuit_handler: Rdeu012b2Cuit = field(
-        init=False
-    )  # No se pasa como argumento
     siif_rci02_handler: Rci02 = field(init=False)  # No se pasa como argumento
 
     # -------------------------------------------------
@@ -162,7 +156,7 @@ class ReporteRemanenteService:
                     return_schema.append(partial_schema)
 
                 # 🔹Rdeu012b2Cuit
-                partial_schema = await self.siif_rdeu012b2cuit_handler.sync_validated_pdf_to_repository(
+                partial_schema = await self.siif_rdeu012b2cuit_service.sync_rdeu012b2_cuit_from_pdf(
                     pdf_path=params.rdeu012b2cuit_pdf_path,
                 )
                 return_schema.append(partial_schema)
