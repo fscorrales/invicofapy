@@ -397,9 +397,9 @@ class ReporteRemanenteService:
         self,
         ejercicio: int = None,
     ) -> pd.DataFrame:
-        df = await get_siif_rdeu012_unified_cta_cte(ejercicio=ejercicio)
+        df = await get_siif_rdeu012_unified_cta_cte()
         # df = df.reset_index(drop=True)
-        # df = df.loc[df["mes_hasta"].str.endswith(str(ejercicio)), :]
+        df = df.loc[df["mes_hasta"].str.endswith(str(ejercicio)), :]
         months = df["mes_hasta"].tolist()
         # Convertir cada elemento de la lista a un objeto datetime
         dates = [datetime.strptime(month, "%m/%Y") for month in months]
@@ -440,8 +440,6 @@ class ReporteRemanenteService:
                 SALDO_UCAPFI = 4262059.73  # Saldo ajustado
                 banco_sscc = await get_banco_invico_sdo_final(ejercicio=ejercicio)
                 rdeu = await self.generate_deuda_flotante(ejercicio=ejercicio)
-                print(f"Rdeu shape: {rdeu.shape}")
-                print(f"Rdeu head: {rdeu.head()}")
                 rem_met_1 = {
                     "Fuente 10": {
                         "saldo_bco": banco_sscc.loc[
@@ -629,7 +627,6 @@ class ReporteRemanenteService:
         )
         rem_met = rem_met_1.merge(rem_met_2, how="left", on="fuente")
         rem_met["dif_metodos"] = rem_met.rte_met_1 - rem_met.rte_met_2
-        print(rem_met)
         return rem_met
 
 
