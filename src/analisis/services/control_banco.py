@@ -253,6 +253,9 @@ class ControlBancoService:
             )
         ]
 
+        # Quitamos el cierre y la apertura
+        df = df.loc[~df["tipo_comprobante"].isin(["APE", "CIE"])]
+
         columns_to_flip_sign = ["debitos", "creditos", "saldo"]
 
         # Neteamos los PA6 pagados y ya regularizados
