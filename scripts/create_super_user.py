@@ -1,6 +1,6 @@
 """
 This script requires the file ADMIN_USER_CONF to be in the same directory as the
-script. Or you can set the username, email and password environment variables.
+script. Or you can set the username and password environment variables.
 """
 
 import asyncio
@@ -30,7 +30,7 @@ async def main():
             data = dict(line.split("=") for line in lines)
     except FileNotFoundError:
         data = dict(
-            email=settings.ADMIN_EMAIL,
+            username=settings.ADMIN_USERNAME,
             password=settings.ADMIN_PASSWORD,
         )
 
@@ -44,7 +44,7 @@ async def main():
         users_service = UsersService(users=UsersRepository())
         result = await users_service.create_one(user=insertion_user)
 
-        print(f"Super user with email: {data['email']} created with id: {result.id}")
+        print(f"Super user with username: {data['username']} created with id: {result.id}")
     except HTTPException as e:
         if e.status_code == 409:
             print("Super user already exists. Skipping creation.")

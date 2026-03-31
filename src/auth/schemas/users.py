@@ -9,7 +9,7 @@ __all__ = [
 from datetime import datetime
 from enum import Enum
 
-from pydantic import AliasChoices, BaseModel, EmailStr, Field, field_validator
+from pydantic import AliasChoices, BaseModel, Field, field_validator
 
 from ...utils import PyObjectId, validate_not_empty
 
@@ -27,19 +27,19 @@ class Role(str, Enum):
 
 # -------------------------------------------------
 class BaseUser(BaseModel):
-    email: EmailStr
+    username: str
 
 
 class RegisterUser(BaseUser):
     role: RegisterRole = RegisterRole.user
     password: str
-    _not_empty = field_validator("email", "password", mode="after")(validate_not_empty)
+    _not_empty = field_validator("username", "password", mode="after")(validate_not_empty)
 
 
 # -------------------------------------------------
 class CreateUser(RegisterUser):
     role: Role = Role.user
-    _not_empty = field_validator("email", "password", mode="after")(validate_not_empty)
+    _not_empty = field_validator("username", "password", mode="after")(validate_not_empty)
 
 
 # -------------------------------------------------
@@ -51,7 +51,7 @@ class LoginUser(BaseUser):
 class PrivateUser(BaseUser):
     role: Role
     hash_password: str
-    _not_empty = field_validator("email", "hash_password", mode="after")(
+    _not_empty = field_validator("username", "hash_password", mode="after")(
         validate_not_empty
     )
 

@@ -29,7 +29,7 @@ class UsersService:
     # -------------------------------------------------
     async def create_one(self, user: CreateUser) -> PublicStoredUser:
         """Create a new user"""
-        existing_user = await self.users.get_by_fields({"email": user.email})
+        existing_user = await self.users.get_by_fields({"username": user.username})
         if existing_user is not None:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT, detail="User already exists"
@@ -51,23 +51,17 @@ class UsersService:
         self,
         *,
         id: PyObjectId | None = None,
-        email: str | None = None,
+        username: str | None = None,
         with_password: bool = False,
     ):
-        if all(q is None for q in (id, email)):
+        if all(q is None for q in (id, username)):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="No id, username or email provided",
+                detail="No id, username or username provided",
             )
-        # filter = {
-        #     "$or": [
-        #         {"_id": id},
-        #         {"email": email},
-        #     ]
-        # }
 
         if db_user := await self.users.get_by_fields_or(
-            {"_id": id, "email": email},
+            {"_id": id, "username": username},
         ):
             return (
                 PrivateStoredUser.model_validate(db_user).model_dump()

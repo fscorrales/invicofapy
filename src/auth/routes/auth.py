@@ -22,7 +22,7 @@ async def login_with_cookie(
     users: UsersServiceDependency,
     auth: AuthenticationDependency,
 ):
-    db_user = await users.get_one(email=user.email, with_password=True)
+    db_user = await users.get_one(username=user.username, with_password=True)
     return auth.login_and_set_access_token(
         user=user, db_user=db_user, response=response
     )
