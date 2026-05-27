@@ -17,7 +17,7 @@ from typing import List, Union
 
 import numpy as np
 import pandas as pd
-from pywinauto import findwindows, keyboard, mouse
+from pywinauto import keyboard
 
 from ...config import logger
 from ...utils import (
@@ -152,40 +152,50 @@ class BancoINVICO(SSCCReportManager):
                 dlg_consulta_gral_mov = self.sscc.main.child_window(
                     title="Consulta General de Movimientos (Vista No Actualizada)",
                     control_type="Window",
-                ).wait("exists")
+                )
+                dlg_consulta_gral_mov.wait("exists")
 
                 int_ejercicio = int(ejercicio)
                 if int_ejercicio > 2010 and int_ejercicio <= dt.datetime.now().year:
+                    campo_desde = dlg_consulta_gral_mov.child_window(
+                        control_type="Pane", found_index=1
+                    )
+                    campo_hasta = dlg_consulta_gral_mov.child_window(
+                        control_type="Pane", found_index=2
+                    )
                     # Fecha Desde
-                    ## Click on año desde
-                    time.sleep(1)
-                    mouse.click(coords=(495, 205))
-                    keyboard.send_keys(ejercicio)
-                    ## Click on mes desde
-                    time.sleep(1)
-                    mouse.click(coords=(470, 205))
-                    keyboard.send_keys("01")
-                    ## Click on día desde
-                    time.sleep(1)
-                    mouse.click(coords=(455, 205))
-                    keyboard.send_keys("01")
+                    campo_desde.click_input()  # Hace foco y cae en el AÑO por defecto
+                    time.sleep(0.5)
+                    keyboard.send_keys(ejercicio)  # Escribe el año (ej. 2026)
+
+                    keyboard.send_keys("{LEFT}")  # Se mueve al MES
+                    time.sleep(0.5)
+                    keyboard.send_keys("01")  # Escribe el mes
+
+                    keyboard.send_keys("{LEFT}")  # Se mueve al DÍA
+                    time.sleep(0.5)
+                    keyboard.send_keys("01")  # Escribe el día
 
                     # Fecha Hasta
                     fecha_hasta = dt.datetime(year=(int_ejercicio), month=12, day=31)
                     fecha_hasta = min(fecha_hasta, dt.datetime.now())
-                    fecha_hasta = dt.datetime.strftime(fecha_hasta, "%d/%m/%Y")
-                    ## Click on año hasta
-                    time.sleep(1)
-                    mouse.click(coords=(610, 205))
-                    keyboard.send_keys(ejercicio)
-                    ## Click on mes hasta
-                    time.sleep(1)
-                    mouse.click(coords=(590, 205))
-                    keyboard.send_keys(fecha_hasta[3:5])
-                    ## Click on día hasta
-                    time.sleep(1)
-                    mouse.click(coords=(575, 205))
-                    keyboard.send_keys(fecha_hasta[0:2])
+                    str_dia = fecha_hasta.strftime("%d")
+                    str_mes = fecha_hasta.strftime("%m")
+                    str_anio = fecha_hasta.strftime("%Y")
+
+                    campo_hasta.click_input()  # Hace foco y cae en el AÑO por defecto
+                    time.sleep(0.5)
+                    keyboard.send_keys(str_anio)  # Escribe el año
+
+                    keyboard.send_keys("{LEFT}")  # Se mueve al MES
+                    time.sleep(0.5)
+                    keyboard.send_keys(str_mes)  # Escribe el mes
+
+                    keyboard.send_keys("{LEFT}")  # Se mueve al DÍA
+                    time.sleep(0.5)
+                    keyboard.send_keys(str_dia)  # Escribe el día
+
+                    time.sleep(0.5)
 
                     # Actualizar
                     time.sleep(1)
@@ -201,53 +211,35 @@ class BancoINVICO(SSCCReportManager):
                     keyboard.send_keys("{F7}")
                     btn_accept = self.sscc.main.child_window(
                         title="Aceptar", auto_id="9", control_type="Button"
-                    ).wait("exists enabled visible ready")
+                    )
+                    btn_accept.wait("exists enabled visible ready")
                     btn_accept.click()
                     time.sleep(5)
-                    export_dlg_handles = findwindows.find_windows(title="Exportar")
-                    if export_dlg_handles:
-                        export_dlg = self.sscc.app.window_(handle=export_dlg_handles[0])
 
-                    btn_escritorio = export_dlg.child_window(
-                        title="Escritorio", control_type="TreeItem", found_index=1
-                    ).wrapper_object()
-                    btn_escritorio.click_input()
+                    # Armamos el nombre del reporte y su ruta absoluta temporal
+                    report_name = f"{ejercicio}-bancoINVICO.csv"
+                    # Forzamos a que se guarde directo en tu Escritorio de forma absoluta
+                    temp_file_path = os.path.join(dir_path, report_name)
 
-                    cmb_tipo = export_dlg.child_window(
-                        title="Tipo:",
-                        auto_id="FileTypeControlHost",
-                        control_type="ComboBox",
-                    ).wrapper_object()
-                    cmb_tipo.type_keys("%{DOWN}")
-                    cmb_tipo.select("Archivo ASCII separado por comas (*.csv)")
+                    # Como la ventana "Exportar" tiene el foco y el cursor está en el campo Nombre:
+                    # Borramos lo que haya y mandamos la ruta completa con el teclado del sistema
+                    keyboard.send_keys("^a{BACKSPACE}")
+                    time.sleep(0.5)
+                    keyboard.send_keys(temp_file_path, with_spaces=True)
+                    time.sleep(1)
 
-                    cmb_nombre = export_dlg.child_window(
-                        title="Nombre:",
-                        auto_id="FileNameControlHost",
-                        control_type="ComboBox",
-                    ).wrapper_object()
-                    cmb_nombre.click_input()
-                    report_name = (
-                        str(ejercicio) + " - Bancos - Consulta General de Movimientos.csv"
-                    )
-                    cmb_nombre.type_keys(report_name, with_spaces=True)
-                    btn_guardar = export_dlg.child_window(
-                        title="Guardar", auto_id="1", control_type="Button"
-                    ).wrapper_object()
-                    btn_guardar.click()
-
-                    # self.sscc.main.wait("active", timeout=120)
+                    # En lugar de buscar el botón Guardar por código, presionamos ENTER.
+                    # En las ventanas de diálogo de Windows, ENTER ejecuta la acción principal (Guardar).
+                    keyboard.send_keys("{ENTER}")
+                    time.sleep(2)
 
                     dlg_consulta_gral_mov = self.sscc.main.child_window(
                         title="Consulta General de Movimientos", control_type="Window"
-                    ).wait("active", timeout=60)
+                    )
+                    dlg_consulta_gral_mov.wait("active", timeout=60)
 
                     # Cerrar ventana
                     keyboard.send_keys("{F10}")
-
-                    # Move file to destination
-                    time.sleep(2)
-                    self.move_report(dir_path, report_name)
 
         except Exception as e:
             print(f"Ocurrió un error: {e}, {type(e)}")
@@ -326,16 +318,12 @@ def main():
             for ejercicio in args.ejercicios:
                 if args.download:
                     banco_invico.download_report(
-                        dir_path=save_path,
-                        ejercicios=str(ejercicio)
+                        dir_path=save_path, ejercicios=str(ejercicio)
                     )
                 if args.file:
                     filename = args.file
                 else:
-                    filename = (
-                        str(ejercicio)
-                        + " - Bancos - Consulta General de Movimientos.csv"
-                    )
+                    filename = str(ejercicio) + "-bancoINVICO.csv"
                 banco_invico.read_csv_file(Path(os.path.join(save_path, filename)))
                 print(banco_invico.df)
                 banco_invico.process_dataframe()

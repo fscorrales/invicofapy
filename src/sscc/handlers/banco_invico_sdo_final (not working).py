@@ -227,10 +227,7 @@ class BancoINVICOSdoFinal(SSCCReportManager):
                         control_type="ComboBox",
                     ).wrapper_object()
                     cmb_nombre.click_input()
-                    report_name = (
-                        str(ejercicio)
-                        + " - Bancos - Consulta General de Movimientos.csv"
-                    )
+                    report_name = str(ejercicio) + "-bancoINVICO.csv"
                     cmb_nombre.type_keys(report_name, with_spaces=True)
                     btn_guardar = export_dlg.child_window(
                         title="Guardar", auto_id="1", control_type="Button"
@@ -332,10 +329,7 @@ def main():
                 if args.file:
                     filename = args.file
                 else:
-                    filename = (
-                        str(ejercicio)
-                        + " - Bancos - Consulta General de Movimientos.csv"
-                    )
+                    filename = str(ejercicio) + "-bancoINVICO.csv"
                 banco_invico.read_csv_file(Path(os.path.join(save_path, filename)))
                 print(banco_invico.df)
                 banco_invico.process_dataframe()

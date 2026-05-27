@@ -9,7 +9,6 @@ from typing import Annotated, List
 
 import pandas as pd
 from fastapi import Depends, HTTPException
-from fastapi.encoders import jsonable_encoder
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, ValidationError
 
@@ -75,7 +74,9 @@ class BancoINVICOService:
             ejercicios = list(range(params.ejercicio_desde, params.ejercicio_hasta + 1))
             validate_list = await loop.run_in_executor(
                 None,
-                lambda: self._blocking_download_and_process_multi(username, password, ejercicios=ejercicios),
+                lambda: self._blocking_download_and_process_multi(
+                    username, password, ejercicios=ejercicios
+                ),
             )
 
             # 🔹 Si hay registros validados, eliminar los antiguos e insertar los nuevos
@@ -112,7 +113,7 @@ class BancoINVICOService:
         save_path = Path(
             os.path.join(get_download_sscc_path(), "Movimientos Generales SSCC")
         )
-        filename = f"{params.ejercicio}  - Bancos - Consulta General de Movimientos.csv"
+        filename = f"{params.ejercicio}-bancoINVICO.csv"
         full_path = Path(save_path / filename)
 
         with login(username, password) as conn:
@@ -162,13 +163,15 @@ class BancoINVICOService:
             for ejercicio in ejercicios:
                 try:
                     save_path = Path(
-                        os.path.join(get_download_sscc_path(), "Movimientos Generales SSCC")
+                        os.path.join(
+                            get_download_sscc_path(), "Movimientos Generales SSCC"
+                        )
                     )
                     banco_invico.download_report(
                         dir_path=save_path,
                         ejercicios=str(ejercicio),
                     )
-                    filename = f"{ejercicio} - Bancos - Consulta General de Movimientos.csv"
+                    filename = f"{ejercicio}-bancoINVICO.csv"
                     file_path = Path(os.path.join(save_path, filename))
                     for _ in range(10):
                         if file_path.exists():
