@@ -21,6 +21,7 @@ import asyncio
 import datetime as dt
 import io
 import os
+import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
@@ -106,8 +107,15 @@ async def login(
         "Open SIIF webpage"
         await page.goto("https://siif.cgpc.gob.ar/mainSiif/faces/login.jspx")
         "Login with credentials"
-        await page.locator("id=pt1:it1::content").fill(username)
-        await page.locator("id=pt1:it2::content").fill(password)
+        input_user = page.locator("id=pt1:it1::content")
+        await input_user.wait_for(state="visible")
+        await input_user.fill(username)
+
+        # Esperamos a que el segundo input esté listo antes de escribir
+        input_pass = page.locator("id=pt1:it2::content")
+        await input_pass.wait_for(state="visible")
+        time.sleep(1)  # Pequeña pausa para evitar problemas de timing
+        await input_pass.fill(password)
         btn_connect = page.locator("id=pt1:cb1")
         await btn_connect.click()
         await page.wait_for_load_state("networkidle")
@@ -147,6 +155,7 @@ async def go_back_to_reports_list(connect: ConnectSIIF) -> None:
     except Exception as e:
         print(f"Ocurrio un error: {e}")
         await logout(connect)
+
 
 # --------------------------------------------------
 async def read_xls_file(file_path: Path) -> pd.DataFrame:
